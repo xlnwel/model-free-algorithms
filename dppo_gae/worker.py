@@ -72,8 +72,8 @@ class Worker(PPOGAE):
                 self.returns.insert(0, r + self._gamma * self.returns[0])
                 self.advantages.insert(0, d + self._advantage_discount * self.advantages[0])
         
-        self.returns = norm(self.returns)
-        self.advantages = norm(self.advantages)
+        self.returns = norm(self.returns).tolist()
+        self.advantages = norm(self.advantages).tolist()
         score //= n_episodes
 
         return score
