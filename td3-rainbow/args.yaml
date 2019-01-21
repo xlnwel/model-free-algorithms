@@ -1,0 +1,48 @@
+---
+n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
+env:
+    name: 'BipedalWalker-v2'
+    seed: 0
+ddpg:
+    gamma: 0.99
+    tau: 0.001      # moving average rate
+    batch_size: 128
+    done: 1
+
+    # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
+    # tensorboard path: tensorboard_root_dir/model_dir/model_name
+    model_root_dir: './saved_models'            # root path for savinng models
+    tensorboard_root_dir: './tensorboard_logs'  # root path for tensorboard logs
+    model_dir: BipedalWalker-v2
+    model_name: baseline
+
+    # options for different improvements on DDPG
+    options:
+        # noisy layer is used as the default strategy to introduce exploration
+        buffer_type: 'proportional'  # uniform, rank, proportional
+        double: True           # double is implemented based on TD3
+        distributional: False
+        n_steps: 3
+        
+    actor:
+        learning_rate: 0.0001
+        noisy_sigma: 0.6    # standard deviation for noisy layers
+    critic:
+        learning_rate: 0.0003
+        loss_type: 'mse'   # huber or mse
+        # rest arguments are for distributional critic
+        n_atoms: 376
+        v_min: -100
+        v_max: 50
+
+    # argumennts for prioritized replay
+    buffer:
+        alpha: 0.1
+        beta0: 0.4
+        epsilon: 0.0001
+        beta_steps: 1000000
+        min_size: 1000
+        capacity: 1000000
+        categories: 5
+        min_elements: 1          # min elements in a rank
+        top_priority: 2.
