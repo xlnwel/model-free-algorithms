@@ -29,9 +29,8 @@ class Categorical(Distribution):
 
 
 class DiagGaussian(Distribution):
-    def __init__(self, mean, logstd):
-        self.mean = mean
-        self.logstd = logstd
+    def __init__(self, params):
+        self.mean, self.logstd = params
 
     def _neglogp(self, x):
         return (0.5 * tf.log(2 * np.pi) * tf.to_float(tf.shape(x)[-1])
