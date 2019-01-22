@@ -40,6 +40,13 @@ class Actor(Base):
 
         super().__init__(name, args, graph, observation_ph, scope_prefix, reuse)
     
+    def loss(self, neglogpi, advantages):
+        with tf.name_scope('loss'):
+            loss = tf.reduce_mean(neglogpi * advantages, name='actor_loss')
+
+        return loss
+
+
     """ Implementation """
     def _build_graph(self):
         output = self._network(self.observation_ph, self._noisy_sigma, 
@@ -72,9 +79,18 @@ class Critic(Base):
                  observation_ph, 
                  scope_prefix, 
                  reuse=None):
-        self.loss = self._loss(args['loss_type'])
+        self._loss_func = self._loss(args['loss_type'])
         super().__init__(name, args, graph, observation_ph, scope_prefix, reuse)
-        
+    
+    def loss(self, V, returns):
+        with tf.name_scope('loss'):
+            TD_error = returns - V
+            losses = self._loss_func(TD_error)
+
+            critic_loss = tf.reduce_mean(losses, name='critic_loss')
+
+        return critic_loss
+
     """ Implementation """
     def _build_graph(self):
         self.V = self._network(self.observation_ph, self._reuse)

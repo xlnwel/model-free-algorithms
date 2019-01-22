@@ -63,8 +63,8 @@ class PPOGAE(Model):
         self.action = tf.squeeze(self.action_distribution.sample(), name='action')
         self.neglogpi = self.action_distribution.neglogp(self.env_phs['actions'])
 
-        self.actor_loss = self._actor_loss(self.neglogpi, self.env_phs['advantages'])
-        self.critic_loss = self._critic_loss(self.critic.V, self.env_phs['returns'])
+        self.actor_loss = self.actor.loss(self.neglogpi, self.env_phs['advantages'])
+        self.critic_loss = self.critic.loss(self.critic.V, self.env_phs['returns'])
 
         # self.loss = self.critic_loss
         self.loss = tf.add(self.actor_loss, self.critic_loss, name='total_loss')
@@ -91,18 +91,4 @@ class PPOGAE(Model):
         
         return env_phs
 
-    def _actor_loss(self, neglogpi, advantages):
-        with tf.name_scope('actor_loss'):
-            loss = tf.reduce_mean(neglogpi * advantages, name='actor_loss')
-
-        return loss
-
-    def _critic_loss(self, V, returns):
-        with tf.name_scope('critic_loss'):
-            TD_error = returns - V
-            losses = self.critic.loss(TD_error)
-
-            critic_loss = tf.reduce_mean(losses, name='critic_loss')
-
-        return critic_loss
         
