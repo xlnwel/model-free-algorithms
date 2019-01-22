@@ -3,7 +3,8 @@ import tensorflow as tf
 import gym
 
 from basic_model.model import Module
-import utils.tf_utils as tf_utils
+from utils import tf_utils
+from utils.losses import huber_loss
 
 class Base(Module):
     def __init__(self,
@@ -34,7 +35,7 @@ class Actor(Base):
                  reuse=None):
         self._is_action_discrete = is_action_discrete
         self.observation_dim = observation_dim
-        self.action_dim = action_dim
+        self.action_dim = action_dim 
         self._noisy_sigma = args['noisy_sigma']
 
         super().__init__(name, args, graph, observation_ph, scope_prefix, reuse)
@@ -71,6 +72,7 @@ class Critic(Base):
                  observation_ph, 
                  scope_prefix, 
                  reuse=None):
+        self.loss = self._loss(args['loss_type'])
         super().__init__(name, args, graph, observation_ph, scope_prefix, reuse)
         
     """ Implementation """
@@ -85,3 +87,11 @@ class Critic(Base):
         x = self._dense(x, 1, name='V')
 
         return x
+
+    def _loss(self, loss_type):
+        if loss_type == 'huber':
+            return huber_loss
+        elif loss_type == 'mse':
+            return tf.square
+        else:
+            raise NotImplementedError

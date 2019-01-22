@@ -24,7 +24,6 @@ class PPOGAE(Model):
         # hyperparameters
         self._gamma = args['gamma']
         self._advantage_discount = self._gamma * args['lambda']
-        self._critic_loss_type = args['critic']['loss_type']
         self._batch_size = args['batch_size']
         self._n_updates_per_iteration = args['n_updates_per_iteration']
 
@@ -54,6 +53,9 @@ class PPOGAE(Model):
                              self.env_phs['observations'], 
                              self.name, self._reuse)
 
+        def action_distribution():
+            return (distributions.Categorical(self.actor.logits) if self.env.is_action_discrete
+                                    else distributions.DiagGaussian(self.actor.mean, self.actor.logstd))
         self.action_distribution = (distributions.Categorical(self.actor.logits) if self.env.is_action_discrete
                                     else distributions.DiagGaussian(self.actor.mean, self.actor.logstd))
 
@@ -72,7 +74,7 @@ class PPOGAE(Model):
         self.grads_and_vars = self._compute_gradients(self.loss, self.optimizer)
         
         self.opt_op = self._apply_gradients(self.optimizer, self.grads_and_vars, self.global_step)
-   
+
         print(self._args['model_name'], 'has been constructed!')
 
     def _setup_env_placeholders(self):
@@ -80,9 +82,12 @@ class PPOGAE(Model):
 
         with tf.name_scope('placeholders'):
             env_phs['observations'] = tf.placeholder(tf.float32, shape=[None, self.observation_dim], name='observations')
-            env_phs['actions'] = tf.placeholder(tf.float32, shape=[None, self.action_dim], name='actions')
-            env_phs['returns'] = tf.placeholder(tf.float32, shape=[None, 1], name='returns')
-            env_phs['advantages'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantages')
+            if self.env.is_action_discrete:
+                env_phs['actions'] = tf.placeholder(tf.int32, shape=[None], name='actions')
+            else:
+                env_phs['actions'] = tf.placeholder(tf.float32, shape=[None, self.action_dim], name='actions')
+            env_phs['returns'] = tf.placeholder(tf.float32, shape=[None], name='returns')
+            env_phs['advantages'] = tf.placeholder(tf.float32, shape=[None], name='advantages')
         
         return env_phs
 
@@ -95,7 +100,7 @@ class PPOGAE(Model):
     def _critic_loss(self, V, returns):
         with tf.name_scope('critic_loss'):
             TD_error = returns - V
-            losses = huber_loss(TD_error) if self._critic_loss_type == 'huber' else tf.square(TD_error)
+            losses = self.critic.loss(TD_error)
 
             critic_loss = tf.reduce_mean(losses, name='critic_loss')
 

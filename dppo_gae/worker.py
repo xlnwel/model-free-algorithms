@@ -1,4 +1,3 @@
-import random
 import numpy as np
 import ray
 
@@ -22,10 +21,11 @@ class Worker(PPOGAE):
     def compute_gradients(self, weights):
         self.set_weights(weights)
 
-        sample_obs = np.reshape(random.sample(self.obs, self._batch_size), (self._batch_size, self.observation_dim))
-        sample_actions = np.reshape(random.sample(self.actions, self._batch_size), (self._batch_size, self.action_dim))
-        sample_returns = np.reshape(random.sample(self.returns, self._batch_size), (self._batch_size, 1))
-        sample_advantages = np.reshape(random.sample(self.advantages, self._batch_size), (self._batch_size, 1))
+        indices = np.random.choice(len(self.obs), self._batch_size)
+        sample_obs = self.obs[indices]
+        sample_actions = self.actions[indices]
+        sample_returns = self.returns[indices]
+        sample_advantages = self.advantages[indices]
 
         grads = self.sess.run(
             [grad_and_var[0] for grad_and_var in self.grads_and_vars],
@@ -61,8 +61,9 @@ class Worker(PPOGAE):
             n_episodes += 1
 
             Vs = self.sess.run(self.critic.V, feed_dict={self.env_phs['observations']: obs})
-            next_Vs = self.sess.run(self.critic.V, feed_dict={self.env_phs['observations']: next_obs})    
-            deltas = np.expand_dims(rewards, 1) + (1 - np.expand_dims(dones, 1)) * self._gamma * next_Vs - Vs
+            next_Vs = self.sess.run(self.critic.V, feed_dict={self.env_phs['observations']: next_obs})
+            Vs, next_Vs = np.squeeze(Vs), np.squeeze(next_Vs)  
+            deltas = np.array(rewards) + (1 - np.array(dones)) * self._gamma * next_Vs - Vs
 
             self.obs += obs
             self.returns.insert(0, rewards[-1])
@@ -72,9 +73,11 @@ class Worker(PPOGAE):
                 self.returns.insert(0, r + self._gamma * self.returns[0])
                 self.advantages.insert(0, d + self._advantage_discount * self.advantages[0])
         
-        self.returns = norm(self.returns).tolist()
-        self.advantages = norm(self.advantages).tolist()
-        score //= n_episodes
+        self.obs = np.array(self.obs)
+        self.actions = np.array(self.actions)
+        self.returns = np.array(self.returns)
+        self.advantages = np.array(self.advantages)
+        score /= n_episodes
 
         return score
 

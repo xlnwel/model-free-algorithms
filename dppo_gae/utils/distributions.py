@@ -21,6 +21,7 @@ class Categorical(Distribution):
         self.logits = logits
 
     def _neglogp(self, x):
+        x = tf.squeeze(x)
         return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=x, logits=self.logits)
 
     def _sample(self):

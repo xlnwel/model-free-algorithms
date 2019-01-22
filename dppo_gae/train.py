@@ -33,7 +33,7 @@ def train(ppo_args, env_args):
     weights_id = learner.get_weights.remote()
     for i in range(1, 2000 + 1):
         score_ids = [worker.sample_trajectories.remote(weights_id) for worker in workers]
-        print('Iteration-{:<5d}Average score:{:>5.2}'.format(i, np.mean(ray.get(score_ids))))
+        print('Iteration-{:<10d}Average score:{:>10.2f}'.format(i, np.mean(ray.get(score_ids))))
         
         for _ in range(ppo_args['n_updates_per_iteration']):
             grads_ids = [worker.compute_gradients.remote(weights_id) for worker in workers]
