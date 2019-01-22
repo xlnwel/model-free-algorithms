@@ -49,13 +49,12 @@ class Actor(Base):
             self.mean, self.logstd = output
 
     def _network(self, observation, noisy_sigma, discrete):
-        x = self._dense(observation, 512)
-        # x = self._dense_resnet(x, 512)
-        x = self._dense_resnet_norm_activation(x, 512)
-        x = self._noisy_norm_activation(x, 256, sigma=self._noisy_sigma)
+        x = observation
+        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
+        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
 
         output_name = ('action_logits' if discrete else 'action_mean')
-        x = self._noisy(x, self.action_dim, sigma=self._noisy_sigma, name=output_name)
+        x = self._dense(x, self.action_dim, name=output_name)
 
         if discrete:
             return x
@@ -79,10 +78,10 @@ class Critic(Base):
         self.V = self._network(self.observation_ph, self._reuse)
 
     def _network(self, observation, reuse):
-        x = self._dense(observation, 512, kernel_initializer=tf_utils.kaiming_initializer())
-        # x = self._dense_resnet(x, 512)
-        x = self._dense_resnet_norm_activation(x, 512)
-        x = self._dense_norm_activation(x, 256)
+        x = observation
+        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
+        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
+
         x = self._dense(x, 1, name='V')
 
         return x
