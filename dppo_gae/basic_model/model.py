@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
 from utils import utils, tf_utils
+
 import os
 import sys
 from pathlib import Path
@@ -21,19 +22,36 @@ class Module():
                  graph=tf.get_default_graph(),
                  reuse=None,
                  log_tensorboard=False, 
-                 log_params=False):
+                 log_params=False,
+                 **kwargs):
+        """ Basic module which defines the basic functions to build a tensorflow graph
+        
+        Arguments:
+            name {str} -- Name of this module
+            args {dict} -- A dictionary which specifies necessary arguments for building graph
+        
+        Keyword Arguments:
+            graph {tf.Graph} -- The default graph which this module is built upon. Note that Module class
+                                does not have authorized to change the difault graph. Graph specified here
+                                is only used to acquire tensorflow variables. See @property for examples
+                                (default: {tf.get_default_graph()})
+            reuse {[bool or None]} -- Option for resuing variables (default: {None})
+            log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
+            log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
+        """
+
         self.name = name
         self._args = args
         self._graph = graph
         self._reuse = reuse
         self._log_tensorboard = log_tensorboard
         self._log_params = log_params
+    
+        self.build_graph(**kwargs)
         
-        self.build_graph()
-        
-    def build_graph(self):
+    def build_graph(self, **kwargs):
         with tf.variable_scope(self.name, reuse=self._reuse):
-            self._build_graph()
+            self._build_graph(**kwargs)
                 
     @property
     def global_variables(self):
@@ -70,7 +88,7 @@ class Module():
         return tf.losses.get_regularization_loss(scope=self.name, name=self.name + 'l2_loss')
             
     """ Implementation """
-    def _build_graph(self):
+    def _build_graph(self, **kwargs):
         raise NotImplementedError
         
     def _optimization_op(self, loss, tvars=None):
@@ -436,10 +454,11 @@ class Model(Module):
                  reuse=None, 
                  save=True,
                  log_tensorboard=False,  
-                 log_params=False):
+                 log_params=False,
+                 **kwargs):
         self._graph = tf.Graph()
 
-        super().__init__(name, args, self._graph, reuse, log_tensorboard, log_params=log_params)
+        super().__init__(name, args, self._graph, reuse, log_tensorboard, log_params=log_params, **kwargs)
             
         # initialize session and global variables
         if sess_config is None:
@@ -453,29 +472,31 @@ class Model(Module):
         self._saver = self._setup_saver(save)
 
         if save:
-            self.model_name, self.model_dir, self.model_file = self._setup_model_path(args['model_root_dir'])
+            self._model_name, self._model_dir, self._model_file = self._setup_model_path(args['model_root_dir'])
+            self.restore()
 
         if self._log_tensorboard:
             self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
     
-    def build_graph(self):
+    def build_graph(self, **kwargs):
         with self._graph.as_default():
-            super().build_graph()
+            super().build_graph(**kwargs)
 
     def restore(self):
         """ To restore the most recent model, simply leave filename None
         To restore a specific version of model, set filename to the model stored in saved_models
         """
         try:
-            self._saver.restore(self.sess, self.model_file)
+            self._saver.restore(self.sess, self._model_file)
         except:
-            print('Model {}: No saved model for "{}" is found. \nStart Training from Scratch!'.format(self.model_name, self.name))
+            print('Model {}: No saved model for "{}" is found. \nStart Training from Scratch!'.format(self._model_name, self.name))
         else:
-            print("Model {}: Params for {} are restored.".format(self.model_name, self.name))
+            print("Model {}: Params for {} are restored.".format(self._model_name, self.name))
 
     def save(self):
         if self._saver:
-            self._saver.save(self.sess, self.model_file)
+            self._saver.save(self.sess, self._model_file)
+            utils.save_args(self._args, filename=self._model_dir + '/args.yaml')
 
     """ Implementation """
     def _setup_saver(self, save):
