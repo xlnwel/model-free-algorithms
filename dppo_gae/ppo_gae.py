@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 import ray
 
-from utils import distributions
 from utils.losses import huber_loss
 from basic_model.model import Model
 from actor_critic import Actor, Critic
@@ -45,29 +44,16 @@ class PPOGAE(Model):
         self.env_phs = self._setup_env_placeholders()
 
         self.actor = Actor('actor', self._args['actor'], self._graph,
-                           self.env_phs['observations'], 
-                           self.observation_dim, self.action_dim, 
-                           self.env.is_action_discrete, 
+                           self.env_phs['observations'], self.env_phs['actions'],
+                           self.env_phs['advantages'], self.env,
                            self.name, reuse=self._reuse)
         self.critic = Critic('critic', self._args['critic'], self._graph,
-                             self.env_phs['observations'], 
+                             self.env_phs['observations'], self.env_phs['returns'],
                              self.name, self._reuse)
 
-        def action_distribution():
-            return (distributions.Categorical(self.actor.logits) if self.env.is_action_discrete
-                                    else distributions.DiagGaussian(self.actor.mean, self.actor.logstd))
-        self.action_distribution = (distributions.Categorical(self.actor.logits) if self.env.is_action_discrete
-                                    else distributions.DiagGaussian(self.actor.mean, self.actor.logstd))
+        self.action = self.actor.action
 
-        # sample action & compute negative log pi
-        self.action = tf.squeeze(self.action_distribution.sample(), name='action')
-        self.neglogpi = self.action_distribution.neglogp(self.env_phs['actions'])
-
-        self.actor_loss = self.actor.loss(self.neglogpi, self.env_phs['advantages'])
-        self.critic_loss = self.critic.loss(self.critic.V, self.env_phs['returns'])
-
-        # self.loss = self.critic_loss
-        self.loss = tf.add(self.actor_loss, self.critic_loss, name='total_loss')
+        self.loss = tf.add(self.actor.loss, self.critic.loss, name='total_loss')
 
         self.optimizer, self.global_step = self._adam_optimizer()
 

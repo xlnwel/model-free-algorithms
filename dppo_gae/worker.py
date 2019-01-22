@@ -89,6 +89,6 @@ class Worker(PPOGAE):
 
     def act(self, observations):
         observations = observations.reshape((-1, self.observation_dim))
-        action = self.sess.run(self.action, feed_dict={self.actor.observation_ph: observations})
+        action = self.sess.run(self.action, feed_dict={self.env_phs['observations']: observations})
 
         return action

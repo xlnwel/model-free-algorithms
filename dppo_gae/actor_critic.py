@@ -3,7 +3,7 @@ import tensorflow as tf
 import gym
 
 from basic_model.model import Module
-from utils import tf_utils
+from utils import tf_utils, tf_distributions
 from utils.losses import huber_loss
 
 class Base(Module):
@@ -11,10 +11,10 @@ class Base(Module):
                  name,
                  args,
                  graph,
-                 observation_ph,
+                 observations_ph,
                  scope_prefix,
                  reuse):
-        self.observation_ph = observation_ph
+        self.observations_ph = observations_ph
         self._variable_scope = (scope_prefix + '/' 
                                 if scope_prefix != '' and not scope_prefix.endswith('/') 
                                 else scope_prefix) + name
@@ -27,73 +27,69 @@ class Actor(Base):
                  name, 
                  args, 
                  graph,
-                 observation_ph,
-                 observation_dim,
-                 action_dim,
-                 is_action_discrete,
+                 observations_ph,
+                 actions_ph,
+                 advantages_ph,
+                 env,
                  scope_prefix,
                  reuse=None):
-        self._is_action_discrete = is_action_discrete
-        self.observation_dim = observation_dim
-        self.action_dim = action_dim 
-        self._noisy_sigma = args['noisy_sigma']
+        self.env = env
 
-        super().__init__(name, args, graph, observation_ph, scope_prefix, reuse)
-    
-    def loss(self, neglogpi, advantages):
-        with tf.name_scope('loss'):
-            loss = tf.reduce_mean(neglogpi * advantages, name='actor_loss')
-
-        return loss
-
+        self.actions_ph = actions_ph
+        self.advantages_ph = advantages_ph
+        super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
 
     """ Implementation """
     def _build_graph(self):
-        output = self._network(self.observation_ph, self._noisy_sigma, 
-                               self._is_action_discrete)
-        if self._is_action_discrete:
-            self.logits = output
-        else:
-            self.mean, self.logstd = output
+        output = self._network(self.observations_ph, 
+                               self.env.is_action_discrete)
 
-    def _network(self, observation, noisy_sigma, discrete):
+        self.action_distribution = self.env.action_dist_type(output)
+
+        self.action = tf.squeeze(self.action_distribution.sample(), name='action')
+        self.neglogpi = self.action_distribution.neglogp(self.actions_ph)
+
+        self.loss = self._loss_func(self.neglogpi, self.advantages_ph)
+        
+    def _network(self, observation, discrete):
         x = observation
         x = self._dense_norm_activation(x, 64, activation=tf.tanh)
         x = self._dense_norm_activation(x, 64, activation=tf.tanh)
 
         output_name = ('action_logits' if discrete else 'action_mean')
-        x = self._dense(x, self.action_dim, name=output_name)
+        x = self._dense(x, self.env.action_dim, name=output_name)
 
         if discrete:
             return x
         else:
-            logstd = tf.get_variable('action_std', [self.action_dim], tf.float32)
+            logstd = tf.get_variable('action_std', [self.env.action_dim], tf.float32)
             return x, logstd
 
+    def _loss_func(self, neglogpi, advantages):
+        with tf.name_scope('loss'):
+            loss = tf.reduce_mean(neglogpi * advantages, name='actor_loss')
+
+        return loss
 
 class Critic(Base):
     def __init__(self, 
                  name, 
                  args, 
                  graph,
-                 observation_ph, 
+                 observations_ph, 
+                 return_ph,
                  scope_prefix, 
                  reuse=None):
-        self._loss_func = self._loss(args['loss_type'])
-        super().__init__(name, args, graph, observation_ph, scope_prefix, reuse)
+        self.loss_func = self._loss_func(args['loss_type'])
+        self.return_ph = return_ph
+        super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
     
-    def loss(self, V, returns):
-        with tf.name_scope('loss'):
-            TD_error = returns - V
-            losses = self._loss_func(TD_error)
-
-            critic_loss = tf.reduce_mean(losses, name='critic_loss')
-
-        return critic_loss
 
     """ Implementation """
     def _build_graph(self):
-        self.V = self._network(self.observation_ph, self._reuse)
+        self.V = self._network(self.observations_ph, self._reuse)
+
+        self.loss = self._loss(self.V, self.return_ph)
 
     def _network(self, observation, reuse):
         x = observation
@@ -104,7 +100,16 @@ class Critic(Base):
 
         return x
 
-    def _loss(self, loss_type):
+    def _loss(self, V, returns):
+        with tf.name_scope('loss'):
+            TD_error = returns - V
+            losses = self.loss_func(TD_error)
+
+            critic_loss = tf.reduce_mean(losses, name='critic_loss')
+
+        return critic_loss
+
+    def _loss_func(self, loss_type):
         if loss_type == 'huber':
             return huber_loss
         elif loss_type == 'mse':

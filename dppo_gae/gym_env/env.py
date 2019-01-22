@@ -1,13 +1,13 @@
 import gym
 import ray
 
-from utils import distributions
+from utils import tf_distributions
 
 def action_dist_type(env):
     if isinstance(env.action_space, gym.spaces.Discrete):
-        return distributions.Categorical
+        return tf_distributions.Categorical
     elif isinstance(env.action_space, gym.spaces.Box):
-        return distributions.DiagGaussian
+        return tf_distributions.DiagGaussian
     else:
         raise NotImplementedError
 
