@@ -9,7 +9,10 @@ def norm(x, mean=0., std=1., epsilon=1e-8):
     return x
 
 def default_path(filename):
-    return Path('.') / filename
+    if filename.startswith('/'):
+        return Path(filename)
+    else:
+        return Path('.') / filename
 
 # load arguments from args.yaml
 def load_args(filename='args.yaml'):
@@ -21,11 +24,18 @@ def load_args(filename='args.yaml'):
             print(exc)
 
 # save args to args.yaml
-def save_args(args, args_to_update=None, filename='args.yaml'):
-    if args_to_update is None:
-        args_to_update = load_args(filename)
+def save_args(args, args_to_update={}, filename='args.yaml'):
+    assert isinstance(args, dict)
+    
+    filepath = default_path(filename)
+    if filepath.exists():
+        if args_to_update is None:
+            args_to_update = load_args(filename)
+    else:
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        filepath.touch()
 
-    with open(default_path(filename), 'w') as f:
+    with filepath.open('w') as f:
         try:
             args_to_update.update(args)
             yaml.dump(args_to_update, f)
