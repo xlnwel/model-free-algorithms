@@ -28,10 +28,8 @@ class PPOGAE(Model):
 
         # environment info
         self.env = GymEnvironment(env_args['name'])
-        self._max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
+        self._max_path_length = (env_args['max_episode_step'] if 'max_episode_step' in env_args 
                                  else self.env.max_episode_steps)
-        self.observation_dim = self.env.observation_dim
-        self.action_dim = self.env.action_dim
 
         super().__init__(name, args, sess_config=sess_config,
                          reuse=reuse, save=True, log_tensorboard=log_tensorboard)
@@ -40,15 +38,15 @@ class PPOGAE(Model):
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
 
     """ Implementation """
-    def _build_graph(self):
-        self.env_phs = self._setup_env_placeholders()
+    def _build_graph(self, **kwargs):
+        self.env_phs = self._setup_env_placeholders(self.env.observation_dim, self.env.action_dim)
 
         self.actor = Actor('actor', self._args['actor'], self._graph,
-                           self.env_phs['observations'], self.env_phs['actions'],
-                           self.env_phs['advantages'], self.env,
+                           self.env_phs['observation'], self.env_phs['action'],
+                           self.env_phs['advantage'], self.env,
                            self.name, reuse=self._reuse)
         self.critic = Critic('critic', self._args['critic'], self._graph,
-                             self.env_phs['observations'], self.env_phs['returns'],
+                             self.env_phs['observation'], self.env_phs['target_V'],
                              self.name, self._reuse)
 
         self.action = self.actor.action
@@ -63,17 +61,17 @@ class PPOGAE(Model):
 
         print(self._args['model_name'], 'has been constructed!')
 
-    def _setup_env_placeholders(self):
+    def _setup_env_placeholders(self, observation_dim, action_dim):
         env_phs = {}
 
-        with tf.name_scope('placeholders'):
-            env_phs['observations'] = tf.placeholder(tf.float32, shape=[None, self.observation_dim], name='observations')
+        with tf.name_scope('placeholder'):
+            env_phs['observation'] = tf.placeholder(tf.float32, shape=[None, observation_dim], name='observation')
             if self.env.is_action_discrete:
-                env_phs['actions'] = tf.placeholder(tf.int32, shape=[None], name='actions')
+                env_phs['action'] = tf.placeholder(tf.int32, shape=[None], name='action')
             else:
-                env_phs['actions'] = tf.placeholder(tf.float32, shape=[None, self.action_dim], name='actions')
-            env_phs['returns'] = tf.placeholder(tf.float32, shape=[None], name='returns')
-            env_phs['advantages'] = tf.placeholder(tf.float32, shape=[None], name='advantages')
+                env_phs['action'] = tf.placeholder(tf.float32, shape=[None, action_dim], name='action')
+            env_phs['target_V'] = tf.placeholder(tf.float32, shape=[None], name='target_V')
+            env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None], name='advantage')
         
         return env_phs
 
