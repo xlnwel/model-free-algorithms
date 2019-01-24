@@ -1,12 +1,10 @@
+import os, atexit
+from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
-from utils import utils, tf_utils
 
-import os
-import sys
-from pathlib import Path
-
+from utils import yaml_op, tf_utils
 """ 
 Module defines the basic functions to build a tesorflow graph
 Model further defines save & restore functionns based onn Module
@@ -465,7 +463,8 @@ class Model(Module):
             sess_config = tf.ConfigProto()
         sess_config.gpu_options.allow_growth=True
         self.sess = tf.Session(graph=self._graph, config=sess_config)
-
+        atexit.register(self.sess.close)
+        
         if not self._reuse:
             self.sess.run(tf.variables_initializer(self.global_variables))
     
@@ -496,7 +495,7 @@ class Model(Module):
     def save(self):
         if self._saver:
             self._saver.save(self.sess, self._model_file)
-            utils.save_args(self._args, filename=self._model_dir + '/args.yaml')
+            yaml_op.save_args(self._args, filename=self._model_dir + '/args.yaml')
 
     """ Implementation """
     def _setup_saver(self, save):

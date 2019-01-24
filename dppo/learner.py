@@ -1,10 +1,10 @@
 import numpy as np
 import ray
 
-from ppo_gae import PPOGAE
+from agent import Agent
 
 @ray.remote
-class Learner(PPOGAE):
+class Learner(Agent):
     def __init__(self,
                  name,
                  args,

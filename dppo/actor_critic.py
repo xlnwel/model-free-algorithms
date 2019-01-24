@@ -40,7 +40,7 @@ class Actor(Base):
         super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
 
     """ Implementation """
-    def _build_graph(self):
+    def _build_graph(self, **kwargs):
         output = self._network(self.observations_ph, 
                                self.env.is_action_discrete)
 
@@ -53,8 +53,8 @@ class Actor(Base):
         
     def _network(self, observation, discrete):
         x = observation
-        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
-        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
+        x = self._dense(x, 256, kernel_initializer=tf_utils.kaiming_initializer())
+        x = self._dense_resnet_norm_activation(x, 256)
 
         output_name = ('action_logits' if discrete else 'action_mean')
         x = self._dense(x, self.env.action_dim, name=output_name)
@@ -71,32 +71,34 @@ class Actor(Base):
 
         return loss
 
+
 class Critic(Base):
     def __init__(self, 
                  name, 
                  args, 
                  graph,
                  observations_ph, 
-                 return_ph,
+                 targetV_ph,
                  scope_prefix, 
                  reuse=None):
         self.loss_func = self._loss_func(args['loss_type'])
-        self.return_ph = return_ph
+        self.targetV_ph = targetV_ph
         super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
-    
 
     """ Implementation """
-    def _build_graph(self):
-        self.V = self._network(self.observations_ph, self._reuse)
+    def _build_graph(self, **kwargs):
+        self.V = self._network(self.observations_ph)
 
-        self.loss = self._loss(self.V, self.return_ph)
+        self.loss = self._loss(self.V, self.targetV_ph)
 
-    def _network(self, observation, reuse):
+    def _network(self, observation):
         x = observation
-        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
-        x = self._dense_norm_activation(x, 64, activation=tf.tanh)
+        x = self._dense(x, 256, kernel_initializer=tf_utils.kaiming_initializer())
+        x = self._dense_resnet_norm_activation(x, 256)
+        x = self._dense_norm_activation(x, 256)
+        x = self._dense(x, 1)
 
-        x = self._dense(x, 1, name='V')
+        x = tf.squeeze(x, name='V')
 
         return x
 
@@ -105,9 +107,9 @@ class Critic(Base):
             TD_error = returns - V
             losses = self.loss_func(TD_error)
 
-            critic_loss = tf.reduce_mean(losses, name='critic_loss')
+            loss = tf.reduce_mean(losses, name='critic_loss')
 
-        return critic_loss
+        return loss
 
     def _loss_func(self, loss_type):
         if loss_type == 'huber':

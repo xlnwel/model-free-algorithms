@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 import tensorflow as tf
 import ray
@@ -11,7 +7,7 @@ from basic_model.model import Model
 from actor_critic import Actor, Critic
 from gym_env.env import GymEnvironment
 
-class PPOGAE(Model):
+class Agent(Model):
     def __init__(self,
                  name,
                  args,
@@ -39,15 +35,16 @@ class PPOGAE(Model):
 
     """ Implementation """
     def _build_graph(self, **kwargs):
+        # with self._graph.device('/device:GPU:0'):
         self.env_phs = self._setup_env_placeholders(self.env.observation_dim, self.env.action_dim)
 
         self.actor = Actor('actor', self._args['actor'], self._graph,
-                           self.env_phs['observation'], self.env_phs['action'],
-                           self.env_phs['advantage'], self.env,
-                           self.name, reuse=self._reuse)
+                        self.env_phs['observation'], self.env_phs['action'],
+                        self.env_phs['advantage'], self.env,
+                        self.name, reuse=self._reuse)
         self.critic = Critic('critic', self._args['critic'], self._graph,
-                             self.env_phs['observation'], self.env_phs['target_V'],
-                             self.name, self._reuse)
+                            self.env_phs['observation'], self.env_phs['target_V'],
+                            self.name, self._reuse)
 
         self.action = self.actor.action
 
