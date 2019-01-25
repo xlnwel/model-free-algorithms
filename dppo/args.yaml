@@ -4,11 +4,11 @@ env:
     name: &env_name LunarLanderContinuous-v2
     max_episode_steps: 1000
 ppo:
-    n_workers: 16
+    n_workers: 8
 
     gamma: 0.99
     lambda: 0.95
-    batch_size: 10240
+    batch_size: 40000
     n_updates_per_iteration: 1
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -19,9 +19,11 @@ ppo:
     model_name: baseline
         
     actor:
-        learning_rate: 0.0001
+        learning_rate: 0.005
+        epsilon: 0.2        # clip range
+        entropy_coef: 0.0
         noisy_sigma: 0.4    # standard deviation for noisy layers
     critic:
-        learning_rate: 0.0003
+        learning_rate: 0.005
         loss_type: 'mse'   # huber or mse
 

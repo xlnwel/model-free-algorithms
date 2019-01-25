@@ -28,33 +28,35 @@ class Actor(Base):
                  args, 
                  graph,
                  observations_ph,
-                 actions_ph,
-                 advantages_ph,
+                 advantage_ph,
                  env,
                  scope_prefix,
                  reuse=None):
         self.env = env
+        self.epsilon = args['epsilon']
+        self.entropy_coef = args['entropy_coef']
 
-        self.actions_ph = actions_ph
-        self.advantages_ph = advantages_ph
+        self.advantage_ph = advantage_ph
         super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
+        self.old_neglogpi_ph = tf.placeholder(tf.float32, [None, 1], name='old_neglogpi')
+
         output = self._network(self.observations_ph, 
                                self.env.is_action_discrete)
 
         self.action_distribution = self.env.action_dist_type(output)
 
         self.action = tf.squeeze(self.action_distribution.sample(), name='action')
-        self.neglogpi = self.action_distribution.neglogp(self.actions_ph)
+        self.neglogpi = self.action_distribution.neglogp(tf.stop_gradient(self.action))
 
-        self.loss = self._loss_func(self.neglogpi, self.advantages_ph)
+        self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.epsilon)
         
     def _network(self, observation, discrete):
         x = observation
-        x = self._dense(x, 256, kernel_initializer=tf_utils.kaiming_initializer())
-        x = self._dense_resnet_norm_activation(x, 256)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
 
         output_name = ('action_logits' if discrete else 'action_mean')
         x = self._dense(x, self.env.action_dim, name=output_name)
@@ -65,9 +67,15 @@ class Actor(Base):
             logstd = tf.get_variable('action_std', [self.env.action_dim], tf.float32)
             return x, logstd
 
-    def _loss_func(self, neglogpi, advantages):
+    def _loss_func(self, neglogpi, old_neglogpi, advantages, epsilon):
         with tf.name_scope('loss'):
-            loss = tf.reduce_mean(neglogpi * advantages, name='actor_loss')
+            # ratio = tf.exp(old_neglogpi - neglogpi)
+            # clipped_ratio = tf.clip_by_value(ratio, 1. - epsilon, 1. + epsilon)
+            # loss1 = -ratio * advantages
+            # loss2 = -clipped_ratio * advantages
+            # loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss')
+            #         - self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
+            loss = tf.reduce_mean(neglogpi * advantages)
 
         return loss
 
@@ -77,25 +85,24 @@ class Critic(Base):
                  name, 
                  args, 
                  graph,
-                 observations_ph, 
-                 targetV_ph,
-                 scope_prefix, 
+                 observations_ph,
+                 return_ph,
+                 scope_prefix,
                  reuse=None):
         self.loss_func = self._loss_func(args['loss_type'])
-        self.targetV_ph = targetV_ph
+        self.return_ph = return_ph
         super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
         self.V = self._network(self.observations_ph)
 
-        self.loss = self._loss(self.V, self.targetV_ph)
+        self.loss = self._loss(self.V, self.return_ph)
 
     def _network(self, observation):
         x = observation
-        x = self._dense(x, 256, kernel_initializer=tf_utils.kaiming_initializer())
-        x = self._dense_resnet_norm_activation(x, 256)
-        x = self._dense_norm_activation(x, 256)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
         x = self._dense(x, 1)
 
         x = tf.squeeze(x, name='V')

@@ -20,22 +20,19 @@ def train(ppo_args, env_args):
     ppo_args['batch_size'] //= n_workers
 
     change_model_name(ppo_args, 'leaner')
-    learner = Learner.remote('ppo-gae', ppo_args, env_args, log_tensorboard=True)
+    learner = Learner.remote('ppo', ppo_args, env_args, log_tensorboard=True)
 
     workers = []
     for i in range(1, n_workers+1):
         change_model_name(ppo_args, 'worker-{}'.format(i))
-        workers.append(Worker.remote('ppo-gae', ppo_args, env_args))
+        workers.append(Worker.remote('ppo', ppo_args, env_args))
     
     print('Start Training...\n\n\n')
     
     weights_id = learner.get_weights.remote()
     
-    for i in range(1, 2000 + 1):
-        # start = time.time()
+    for i in range(1, 100 + 1):
         score_ids = [worker.sample_trajectories.remote(weights_id) for worker in workers]
-        
-        # sampling_time = time.time() - start
 
         for _ in range(ppo_args['n_updates_per_iteration']):
             grads_ids = [worker.compute_gradients.remote(weights_id) for worker in workers]
@@ -74,4 +71,5 @@ def main():
 
 
 if __name__ == '__main__':
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     main()
