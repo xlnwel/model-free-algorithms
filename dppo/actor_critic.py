@@ -71,9 +71,9 @@ class Actor(Base):
         with tf.name_scope('loss'):
             # ratio = tf.exp(old_neglogpi - neglogpi)
             # clipped_ratio = tf.clip_by_value(ratio, 1. - epsilon, 1. + epsilon)
-            # loss1 = -ratio * advantages
-            # loss2 = -clipped_ratio * advantages
-            # loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss')
+            # objectvie1 = ratio * advantages
+            # objective2 = clipped_ratio * advantages
+            # loss = tf.reduce_mean(-tf.minimum(objectvie1, objective2, name='ppo_loss')
             #         - self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
             loss = tf.reduce_mean(neglogpi * advantages)
 
@@ -103,6 +103,7 @@ class Critic(Base):
         x = observation
         x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
         x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
+
         x = self._dense(x, 1)
 
         x = tf.squeeze(x, name='V')

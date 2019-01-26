@@ -21,6 +21,7 @@ class Worker(Agent):
 
     def compute_gradients(self, weights):
         assert (isinstance(self.obs, np.ndarray)
+                and isinstance(self.actions, np.ndarray)
                 and isinstance(self.returns, np.ndarray)
                 and isinstance(self.advantages, np.ndarray) 
                 and isinstance(self.old_neglogpi, np.ndarray))
@@ -47,61 +48,70 @@ class Worker(Agent):
         return grads
 
     def sample_trajectories(self, weights):
+        # helper functions
+        def sample_data(env, max_n_samples, max_path_length):
+            obs, actions, values, rewards, old_neglogpi, nonterminals = [], [], [], [], [], []
+
+            n_episodes = 0
+            while len(obs) < max_n_samples:
+                ob = env.reset()
+
+                for _ in range(max_path_length):
+                    obs.append(ob)
+                    action, value, neglogpi = self.step(ob)
+                    ob, reward, done, _ = env.step(action)
+                    
+                    actions.append(action)
+                    values.append(value)
+                    old_neglogpi.append(neglogpi)
+                    rewards.append(reward)
+                    nonterminals.append(1 - done)
+
+                    if done:
+                        break
+                n_episodes += 1
+                nonterminals[-1] = 0
+            # add one more ad hoc state value so that we can take values[1:] as next state values
+            if done:
+                ob = self.env.reset()
+            _, value, _ = self.step(ob)
+            values.append(value)
+
+            avg_score = np.sum(rewards) / n_episodes
+
+            return avg_score, (np.asarray(obs, dtype=np.float32),
+                                np.asarray(actions),
+                                np.asarray(old_neglogpi, dtype=np.float32),
+                                np.asarray(rewards, dtype=np.float32),
+                                np.asarray(values, dtype=np.float32),
+                                np.asarray(nonterminals, dtype=np.uint8))
+        
+        def compute_returns_advantages(rewards, values, nonterminals, gamma):
+            returns = rewards
+            next_return = 0
+            for i in reversed(range(len(rewards))):
+                returns[i] = rewards[i] + nonterminals[i] * gamma * next_return
+                next_return = returns[i]
+
+            # normalize returns and advantages
+            values = norm(values[:-1], np.mean(returns), np.std(returns))
+            advantages = norm(returns - values)
+            returns = norm(returns)
+
+            return returns, advantages
+
+        # function content
         self._set_weights(weights)
         self._init_data()
 
-        n_episodes = 0
-        values, rewards, nonterminals = [], [], []
-        while len(self.obs) < self._n_updates_per_iteration * self._batch_size:
-            ob = self.env.reset()
+        avg_score, data = sample_data(self.env, 
+                                    self._n_updates_per_iteration * self._batch_size,
+                                    self._max_path_length)
+        self.obs, self.actions, self.old_neglogpi, rewards, values, nonterminals = data
 
-            for _ in range(self._max_path_length):
-                self.obs.append(ob)
-                action, value, neglogpi = self.step(ob)
-                ob, reward, done, _ = self.env.step(action)
+        self.returns, self.advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
 
-                self.actions.append(action)
-                values.append(value)
-                self.old_neglogpi.append(neglogpi)
-                rewards.append(reward)
-                nonterminals.append(1 - done)
-
-                if done:
-                    break
-            n_episodes += 1
-
-        score = np.sum(rewards) / n_episodes
-        
-        # add one more ad hoc state value so that we can take values[1:] as next state values
-        if done:
-            ob = self.env.reset()
-        _, value, _ = self.step(ob)
-        values.append(value)
-
-        rewards = np.asarray(rewards, dtype=np.float32)
-        nonterminals = np.asarray(nonterminals, dtype=np.uint8)
-
-        # shaped_rewards = rewards + nonterminals * self._gamma * values[1:] - values[:-1]
-        # self.advantages = shaped_rewards
-
-        self.returns = rewards
-        self.returns[-1] += nonterminals[-1] * self._gamma * values[-1]
-
-        for i in reversed(range(len(rewards)-1)):
-            self.returns[i] += nonterminals[i] * self._gamma * self.returns[i+1]
-            # self.advantages[i] += nonterminals[i] * self._advantage_discount * self.advantages[i+1]
-        
-        # normalized advantages
-        values = norm(values[:-1], np.mean(self.returns), np.std(self.returns))
-        self.advantages = norm(self.returns - values)
-        self.returns = norm(self.returns)
-        # end
-
-        self.obs = np.asarray(self.obs, dtype=np.float32)
-        self.actions = np.asarray(self.actions)
-        self.old_neglogpi = np.asarray(self.old_neglogpi, dtype=np.float32)
-
-        return score
+        return avg_score
 
     def step(self, observation):
         observation = np.reshape(observation, (-1, self.env.observation_dim))

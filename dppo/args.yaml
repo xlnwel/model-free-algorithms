@@ -1,14 +1,14 @@
 ---
 n_experiments: 1 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    name: &env_name LunarLanderContinuous-v2
+    name: &env_name CartPole-v0 # CartPole-v0, LunarLanderContinuous-v2
     max_episode_steps: 1000
 ppo:
     n_workers: 8
 
     gamma: 0.99
     lambda: 0.95
-    batch_size: 40000
+    batch_size: 1000
     n_updates_per_iteration: 1
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -16,7 +16,7 @@ ppo:
     model_root_dir: ./saved_models            # root path for savinng models
     tensorboard_root_dir: ./tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: baseline
+    model_name: norm
         
     actor:
         learning_rate: 0.005
