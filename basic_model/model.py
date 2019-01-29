@@ -44,7 +44,7 @@ class Module():
         self._reuse = reuse
         self._log_tensorboard = log_tensorboard
         self._log_params = log_params
-    
+        
         self.build_graph(**kwargs)
         
     def build_graph(self, **kwargs):
@@ -127,20 +127,20 @@ class Module():
             tvars = self.trainable_variables if tvars is None else tvars
             grads, tvars = list(zip(*optimizer.compute_gradients(loss, var_list=tvars)))
             grads, _ = tf.clip_by_global_norm(grads, clip_norm)
-
-        if self._log_params:
-            with tf.name_scope('grads'):
-                for grad, var in zip(grads, tvars):
-                    if grad is not None:
-                        tf.summary.histogram(var.name.replace(':0', ''), grad)
-            with tf.name_scope('params'):
-                for var in self.trainable_variables:
-                    tf.summary.histogram(var.name.replace(':0', ''), var)
         
         return list(zip(grads, tvars))
 
     def _apply_gradients(self, optimizer, grads_and_vars, global_step=None):
         opt_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+        
+        if self._log_params:
+            with tf.name_scope('grads'):
+                for grad, var in grads_and_vars:
+                    if grad is not None:
+                        tf.summary.histogram(var.name.replace(':0', ''), grad)
+            with tf.name_scope('params'):
+                for var in self.trainable_variables:
+                    tf.summary.histogram(var.name.replace(':0', ''), var)
 
         return opt_op
 
@@ -513,7 +513,8 @@ class Model(Module):
         return model_name, str(model_dir), model_file
 
     def _setup_tensorboard_summary(self, root_dir):
-        graph_summary = tf.summary.merge_all()
-        writer = tf.summary.FileWriter(os.path.join(root_dir, self._args['model_dir'], self._args['model_name']), self._graph)
+        with self._graph.as_default():
+            graph_summary = tf.summary.merge_all()
+            writer = tf.summary.FileWriter(os.path.join(root_dir, self._args['model_dir'], self._args['model_name']), self._graph)
 
         return graph_summary, writer
