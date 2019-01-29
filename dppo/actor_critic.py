@@ -48,7 +48,7 @@ class Actor(Base):
 
         self.action_distribution = self.env.action_dist_type(output)
 
-        self.action = tf.squeeze(self.action_distribution.sample(), name='action')
+        self.action = self.action_distribution.sample()
         self.neglogpi = self.action_distribution.neglogp(tf.stop_gradient(self.action))
 
         self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.epsilon)
@@ -69,12 +69,12 @@ class Actor(Base):
 
     def _loss_func(self, neglogpi, old_neglogpi, advantages, epsilon):
         with tf.name_scope('loss'):
-            # ratio = tf.exp(old_neglogpi - neglogpi)
-            # clipped_ratio = tf.clip_by_value(ratio, 1. - epsilon, 1. + epsilon)
-            # objectvie1 = ratio * advantages
-            # objective2 = clipped_ratio * advantages
-            # loss = tf.reduce_mean(-tf.minimum(objectvie1, objective2, name='ppo_loss')
-            #         - self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
+        #     ratio = tf.exp(old_neglogpi - neglogpi)
+        #     clipped_ratio = tf.clip_by_value(ratio, 1. - epsilon, 1. + epsilon)
+        #     objectvie1 = ratio * advantages
+        #     objective2 = clipped_ratio * advantages
+        #     loss = -tf.reduce_mean(tf.minimum(objectvie1, objective2, name='ppo_loss')
+        #             + self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
             loss = tf.reduce_mean(neglogpi * advantages)
 
         return loss
@@ -115,7 +115,7 @@ class Critic(Base):
             TD_error = returns - V
             losses = self.loss_func(TD_error)
 
-            loss = tf.reduce_mean(losses, name='critic_loss')
+            loss = .5 * tf.reduce_mean(losses, name='critic_loss')
 
         return loss
 

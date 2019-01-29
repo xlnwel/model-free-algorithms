@@ -15,7 +15,8 @@ class Agent(Model):
                  sess_config=None,
                  reuse=None,
                  save=True,
-                 log_tensorboard=False):
+                 log_tensorboard=False,
+                 log_params=False):
         # hyperparameters
         self._gamma = args['gamma']
         self._advantage_discount = self._gamma * args['lambda']
@@ -28,7 +29,9 @@ class Agent(Model):
                                  else self.env.max_episode_steps)
 
         super().__init__(name, args, sess_config=sess_config,
-                         reuse=reuse, save=True, log_tensorboard=log_tensorboard)
+                         reuse=reuse, save=True, 
+                         log_tensorboard=log_tensorboard,
+                         log_params=log_params)
 
         with self._graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
@@ -51,7 +54,7 @@ class Agent(Model):
         self.optimizer, self.global_step = self._adam_optimizer()
 
         self.grads_and_vars = self._compute_gradients(self.loss, self.optimizer)
-        
+
         self.opt_op = self._apply_gradients(self.optimizer, self.grads_and_vars, self.global_step)
 
         print(self._args['model_name'], 'has been successfully constructed!')
