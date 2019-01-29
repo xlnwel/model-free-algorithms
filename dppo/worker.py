@@ -80,24 +80,32 @@ class Worker(Agent):
             avg_score = np.sum(rewards) / n_episodes
 
             return avg_score, (np.asarray(obs, dtype=np.float32),
-                                np.asarray(actions),
+                                np.reshape(actions, [len(obs), -1]),
                                 np.asarray(old_neglogpi, dtype=np.float32),
                                 np.asarray(rewards, dtype=np.float32),
                                 np.asarray(values, dtype=np.float32),
                                 np.asarray(nonterminals, dtype=np.uint8))
         
         def compute_returns_advantages(rewards, values, nonterminals, gamma):
-            returns = rewards
-            next_return = 0
-            for i in reversed(range(len(rewards))):
-                returns[i] = rewards[i] + nonterminals[i] * gamma * next_return
-                next_return = returns[i]
+            if self._args['option']['advantage_type'] == 'norm':
+                returns = rewards
+                next_return = 0
+                for i in reversed(range(len(rewards))):
+                    returns[i] = rewards[i] + nonterminals[i] * gamma * next_return
+                    next_return = returns[i]
 
-            # normalize returns and advantages
-            values = norm(values[:-1], np.mean(returns), np.std(returns))
-            advantages = norm(returns - values)
-            returns = norm(returns)
+                # normalize returns and advantages
+                values = norm(values[:-1], np.mean(returns), np.std(returns))
+                advantages = norm(returns - values)
+                returns = norm(returns)
+            elif self._args['option']['advantage_type'] == 'gae':
+                deltas = rewards + nonterminals * self._gamma * values[1:] - values[:-1]
+                advantages = deltas
+                for i in reversed(range(len(rewards) - 1)):
+                    advantages[i] += nonterminals[i] * self._advantage_discount * advantages[i+1]
+                returns = advantages + values[:-1]
 
+            # return norm(returns), norm(advantages)
             return returns, advantages
 
         # function content
@@ -117,8 +125,7 @@ class Worker(Agent):
         observation = np.reshape(observation, (-1, self.env.observation_dim))
         action, value, neglogpi = self.sess.run([self.action, self.critic.V, self.actor.neglogpi], 
                                             feed_dict={self.env_phs['observation']: observation})
-
-        return action, value, neglogpi
+        return np.squeeze(action), value, neglogpi
 
     """ Implementation """
     def _set_weights(self, weights):
