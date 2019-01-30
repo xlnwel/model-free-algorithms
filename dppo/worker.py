@@ -87,7 +87,8 @@ class Worker(Agent):
                                 np.asarray(nonterminals, dtype=np.uint8))
         
         def compute_returns_advantages(rewards, values, nonterminals, gamma):
-            if self._args['option']['advantage_type'] == 'norm':
+            adv_type =self._args['option']['advantage_type']
+            if adv_type == 'norm':
                 returns = rewards
                 next_return = 0
                 for i in reversed(range(len(rewards))):
@@ -98,14 +99,16 @@ class Worker(Agent):
                 values = norm(values[:-1], np.mean(returns), np.std(returns))
                 advantages = norm(returns - values)
                 returns = norm(returns)
-            elif self._args['option']['advantage_type'] == 'gae':
+            elif adv_type == 'gae':
                 deltas = rewards + nonterminals * self._gamma * values[1:] - values[:-1]
                 advantages = deltas
                 for i in reversed(range(len(rewards) - 1)):
                     advantages[i] += nonterminals[i] * self._advantage_discount * advantages[i+1]
                 returns = advantages + values[:-1]
-
-            # return norm(returns), norm(advantages)
+                return norm(returns), norm(advantages)
+            else:
+                NotImplementedError
+            
             return returns, advantages
 
         # function content
