@@ -16,7 +16,8 @@ class Agent(Model):
                  reuse=None,
                  save=True,
                  log_tensorboard=False,
-                 log_params=False):
+                 log_params=False,
+                 log_score=False):
         # hyperparameters
         self._gamma = args['gamma']
         self._advantage_discount = self._gamma * args['lambda']
@@ -29,9 +30,9 @@ class Agent(Model):
                                  else self.env.max_episode_steps)
 
         super().__init__(name, args, sess_config=sess_config,
-                         reuse=reuse, save=True, 
+                         reuse=reuse, save=save, 
                          log_tensorboard=log_tensorboard,
-                         log_params=log_params)
+                         log_params=log_params, log_score=log_score)
 
         with self._graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
@@ -57,8 +58,6 @@ class Agent(Model):
 
         self.opt_op = self._apply_gradients(self.optimizer, self.grads_and_vars, self.global_step)
 
-        print(self._args['model_name'], 'has been successfully constructed!')
-
     def _setup_env_placeholders(self, observation_dim, action_dim):
         env_phs = {}
 
@@ -68,5 +67,4 @@ class Agent(Model):
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None], name='advantage')
         
         return env_phs
-
         
