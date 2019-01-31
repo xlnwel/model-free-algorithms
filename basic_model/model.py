@@ -99,11 +99,12 @@ class Module():
 
     def _adam_optimizer(self):
         # params for optimizer
-        learning_rate = self._args['learning_rate'] if 'learning_rate' in self._args else 1e-3
-        beta1 = self._args['beta1'] if 'beta1' in self._args else 0.9
-        beta2 = self._args['beta2'] if 'beta2' in self._args else 0.999
-        decay_rate = self._args['decay_rate'] if 'decay_rate' in self._args else 1.
-        decay_steps = self._args['decay_steps'] if 'decay_steps' in self._args else 1e6
+        learning_rate = float(self._args['optimizer']['learning_rate'])
+        beta1 = float(self._args['optimizer']['beta1']) if 'beta1' in self._args else 0.9
+        beta2 = float(self._args['optimizer']['beta2']) if 'beta2' in self._args else 0.999
+        decay_rate = float(self._args['optimizer']['decay_rate']) if 'decay_rate' in self._args else 1.
+        decay_steps = float(self._args['optimizer']['decay_steps']) if 'decay_steps' in self._args else 1e6
+        epsilon = float(self._args['optimizer']['epsilon']) if 'epsilon' in self._args else 1e-8
 
         # setup optimizer
         if decay_rate == 1.:
@@ -112,7 +113,7 @@ class Module():
         else:
             global_step = tf.get_variable('global_step', shape=(), initializer=tf.constant_initializer(), trainable=False)
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps, decay_rate, staircase=True)
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2)
+            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
 
         if self._log_tensorboard and decay_rate != 1:
             tf.summary.scalar('learning_rate_', learning_rate)
@@ -120,7 +121,7 @@ class Module():
         return optimizer, global_step
 
     def _compute_gradients(self, loss, optimizer, tvars=None):
-        clip_norm = self._args['clip_norm'] if 'clip_norm' in self._args else 5.
+        clip_norm = self._args['optimizer']['clip_norm'] if 'clip_norm' in self._args else 5.
     
         update_ops = self._graph.get_collection(tf.GraphKeys.UPDATE_OPS)
         with self._graph.control_dependencies(update_ops):
@@ -453,7 +454,24 @@ class Model(Module):
                  save=True,
                  log_tensorboard=False,  
                  log_params=False,
+                 log_score=False,
                  **kwargs):
+        """ Model, defined upon Module, further defines some boookkeeping functions,
+        such as session management, save & restore operations, tensorboard loggings, and etc.
+        
+        Arguments:
+            name {str} -- Name of the module
+            args {[type]} -- [description]
+        
+        Keyword Arguments:
+            sess_config {[type]} -- [description] (default: {None})
+            reuse {[type]} -- [description] (default: {None})
+            save {bool} -- [description] (default: {True})
+            log_tensorboard {bool} -- [description] (default: {False})
+            log_params {bool} -- [description] (default: {False})
+            log_score {bool} -- [description] (default: {False})
+        """
+
         self._graph = tf.Graph()
 
         super().__init__(name, args, self._graph, reuse, log_tensorboard, log_params=log_params, **kwargs)
@@ -468,14 +486,22 @@ class Model(Module):
         if not self._reuse:
             self.sess.run(tf.variables_initializer(self.global_variables))
     
-        self._saver = self._setup_saver(save)
-
-        if save:
-            self._model_name, self._model_dir, self._model_file = self._setup_model_path(args['model_root_dir'])
-            self.restore()
-
         if self._log_tensorboard:
             self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
+
+        # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
+        if self._log_tensorboard and log_score:
+            self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
+        
+            # initialize score_counter
+            self.sess.run(tf.variables_initializer([self.score_counter]))
+
+        if save:
+            self._saver = self._setup_saver(save)
+            self._model_name, self._model_dir, self._model_file = self._setup_model_path(args['model_root_dir'],
+                                                                                         args['model_dir'],
+                                                                                         args['model_name'])
+            self.restore()
     
     def build_graph(self, **kwargs):
         with self._graph.as_default():
@@ -493,21 +519,47 @@ class Model(Module):
             print("Model {}: Params for {} are restored.".format(self._model_name, self.name))
 
     def save(self):
-        if self._saver:
+        if hasattr(self, '_saver'):
             self._saver.save(self.sess, self._model_file)
             yaml_op.save_args(self._args, filename=self._model_dir + '/args.yaml')
 
+    def log_score(self, score, avg_score):
+        if self._log_tensorboard:
+            feed_dict = {
+                self.score: score,
+                self.avg_score: avg_score
+            }
+
+            score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
+            self.writer.add_summary(summary, score_count)
+
     """ Implementation """
+    def _setup_score_logs(self):
+        with self._graph.as_default():
+            with tf.variable_scope('scores', reuse=self._reuse):
+                score = tf.placeholder(tf.float32, shape=None, name='score')
+                avg_score = tf.placeholder(tf.float32, shape=None, name='average_score')
+
+                score_counter = tf.get_variable('score_counter', shape=[], initializer=tf.constant_initializer(), trainable=False)
+                step_op = tf.assign(score_counter, score_counter + 1, name='update_score_counter')
+                
+                score_log = tf.summary.scalar('score_', score)
+                avg_score_log = tf.summary.scalar('average_score_', avg_score)
+
+                with tf.control_dependencies([step_op]):
+                    score_log_op = tf.summary.merge([score_log, avg_score_log], name='score_log_op')
+
+        return score, avg_score, score_counter, score_log_op
+
     def _setup_saver(self, save):
         return tf.train.Saver(self.global_variables) if save else None
 
-    def _setup_model_path(self, root_dir):
-        model_dir = Path(root_dir) / self._args['model_dir'] / self._args['model_name']
+    def _setup_model_path(self, root_dir, model_dir, model_name):
+        model_dir = Path(root_dir) / model_dir / model_name
 
         if not model_dir.is_dir():
             model_dir.mkdir(parents=True)
 
-        model_name = self._args['model_name']
         model_file = str(model_dir / model_name)
 
         return model_name, str(model_dir), model_file
