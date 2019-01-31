@@ -13,7 +13,7 @@ class Worker(Agent):
                  env_args,
                  sess_config=None,
                  reuse=False,
-                 save=True):
+                 save=False):
         super().__init__(name, args, env_args, sess_config=sess_config, 
                          reuse=reuse, save=save)
 
@@ -80,7 +80,7 @@ class Worker(Agent):
             avg_score = np.sum(rewards) / n_episodes
 
             return avg_score, (np.asarray(obs, dtype=np.float32),
-                                np.reshape(actions, [len(obs), -1]),
+                                np.reshape(actions, [len(obs), env.action_dim]),
                                 np.asarray(old_neglogpi, dtype=np.float32),
                                 np.asarray(rewards, dtype=np.float32),
                                 np.asarray(values, dtype=np.float32),
@@ -105,7 +105,11 @@ class Worker(Agent):
                 for i in reversed(range(len(rewards) - 1)):
                     advantages[i] += nonterminals[i] * self._advantage_discount * advantages[i+1]
                 returns = advantages + values[:-1]
-                return norm(returns), norm(advantages)
+
+                # normalize returns and advantages
+                # values = norm(values[:-1], np.mean(returns), np.std(returns))
+                # advantages = norm(returns - values)
+                # returns = norm(returns)
             else:
                 NotImplementedError
             
