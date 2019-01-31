@@ -154,58 +154,12 @@ class DDPG(Model):
                 actor_loss = tf.negative(tf.reduce_mean(Q_with_actor), name='actor_loss')
 
             with tf.name_scope('critic_loss'):
-                if self._distributional and self._double:
-                    priorities, critic_loss = self._double_distributional_critic_loss()
-                elif self._distributional:
-                    priorities, critic_loss = self._distributional_critic_loss()
-                elif self._double:
+                if self._double:
                     priorities, critic_loss = self._double_critic_loss()
                 else:
                     priorities, critic_loss = self._plain_critic_loss()
 
         return priorities, actor_loss, critic_loss
-
-    def _double_distributional_critic_loss(self):
-        v_min, v_max = self.critic.v_min, self.critic.v_max
-        delta_z, Z_support = self.critic.delta_z, self.critic.Z_support
-        Z1_probs, Z2_probs = self.critic.Z1_probs, self.critic.Z2_probs
-        target_Z_probs_with_actor = self._target_critic.Z_probs_with_actor
-
-        TZ = self._n_step_target(Z_support, stop_gradient=False)
-        TZ = tf.expand_dims(tf.clip_by_value(TZ, v_min, v_max), axis=1)
-        target_Z_probs_with_actor = tf.expand_dims(target_Z_probs_with_actor, axis=1)
-        PhiTZ = tf.clip_by_value(1 - tf.abs(TZ - Z_support[None, :, None]) / delta_z, 0, 1) * target_Z_probs_with_actor
-        self.PhiTZ = tf.stop_gradient(tf.reduce_sum(PhiTZ, axis=2), name='PhiTZ')
-
-        # cross entropy
-        cross_entropy1 = tf.negative(tf.reduce_sum(self.PhiTZ * tf.log(tf.minimum(1e-8, Z1_probs)), axis=1), name='cross_entropy1')
-        cross_entropy2 = tf.negative(tf.reduce_sum(self.PhiTZ * tf.log(tf.minimum(1e-8, Z2_probs)), axis=1), name='cross_entropy2')
-
-        priorities = tf.divide(cross_entropy1 + cross_entropy2, 2., name='priorities')
-
-        critic_loss = self._average_critic_loss(priorities)
-
-        return priorities, critic_loss
-
-    def _distributional_critic_loss(self):
-        v_min, v_max = self.critic.v_min, self.critic.v_max
-        delta_z, Z_support = self.critic.delta_z, self.critic.Z_support
-        Z_probs, target_Z_probs_with_actor = self.critic.Z_probs, self._target_critic.Z_probs_with_actor
-        epsilon = 1e-5  # used to avoid the edge case where Z_probs is zero
-
-        TZ = self._n_step_target(Z_support, stop_gradient=False)     # (batch_size, n_atoms)
-        TZ = tf.expand_dims(tf.clip_by_value(TZ, v_min, v_max), axis=1)     # (batch_size, 1, n_atoms)
-        target_Z_probs_with_actor = tf.expand_dims(target_Z_probs_with_actor, axis=1)   # (batch_size, 1, n_atoms)
-        PhiTZ = (tf.clip_by_value(1 - tf.abs(TZ - Z_support[None, :, None]) / delta_z, 0, 1) 
-                 * target_Z_probs_with_actor )  # (batch_size, n_atoms, n_atoms)
-        self.PhiTZ = tf.stop_gradient(tf.reduce_sum(PhiTZ, axis=2), name='PhiTZ')
-        
-        # cross entropy
-        priorities = tf.negative(tf.reduce_sum(self.PhiTZ * tf.log(tf.minimum(epsilon, Z_probs)), axis=1), name='priorities')
-
-        critic_loss = self._average_critic_loss(priorities)
-
-        return priorities, critic_loss
 
     def _double_critic_loss(self):
         target_Q = self._n_step_target(self._target_critic.Q_with_actor)
@@ -369,11 +323,3 @@ class DDPG(Model):
                 tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.critic.Q_with_actor))
                 tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.critic.Q_with_actor))
             
-            # if self._distributional:
-            #     with tf.name_scope('Z'):
-            #         tf.summary.scalar('Z_prob_', tf.reduce_mean(self.critic.Z_probs))
-            #         tf.summary.histogram('Z_probs_hist_', self.critic.Z_probs)
-            #         tf.summary.scalar('Z_probs_with_actor_', tf.reduce_mean(self.critic.Z_probs_with_actor))
-            #         tf.summary.histogram('Z_probs_with_actor_hist_', self.critic.Z_probs_with_actor)
-            #         tf.summary.scalar('PhiTZ_', tf.reduce_mean(self.PhiTZ))
-            #         tf.summary.histogram('PhiTZ_hist_', self.PhiTZ)

@@ -56,19 +56,10 @@ class Critic(Base):
                  action_size, actor_action, 
                  reuse=False, log_tensorboard=True,
                  is_target=False, trainable=True,
-                 distributional=False, scope_prefix='',
-                 log_params=False):
+                 scope_prefix='', log_params=False):
         self.action_size = action_size
         self.action = env_info['action']
         self.actor_action = actor_action
-        self._distributional = distributional
-
-        if self._distributional:
-            self.n_atoms = args['n_atoms']
-            self.v_min = args['v_min']
-            self.v_max = args['v_max']
-            self.delta_z = (self.v_max - self.v_min) / (self.n_atoms - 1)
-            self.Z_support = np.linspace(self.v_min, self.v_max, self.n_atoms)
 
         super().__init__(name, args, env_info, reuse=reuse, 
                          log_tensorboard=log_tensorboard, 
@@ -77,10 +68,7 @@ class Critic(Base):
 
     """ Implementation """
     def _build_graph(self):
-        if self._distributional:
-            self.Z_probs, self.Z_probs_with_actor, self.Q, self.Q_with_actor = self._build_distributional_net()
-        else:
-            self.Q, self.Q_with_actor = self._build_plain_net()
+        self.Q, self.Q_with_actor = self._build_plain_net()
 
     def _build_plain_net(self, name=None):
         if name:
@@ -92,26 +80,6 @@ class Critic(Base):
             Q_with_actor = self._plain_critic(self.observations, self.actor_action, True)
 
         return Q, Q_with_actor
-
-    def _build_distributional_net(self, name=None):
-        def compute_Q(Z_support, Z_probs):
-            return tf.reduce_sum(Z_support[None, :] * Z_probs, axis=1, keepdims=True)
-            
-        def distributional_ciritc(observations, action, actor_action, Z_support, reuse):
-            Z_probs = self._distributional_critic(observations, action, reuse)
-            Z_probs_with_actor = self._distributional_critic(observations, actor_action, True)
-            Q = compute_Q(Z_support, Z_probs)
-            Q_with_actor = compute_Q(Z_support, Z_probs_with_actor)
-
-            return Z_probs, Z_probs_with_actor, Q, Q_with_actor
-
-        if name:
-            with tf.variable_scope(name, reuse=self._reuse):
-                Z_probs, Z_probs_with_actor, Q, Q_with_actor = distributional_ciritc(self.observations, self.action, self.actor_action, self.Z_support, self._reuse)
-        else:
-            Z_probs, Z_probs_with_actor, Q, Q_with_actor = distributional_ciritc(self.observations, self.action, self.actor_action, self.Z_support, self._reuse)
-
-        return Z_probs, Z_probs_with_actor, Q, Q_with_actor
 
     def _plain_critic(self, observations, action, reuse):
         self._reset_counter('dense_resnet')
@@ -125,21 +93,6 @@ class Critic(Base):
             x = self._dense(x, 1, name='Q')
 
         return x
-
-    def _distributional_critic(self, observations, action, reuse):
-        self._reset_counter('dense_resnet')
-
-        with tf.variable_scope('distributional_net', reuse=reuse):
-            x = self._dense(observations, 512 - self.action_size, kernel_initializer=tf_utils.kaiming_initializer())
-            x = tf.concat([x, action], 1)
-            x = self._dense_resnet(x, 512)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._dense_norm_activation(x, 512)
-            logits = self._dense(x, self.n_atoms)
-
-            probs = tf.nn.softmax(logits, name='Z_probs')
-
-        return probs
         
 class DoubleCritic(Critic):
     """ Interface """
@@ -147,22 +100,14 @@ class DoubleCritic(Critic):
                  action_size, actor_action, 
                  reuse=False, log_tensorboard=True, 
                  is_target=False, trainable=True, 
-                 distributional=False, scope_prefix='',
-                 log_params=False):
+                 scope_prefix='', log_params=False):
         super().__init__(name, args, env_info, action_size, actor_action,
                          reuse=reuse, log_tensorboard=log_tensorboard,
                          is_target=is_target, trainable=trainable,
-                         distributional=distributional, scope_prefix=scope_prefix,
-                         log_params=log_params)
+                         scope_prefix=scope_prefix, log_params=log_params)
 
     """ Implementation """
     def _build_graph(self):
-        if self._distributional:
-            self.Z1_probs, self.Z1_probs_with_actor, self.Q1, self.Q1_with_actor = self._build_distributional_net(name='net1')
-            self.Z2_probs, self.Z2_probs_with_actor, self.Q2, self.Q2_with_actor = self._build_distributional_net(name='net2')
-            self.Z_probs_with_actor = tf.minimum(self.Z1_probs_with_actor, self.Z2_probs_with_actor, 'Z_probs_with_actor')
-            self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
-        else:
-            self.Q1, self.Q1_with_actor = self._build_plain_net(name='net1')
-            self.Q2, self.Q2_with_actor = self._build_plain_net(name='net2')
-            self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
+        self.Q1, self.Q1_with_actor = self._build_plain_net(name='net1')
+        self.Q2, self.Q2_with_actor = self._build_plain_net(name='net2')
+        self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')

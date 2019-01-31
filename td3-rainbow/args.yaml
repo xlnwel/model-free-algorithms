@@ -30,10 +30,6 @@ ddpg:
     critic:
         learning_rate: 0.0003
         loss_type: 'mse'   # huber or mse
-        # rest arguments are for distributional critic
-        n_atoms: 376
-        v_min: -100
-        v_max: 50
 
     # argumennts for prioritized replay
     buffer:
