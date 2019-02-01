@@ -28,18 +28,19 @@ class Worker(Agent):
 
         self._set_weights(weights)
 
-        indices = np.random.choice(len(self.obs), self._batch_size)
-        sample_obs = self.obs[indices]
-        sample_actions = self.actions[indices]
-        sample_returns = self.returns[indices]
-        sample_advantages = self.advantages[indices]
-        sample_old_neglogpi = self.old_neglogpi[indices]
+        start_idx, end_idx = self.batch_i * self._mini_batch_size, (self.batch_i + 1) * self._mini_batch_size
+        sample_obs = self.obs[start_idx: end_idx]
+        sample_actions = self.actions[start_idx: end_idx]
+        sample_returns = self.returns[start_idx: end_idx]
+        sample_advantages = self.advantages[start_idx: end_idx]
+        sample_old_neglogpi = self.old_neglogpi[start_idx: end_idx]
+        self.batch_i += 1
 
         grads = self.sess.run(
             [grad_and_var[0] for grad_and_var in self.grads_and_vars],
             feed_dict={
                 self.env_phs['observation']: sample_obs,
-                self.actor.action: sample_actions,
+                self.action: sample_actions,
                 self.env_phs['return']: sample_returns,
                 self.env_phs['advantage']: sample_advantages,
                 self.actor.old_neglogpi_ph: sample_old_neglogpi
@@ -49,18 +50,20 @@ class Worker(Agent):
 
     def sample_trajectories(self, weights):
         # helper functions
-        def sample_data(env, max_n_samples, max_path_length):
+        def sample_data(env, batch_size, max_path_length):
             obs, actions, values, rewards, old_neglogpi, nonterminals = [], [], [], [], [], []
 
             n_episodes = 0
-            while len(obs) < max_n_samples:
+            scores = []
+            while len(obs) < batch_size:
                 ob = env.reset()
-
+                score = 0
                 for _ in range(max_path_length):
                     obs.append(ob)
                     action, value, neglogpi = self.step(ob)
                     ob, reward, done, _ = env.step(action)
-                    
+                    score += reward
+
                     actions.append(action)
                     values.append(value)
                     old_neglogpi.append(neglogpi)
@@ -70,21 +73,22 @@ class Worker(Agent):
                     if done:
                         break
                 n_episodes += 1
+                scores.append(score)
                 nonterminals[-1] = 0
+            
             # add one more ad hoc state value so that we can take values[1:] as next state values
             if done:
                 ob = self.env.reset()
             _, value, _ = self.step(ob)
             values.append(value)
 
-            avg_score = np.sum(rewards) / n_episodes
 
-            return avg_score, (np.asarray(obs, dtype=np.float32),
-                                np.reshape(actions, [len(obs), env.action_dim]),
-                                np.asarray(old_neglogpi, dtype=np.float32),
-                                np.asarray(rewards, dtype=np.float32),
-                                np.asarray(values, dtype=np.float32),
-                                np.asarray(nonterminals, dtype=np.uint8))
+            return scores, (np.asarray(obs, dtype=np.float32),
+                            np.reshape(actions, [len(obs), env.action_dim]),
+                            np.asarray(old_neglogpi, dtype=np.float32),
+                            np.asarray(rewards, dtype=np.float32),
+                            np.asarray(values, dtype=np.float32),
+                            np.asarray(nonterminals, dtype=np.uint8))
         
         def compute_returns_advantages(rewards, values, nonterminals, gamma):
             adv_type =self._args['option']['advantage_type']
@@ -119,20 +123,29 @@ class Worker(Agent):
         self._set_weights(weights)
         self._init_data()
 
-        avg_score, data = sample_data(self.env, 
-                                    self._n_updates_per_iteration * self._batch_size,
+        batch_size = self._n_updates_per_iteration * self._mini_batch_size
+        score_info, data = sample_data(self.env, 
+                                    batch_size,
                                     self._max_path_length)
-        self.obs, self.actions, self.old_neglogpi, rewards, values, nonterminals = data
+        obs, actions, old_neglogpi, rewards, values, nonterminals = data
 
-        self.returns, self.advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
+        returns, advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
 
-        return avg_score
+        indices = np.random.choice(len(obs), batch_size)
+        self.obs = obs[indices]
+        self.actions = actions[indices]
+        self.old_neglogpi = old_neglogpi[indices]
+        self.returns = returns[indices]
+        self.advantages = advantages[indices]
+        self.batch_i = 0
+
+        return score_info
 
     def step(self, observation):
         observation = np.reshape(observation, (-1, self.env.observation_dim))
         action, value, neglogpi = self.sess.run([self.action, self.critic.V, self.actor.neglogpi], 
                                             feed_dict={self.env_phs['observation']: observation})
-        return np.squeeze(action), value, neglogpi
+        return np.reshape(action, [-1]), value, neglogpi
 
     """ Implementation """
     def _set_weights(self, weights):
