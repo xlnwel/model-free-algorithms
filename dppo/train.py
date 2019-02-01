@@ -16,7 +16,7 @@ def get_model_name(args, name):
     option_str = ''
     for key, value in option.items():
         option_str = option_str + '{}-{}_'.format(key, value)
-    model_name = option_str + name
+    model_name = args['model_name'] + option_str + name
 
     return model_name
 
@@ -45,7 +45,10 @@ def train(ppo_args, env_args):
             
             weights_id = learner.apply_gradients.remote(*grads_ids)
 
-        scores = ray.get(score_ids)
+        score_lists = ray.get(score_ids)
+        scores = []
+        for sl in score_lists:
+            scores += sl
         score = np.mean(scores)
         score_deque.append(score)
         learner.log_score.remote(score, np.mean(score_deque))
@@ -63,7 +66,9 @@ def main():
     # setup logger
     if not(os.path.exists('data')):
         os.makedirs('data')
-    logdir = get_model_name(args['ppo'], 'data') +  '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
+    logdir = args['ppo']['model_dir'] + '_'\
+             + get_model_name(args['ppo'], 'data') +  '_'\
+            + time.strftime("%d-%m-%Y_%H-%M-%S")
     logdir = os.path.join('data', logdir)
 
     logger.configure_output_dir(logdir)
