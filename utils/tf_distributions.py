@@ -52,7 +52,7 @@ class Categorical(Distribution):
     def _kl(self, other):
         probs = self._compute_probs()
         other_probs = other._compute_probs()
-        kl = tf.reduce_sum(probs * tf.log(probs / other_probs), axis=-1)
+        kl = tf.reduce_sum(probs * (tf.log(probs) - tf.log(other_probs)), axis=-1)
 
         return kl
 
@@ -70,7 +70,7 @@ class DiagGaussian(Distribution):
         self.std = tf.exp(self.logstd)
 
     def _neglogp(self, x):
-        return (0.5 * tf.log(2 * np.pi) * tf.to_float(tf.shape(x)[-1])
+        return (.5 * tf.log(2. * np.pi) * tf.to_float(tf.shape(x)[-1])
                 + tf.reduce_sum(self.logstd, axis=-1)
                 + tf.reduce_sum(tf.square((x - self.mean) / self.std), axis=-1))
 
