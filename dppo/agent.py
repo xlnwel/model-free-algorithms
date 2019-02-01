@@ -21,7 +21,7 @@ class Agent(Model):
         # hyperparameters
         self._gamma = args['gamma']
         self._advantage_discount = self._gamma * args['lambda']
-        self._batch_size = args['batch_size']
+        self._mini_batch_size = args['batch_size']
         self._n_updates_per_iteration = args['n_updates_per_iteration']
 
         # environment info

@@ -3,7 +3,7 @@ import tensorflow as tf
 import gym
 
 from basic_model.model import Module
-from utils import tf_utils, tf_distributions
+from utils import tf_utils, tf_distributions, np_math
 from utils.losses import huber_loss
 
 class Base(Module):
@@ -33,7 +33,7 @@ class Actor(Base):
                  scope_prefix,
                  reuse=None):
         self.env = env
-        self.epsilon = args['epsilon']
+        self.clip_range = args['clip_range']
         self.entropy_coef = args['entropy_coef']
 
         self.advantage_ph = advantage_ph
@@ -51,12 +51,12 @@ class Actor(Base):
         self.action = self.action_distribution.sample()
         self.neglogpi = self.action_distribution.neglogp(tf.stop_gradient(self.action))
 
-        self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.epsilon)
+        self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.clip_range)
         
     def _network(self, observation, discrete):
         x = observation
-        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
-        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.nn.relu)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.nn.relu)
 
         output_name = ('action_logits' if discrete else 'action_mean')
         x = self._dense(x, self.env.action_dim, name=output_name)
@@ -64,18 +64,20 @@ class Actor(Base):
         if discrete:
             return x
         else:
-            logstd = tf.get_variable('action_std', [self.env.action_dim], tf.float32)
+            logstd = tf.get_variable('action_logstd', [self.env.action_dim], tf.float32)
             return x, logstd
 
-    def _loss_func(self, neglogpi, old_neglogpi, advantages, epsilon):
+    def _loss_func(self, neglogpi, old_neglogpi, advantages, clip_range):
         with tf.name_scope('loss'):
-        #     ratio = tf.exp(old_neglogpi - neglogpi)
-        #     clipped_ratio = tf.clip_by_value(ratio, 1. - epsilon, 1. + epsilon)
-        #     objectvie1 = ratio * advantages
-        #     objective2 = clipped_ratio * advantages
-        #     loss = -tf.reduce_mean(tf.minimum(objectvie1, objective2, name='ppo_loss')
-        #             + self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
+            # advantages = np_math.norm(advantages)
+            # ratio = tf.exp(old_neglogpi - neglogpi)
+            # clipped_ratio = tf.clip_by_value(ratio, 1. - clip_range, 1. + clip_range)
+            # loss1 = -ratio * advantages
+            # loss2 = -clipped_ratio * advantages
+            # loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss')
+            #         + self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
             loss = tf.reduce_mean(neglogpi * advantages)
+            # loss = tf.reduce_mean(tf.exp(neglogpi - old_neglogpi) * advantages)
 
         return loss
 
@@ -101,8 +103,8 @@ class Critic(Base):
 
     def _network(self, observation):
         x = observation
-        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
-        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.tanh)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.nn.relu)
+        x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.nn.relu)
 
         x = self._dense(x, 1)
 
