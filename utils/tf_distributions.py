@@ -75,7 +75,7 @@ class DiagGaussian(Distribution):
                 + tf.reduce_sum(tf.square((x - self.mean) / self.std), axis=-1))
 
     def _sample(self):
-        return self.mean + tf.exp(self.logstd) * tf.random.normal(tf.shape(self.mean))
+        return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
 
     def _entropy(self):
         return tf.reduce_sum(.5 * np.log(2. * np.pi) + self.logstd + .5, axis=-1)
