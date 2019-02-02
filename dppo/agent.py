@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import tensorflow as tf
 import ray
@@ -21,8 +22,8 @@ class Agent(Model):
         # hyperparameters
         self._gamma = args['gamma']
         self._advantage_discount = self._gamma * args['lambda']
-        self._mini_batch_size = args['batch_size']
-        self._n_updates_per_iteration = args['n_updates_per_iteration']
+        self._minibatch_size = args['minibatch_size']
+        self._n_minibatches = args['n_minibatches']
 
         # environment info
         self.env = GymEnvironment(env_args['name'])
@@ -39,6 +40,8 @@ class Agent(Model):
 
     """ Implementation """
     def _build_graph(self, **kwargs):
+        # os.environ['CUDA_VISIBLE_DIVICES'] = ','.join([str(i) for i in ray.get_gpu_ids()])
+        # with tf.device('/gpu:0'):
         self.env_phs = self._setup_env_placeholders(self.env.observation_dim, self.env.action_dim)
 
         self.actor = Actor('actor', self._args['actor'], self._graph,

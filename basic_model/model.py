@@ -478,11 +478,11 @@ class Model(Module):
             
         # initialize session and global variables
         if sess_config is None:
-            sess_config = tf.ConfigProto()
+            sess_config = tf.ConfigProto(allow_soft_tplacement=True)
         sess_config.gpu_options.allow_growth=True
         self.sess = tf.Session(graph=self._graph, config=sess_config)
         atexit.register(self.sess.close)
-        
+    
         if not self._reuse:
             self.sess.run(tf.variables_initializer(self.global_variables))
     

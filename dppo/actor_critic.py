@@ -3,7 +3,7 @@ import tensorflow as tf
 import gym
 
 from basic_model.model import Module
-from utils import tf_utils, tf_distributions, np_math
+from utils import tf_utils, tf_distributions
 from utils.losses import huber_loss
 
 class Base(Module):
@@ -41,7 +41,7 @@ class Actor(Base):
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.old_neglogpi_ph = tf.placeholder(tf.float32, [None, 1], name='old_neglogpi')
+        self.old_neglogpi_ph = tf.placeholder(tf.float32, [None], name='old_neglogpi')
 
         output = self._network(self.observations_ph, 
                                self.env.is_action_discrete)
@@ -69,14 +69,13 @@ class Actor(Base):
 
     def _loss_func(self, neglogpi, old_neglogpi, advantages, clip_range):
         with tf.name_scope('loss'):
-            # advantages = np_math.norm(advantages)
-            # ratio = tf.exp(old_neglogpi - neglogpi)
-            # clipped_ratio = tf.clip_by_value(ratio, 1. - clip_range, 1. + clip_range)
-            # loss1 = -ratio * advantages
-            # loss2 = -clipped_ratio * advantages
-            # loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss')
-            #         + self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
-            loss = tf.reduce_mean(neglogpi * advantages)
+            ratio = tf.exp(old_neglogpi - neglogpi)
+            clipped_ratio = tf.clip_by_value(ratio, 1. - clip_range, 1. + clip_range)
+            loss1 = -ratio * advantages
+            loss2 = -clipped_ratio * advantages
+            loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss')
+                    + self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
+            # loss = tf.reduce_mean(neglogpi * advantages)
             # loss = tf.reduce_mean(tf.exp(neglogpi - old_neglogpi) * advantages)
 
         return loss

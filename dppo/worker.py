@@ -28,7 +28,7 @@ class Worker(Agent):
 
         self._set_weights(weights)
 
-        start_idx, end_idx = self.batch_i * self._mini_batch_size, (self.batch_i + 1) * self._mini_batch_size
+        start_idx, end_idx = self.batch_i * self._minibatch_size, (self.batch_i + 1) * self._minibatch_size
         sample_obs = self.obs[start_idx: end_idx]
         sample_actions = self.actions[start_idx: end_idx]
         sample_returns = self.returns[start_idx: end_idx]
@@ -85,7 +85,7 @@ class Worker(Agent):
 
             return scores, (np.asarray(obs, dtype=np.float32),
                             np.reshape(actions, [len(obs), env.action_dim]),
-                            np.asarray(old_neglogpi, dtype=np.float32),
+                            np.squeeze(old_neglogpi),
                             np.asarray(rewards, dtype=np.float32),
                             np.asarray(values, dtype=np.float32),
                             np.asarray(nonterminals, dtype=np.uint8))
@@ -112,7 +112,7 @@ class Worker(Agent):
 
                 # normalize returns and advantages
                 # values = norm(values[:-1], np.mean(returns), np.std(returns))
-                # advantages = norm(returns - values)
+                advantages = norm(advantages)
                 # returns = norm(returns)
             else:
                 NotImplementedError
@@ -123,7 +123,7 @@ class Worker(Agent):
         self._set_weights(weights)
         self._init_data()
 
-        batch_size = self._n_updates_per_iteration * self._mini_batch_size
+        batch_size = self._n_minibatches * self._minibatch_size
         score_info, data = sample_data(self.env, 
                                     batch_size,
                                     self._max_path_length)
@@ -131,12 +131,11 @@ class Worker(Agent):
 
         returns, advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
 
-        indices = np.random.choice(len(obs), batch_size)
-        self.obs = obs[indices]
-        self.actions = actions[indices]
-        self.old_neglogpi = old_neglogpi[indices]
-        self.returns = returns[indices]
-        self.advantages = advantages[indices]
+        self.obs = obs
+        self.actions = actions
+        self.old_neglogpi = old_neglogpi
+        self.returns = returns
+        self.advantages = advantages
         self.batch_i = 0
 
         return score_info
