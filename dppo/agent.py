@@ -8,6 +8,7 @@ from basic_model.model import Model
 from actor_critic import Actor, Critic
 from gym_env.env import GymEnvironment
 
+
 class Agent(Model):
     def __init__(self,
                  name,
@@ -18,7 +19,8 @@ class Agent(Model):
                  save=True,
                  log_tensorboard=False,
                  log_params=False,
-                 log_score=False):
+                 log_score=False,
+                 device=None):
         # hyperparameters
         self._gamma = args['gamma']
         self._advantage_discount = self._gamma * args['lambda']
@@ -33,15 +35,15 @@ class Agent(Model):
         super().__init__(name, args, sess_config=sess_config,
                          reuse=reuse, save=save, 
                          log_tensorboard=log_tensorboard,
-                         log_params=log_params, log_score=log_score)
+                         log_params=log_params, 
+                         log_score=log_score,
+                         device=device)
 
         with self._graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        # os.environ['CUDA_VISIBLE_DIVICES'] = ','.join([str(i) for i in ray.get_gpu_ids()])
-        # with tf.device('/gpu:0'):
         self.env_phs = self._setup_env_placeholders(self.env.observation_dim, self.env.action_dim)
 
         self.actor = Actor('actor', self._args['actor'], self._graph,
@@ -70,4 +72,3 @@ class Agent(Model):
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None], name='advantage')
         
         return env_phs
-        
