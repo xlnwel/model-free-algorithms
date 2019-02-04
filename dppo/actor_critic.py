@@ -51,8 +51,8 @@ class Actor(Base):
         self.action = self.action_distribution.sample()
         self.neglogpi = self.action_distribution.neglogp(tf.stop_gradient(self.action))
 
-        self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.clip_range)
-        
+        self.ppo_loss, self.entropy_loss, self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.clip_range)
+
     def _network(self, observation, discrete):
         x = observation
         x = self._dense_norm_activation(x, 64, normalization=None, activation=tf.nn.relu)
@@ -73,18 +73,18 @@ class Actor(Base):
             clipped_ratio = tf.clip_by_value(ratio, 1. - clip_range, 1. + clip_range)
             loss1 = -ratio * advantages
             loss2 = -clipped_ratio * advantages
-            loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss')
-                    + self.entropy_coef * self.action_distribution.entropy(), name='actor_loss')
-            # loss = tf.reduce_mean(neglogpi * advantages)
-            # loss = tf.reduce_mean(tf.exp(neglogpi - old_neglogpi) * advantages)
+            ppo_loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss'))
+            entropy_loss = tf.reduce_mean(-self.entropy_coef * self.action_distribution.entropy(), name='entropy_loss')
+            
+            loss = tf.add(ppo_loss, entropy_loss, name='loss')
 
-        return loss
+        return ppo_loss, entropy_loss, loss
 
 
 class Critic(Base):
-    def __init__(self, 
-                 name, 
-                 args, 
+    def __init__(self,
+                 name,
+                 args,
                  graph,
                  observations_ph,
                  return_ph,
