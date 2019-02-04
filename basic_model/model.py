@@ -21,6 +21,7 @@ class Module():
                  reuse=None,
                  log_tensorboard=False, 
                  log_params=False,
+                 device=None,
                  **kwargs):
         """ Basic module which defines the basic functions to build a tensorflow graph
         
@@ -36,6 +37,7 @@ class Module():
             reuse {[bool or None]} -- Option for resuing variables (default: {None})
             log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
             log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
+            device {[str or None]} -- Device where graph build upon {default: {None}}
         """
 
         self.name = name
@@ -44,13 +46,22 @@ class Module():
         self._reuse = reuse
         self._log_tensorboard = log_tensorboard
         self._log_params = log_params
+        self._device = device
         
-        self.build_graph(**kwargs)
+        self.build_graph(device=device)
         
     def build_graph(self, **kwargs):
-        with tf.variable_scope(self.name, reuse=self._reuse):
-            self._build_graph(**kwargs)
-                
+        if kwargs['device']:
+            if 'gpu' in kwargs['device']:
+                import ray
+                os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in ray.get_gpu_ids()])
+            with tf.device(kwargs['device']):
+                with tf.variable_scope(self.name, reuse=self._reuse):
+                    self._build_graph(**kwargs)
+        else:
+            with tf.variable_scope(self.name, reuse=self._reuse):
+                self._build_graph(**kwargs)
+
     @property
     def global_variables(self):
         # _variable_scope is defined by sub-class if needed
@@ -132,7 +143,13 @@ class Module():
         return list(zip(grads, tvars))
 
     def _apply_gradients(self, optimizer, grads_and_vars, global_step=None):
-        opt_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+        with tf.variable_scope('learn_steps', reuse=self._reuse):
+            self.learn_steps = tf.get_variable('learn_steps', shape=[], 
+                                               initializer=tf.constant_initializer(), trainable=False)
+            step_op = tf.assign(self.learn_steps, self.learn_steps + 1, name='update_learn_steps')
+
+        with tf.control_dependencies([step_op]):
+            opt_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
         
         if self._log_params:
             with tf.name_scope('grads'):
@@ -399,7 +416,7 @@ class Module():
         
         if isinstance(keep_prob, float):
             keep_prob = [keep_prob] * num_layers
-        assert(len(units) == len(keep_prob), 'Dimensions of units and keep_prob do not match.')
+        assert len(units) == len(keep_prob), 'Dimensions of units and keep_prob do not match.'
         
         def cell(units, keep_prob):
             cell = tc.rnn.BasicLSTMCell(units)
@@ -455,47 +472,48 @@ class Model(Module):
                  log_tensorboard=False,  
                  log_params=False,
                  log_score=False,
+                 device=None,
                  **kwargs):
-        """ Model, defined upon Module, further defines some boookkeeping functions,
+        """ Model, inherited from Module, further defines some boookkeeping functions,
         such as session management, save & restore operations, tensorboard loggings, and etc.
         
         Arguments:
-            name {str} -- Name of the module
-            args {[type]} -- [description]
+            name {str} -- Name of the model
+            args {dict} -- A dictionary which specifies necessary arguments for building graph
         
         Keyword Arguments:
-            sess_config {[type]} -- [description] (default: {None})
-            reuse {[type]} -- [description] (default: {None})
-            save {bool} -- [description] (default: {True})
-            log_tensorboard {bool} -- [description] (default: {False})
-            log_params {bool} -- [description] (default: {False})
-            log_score {bool} -- [description] (default: {False})
+            sess_config {[type]} -- session configuration (default: {None})
+            reuse {[bool or None]} -- Option for resuing variables (default: {None})
+            save {bool} -- Option for saving model (default: {True})
+            log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
+            log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
+            log_score {bool} -- Option for logging score to tensorboard (default: {False})
+            device {[str or None]} -- Device where graph build upon {default: {None}}
         """
 
         self._graph = tf.Graph()
 
-        super().__init__(name, args, self._graph, reuse, log_tensorboard, log_params=log_params, **kwargs)
+        super().__init__(name, args, self._graph, reuse, log_tensorboard, 
+                         log_params=log_params, device=device, **kwargs)
             
+        if self._log_tensorboard:
+            self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
+            
+        # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
+        if self._log_tensorboard and log_score:
+            self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
+
         # initialize session and global variables
         if sess_config is None:
-            sess_config = tf.ConfigProto(allow_soft_tplacement=True)
+            sess_config = tf.ConfigProto(allow_soft_placement=True)
+            # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         sess_config.gpu_options.allow_growth=True
         self.sess = tf.Session(graph=self._graph, config=sess_config)
         atexit.register(self.sess.close)
     
         if not self._reuse:
             self.sess.run(tf.variables_initializer(self.global_variables))
-    
-        if self._log_tensorboard:
-            self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
-
-        # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
-        if self._log_tensorboard and log_score:
-            self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
-        
-            # initialize score_counter
-            self.sess.run(tf.variables_initializer([self.score_counter]))
-
+            
         if save:
             self._saver = self._setup_saver(save)
             self._model_name, self._model_dir, self._model_file = self._setup_model_path(args['model_root_dir'],
@@ -503,6 +521,10 @@ class Model(Module):
                                                                                          args['model_name'])
             self.restore()
     
+    @property
+    def global_variables(self):
+        return super().global_variables + self._graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope='scores')
+        
     def build_graph(self, **kwargs):
         with self._graph.as_default():
             super().build_graph(**kwargs)
@@ -540,7 +562,7 @@ class Model(Module):
                 score = tf.placeholder(tf.float32, shape=None, name='score')
                 avg_score = tf.placeholder(tf.float32, shape=None, name='average_score')
 
-                score_counter = tf.get_variable('score_counter', shape=[], initializer=tf.constant_initializer(), trainable=False)
+                score_counter = tf.get_variable('score_counter', shape=[], initializer=tf.constant_initializer(1), trainable=False)
                 step_op = tf.assign(score_counter, score_counter + 1, name='update_score_counter')
                 
                 score_log = tf.summary.scalar('score_', score)
@@ -567,6 +589,8 @@ class Model(Module):
     def _setup_tensorboard_summary(self, root_dir):
         with self._graph.as_default():
             graph_summary = tf.summary.merge_all()
-            writer = tf.summary.FileWriter(os.path.join(root_dir, self._args['model_dir'], self._args['model_name']), self._graph)
+            filename = os.path.join(root_dir, self._args['model_dir'], self._args['model_name'])
+            writer = tf.summary.FileWriter(filename, self._graph)
+            atexit.register(writer.close)
 
         return graph_summary, writer
