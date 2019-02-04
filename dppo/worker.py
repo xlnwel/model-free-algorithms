@@ -4,7 +4,8 @@ import ray
 from utils.np_math import norm
 from agent import Agent
 
-@ray.remote
+
+@ray.remote#(num_cpus=0.5, num_gpus=0.04)
 class Worker(Agent):
     """ Interface """
     def __init__(self,
@@ -13,12 +14,15 @@ class Worker(Agent):
                  env_args,
                  sess_config=None,
                  reuse=False,
-                 save=False):
+                 save=False,
+                 device=None):
         super().__init__(name, args, env_args, sess_config=sess_config, 
-                         reuse=reuse, save=save)
+                         reuse=reuse, save=save, device=device)
 
+        self._shuffle = self._args['option']['shuffle']
         self._init_data()
 
+    @ray.method(num_return_vals=2)
     def compute_gradients(self, weights):
         assert (isinstance(self.obs, np.ndarray)
                 and isinstance(self.actions, np.ndarray)
@@ -36,8 +40,9 @@ class Worker(Agent):
         sample_old_neglogpi = self.old_neglogpi[start_idx: end_idx]
         self.batch_i += 1
 
-        grads = self.sess.run(
-            [grad_and_var[0] for grad_and_var in self.grads_and_vars],
+        grads, loss_info = self.sess.run(
+            [[grad_and_var[0] for grad_and_var in self.grads_and_vars], 
+            [self.actor.ppo_loss, self.actor.entropy_loss, self.actor.loss, self.critic.loss, self.loss]],
             feed_dict={
                 self.env_phs['observation']: sample_obs,
                 self.action: sample_actions,
@@ -46,7 +51,7 @@ class Worker(Agent):
                 self.actor.old_neglogpi_ph: sample_old_neglogpi
             })
         
-        return grads
+        return grads, loss_info
 
     def sample_trajectories(self, weights):
         # helper functions
@@ -82,7 +87,6 @@ class Worker(Agent):
             _, value, _ = self.step(ob)
             values.append(value)
 
-
             return scores, (np.asarray(obs, dtype=np.float32),
                             np.reshape(actions, [len(obs), env.action_dim]),
                             np.squeeze(old_neglogpi),
@@ -104,10 +108,15 @@ class Worker(Agent):
                 advantages = norm(returns - values)
                 returns = norm(returns)
             elif adv_type == 'gae':
-                deltas = rewards + nonterminals * self._gamma * values[1:] - values[:-1]
-                advantages = deltas
-                for i in reversed(range(len(rewards) - 1)):
-                    advantages[i] += nonterminals[i] * self._advantage_discount * advantages[i+1]
+                advantages = np.zeros_like(rewards)
+                last_adv = 0
+                for i in reversed(range(len(rewards))):
+                    delta = rewards[i] + nonterminals[i] * self._gamma * values[i+1] - values[i]
+                    advantages[i] = last_adv = delta + nonterminals[i] * self._advantage_discount * last_adv
+                # deltas = rewards + nonterminals * self._gamma * values[1:] - values[:-1]
+                # advantages = deltas
+                # for i in reversed(range(len(rewards) - 1)):
+                #     advantages[i] += nonterminals[i] * self._advantage_discount * advantages[i+1]
                 returns = advantages + values[:-1]
 
                 # normalize returns and advantages
@@ -124,18 +133,27 @@ class Worker(Agent):
         self._init_data()
 
         batch_size = self._n_minibatches * self._minibatch_size
-        score_info, data = sample_data(self.env, 
+        score_info, data = sample_data(self.env,
                                     batch_size,
                                     self._max_path_length)
         obs, actions, old_neglogpi, rewards, values, nonterminals = data
 
         returns, advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
 
-        self.obs = obs
-        self.actions = actions
-        self.old_neglogpi = old_neglogpi
-        self.returns = returns
-        self.advantages = advantages
+        if self._shuffle:
+            indices = np.arange(obs)
+            np.random.shuffle(indices)
+            self.obs = obs[indices]
+            self.actions = actions[indices]
+            self.old_neglogpi = old_neglogpi[indices]
+            self.returns = returns[indices]
+            self.advantages = advantages[indices]
+        else:
+            self.obs = obs
+            self.actions = actions
+            self.old_neglogpi = old_neglogpi
+            self.returns = returns
+            self.advantages = advantages
         self.batch_i = 0
 
         return score_info
@@ -149,6 +167,6 @@ class Worker(Agent):
     """ Implementation """
     def _set_weights(self, weights):
         self.variables.set_flat(weights)
-        
+
     def _init_data(self):
         self.obs, self.actions, self.returns, self.advantages, self.old_neglogpi = [], [], [], [], []
