@@ -141,13 +141,18 @@ class Worker(Agent):
         returns, advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
 
         if self._shuffle:
-            indices = np.arange(obs)
+            indices = np.arange(len(obs))
             np.random.shuffle(indices)
             self.obs = obs[indices]
             self.actions = actions[indices]
             self.old_neglogpi = old_neglogpi[indices]
             self.returns = returns[indices]
             self.advantages = advantages[indices]
+            # print('type(self.obs)', type(self.obs))
+            # print('type(self.actions)', type(self.actions))
+            # print('type(self.old_neglogpi)', type(self.old_neglogpi))
+            # print('type(self.returns)', type(self.returns))
+            # print('type(self.advantages)', type(self.advantages))
         else:
             self.obs = obs
             self.actions = actions

@@ -46,6 +46,8 @@ def train(agent_args, env_args):
         loss_info_list = []
         score_ids = [worker.sample_trajectories.remote(weights_id) for worker in workers]
 
+        score_lists = ray.get(score_ids)
+        
         for _ in range(agent_args['n_minibatches']):
             grads_ids = []
             losses_ids = []
@@ -58,7 +60,6 @@ def train(agent_args, env_args):
             weights_id = learner.apply_gradients.remote(*grads_ids)
 
         # score logging
-        score_lists = ray.get(score_ids)
         
         scores = []
         for sl in score_lists:

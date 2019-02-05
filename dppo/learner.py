@@ -6,7 +6,7 @@ from agent import Agent
 from utils.np_math import norm
 
 
-@ray.remote
+@ray.remote#(num_cpus=0.5, num_gpus=0.04)
 class Learner(Agent):
     def __init__(self,
                  name,
