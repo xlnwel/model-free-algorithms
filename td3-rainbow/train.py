@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from multiprocessing import Process
 
-from utils.debug_tools import timeit
-import utils.utils as utils
+from utility.debug_tools import timeit
+import utility.utility as utility
 from ddpg import DDPG
 
 def print_args(args, i=0):
@@ -127,7 +127,7 @@ def train(env_args, ddpg_args, on_notebook=False, print_terminal_info=False):
     sess.close()
 
 if __name__ == '__main__':
-    args = utils.load_args()
+    args = utility.load_args()
     env_args = args['env']
     ddpg_args = args['ddpg']
 

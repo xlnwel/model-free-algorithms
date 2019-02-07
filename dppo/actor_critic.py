@@ -3,8 +3,8 @@ import tensorflow as tf
 import gym
 
 from basic_model.model import Module
-from utils import tf_utils, tf_distributions
-from utils.losses import huber_loss
+from utility import tf_utils, tf_distributions
+from utility.losses import huber_loss
 
 class Base(Module):
     def __init__(self,
@@ -28,21 +28,23 @@ class Actor(Base):
                  args, 
                  graph,
                  observations_ph,
+                 old_neglogpi_ph,
                  advantage_ph,
+                 entropy_coef_ph,
                  env,
                  scope_prefix,
                  reuse=None):
         self.env = env
         self.clip_range = args['clip_range']
-        self.entropy_coef = args['entropy_coef']
 
+        self.old_neglogpi_ph = old_neglogpi_ph
         self.advantage_ph = advantage_ph
+        self.entropy_coef_ph = entropy_coef_ph
+
         super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.old_neglogpi_ph = tf.placeholder(tf.float32, [None], name='old_neglogpi')
-
         output = self._network(self.observations_ph, 
                                self.env.is_action_discrete)
 
@@ -74,7 +76,7 @@ class Actor(Base):
             loss1 = -ratio * advantages
             loss2 = -clipped_ratio * advantages
             ppo_loss = tf.reduce_mean(tf.maximum(loss1, loss2, name='ppo_loss'))
-            entropy = tf.reduce_mean(self.entropy_coef * self.action_distribution.entropy(), name='entropy_loss')
+            entropy = tf.reduce_mean(self.entropy_coef_ph * self.action_distribution.entropy(), name='entropy_loss')
             
             loss = tf.subtract(ppo_loss, entropy, name='loss')
 

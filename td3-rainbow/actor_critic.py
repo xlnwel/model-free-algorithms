@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow.contrib as tc
 
 from basic_model.model import Module
-import utils.tf_utils as tf_utils
+import utility.tf_utils as tf_utils
 
 class Base(Module):
     def __init__(self, name, args, env_info, reuse=False, 

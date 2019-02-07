@@ -8,7 +8,7 @@ import tensorflow as tf
 import gym
 import ray
 
-from utils import yaml_op, logger
+from utility import yaml_op, logger
 from worker import Worker
 from learner import Learner
 

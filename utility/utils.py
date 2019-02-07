@@ -5,3 +5,6 @@ def normalize(x, mean=0., std=1., epsilon=1e-8):
     x = x * std + mean
 
     return x
+
+def schedule(start_value, step, decay_steps, decay_rate):
+    return start_value * decay_rate**(step // decay_steps)

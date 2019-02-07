@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import ray
 
-from utils.losses import huber_loss
+from utility.losses import huber_loss
 from basic_model.model import Model
 from actor_critic import Actor, Critic
 from gym_env.env import GymEnvironment
@@ -47,8 +47,9 @@ class Agent(Model):
         self.env_phs = self._setup_env_placeholders(self.env.observation_dim, self.env.action_dim)
 
         self.actor = Actor('actor', self._args['actor'], self._graph,
-                        self.env_phs['observation'], self.env_phs['advantage'], 
-                        self.env, self.name, reuse=self._reuse)
+                            self.env_phs['observation'], self.env_phs['old_neglogpi'],
+                            self.env_phs['advantage'], self.env_phs['entropy_coef'],
+                            self.env, self.name, reuse=self._reuse)
         self.critic = Critic('critic', self._args['critic'], self._graph,
                             self.env_phs['observation'], self.env_phs['return'],
                             self.name, self._reuse)
@@ -70,5 +71,7 @@ class Agent(Model):
             env_phs['observation'] = tf.placeholder(tf.float32, shape=[None, observation_dim], name='observation')
             env_phs['return'] = tf.placeholder(tf.float32, shape=[None], name='return')
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None], name='advantage')
+            env_phs['old_neglogpi'] = tf.placeholder(tf.float32, [None], name='old_neglogpi')
+            env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coeff')
         
         return env_phs

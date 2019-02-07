@@ -17,7 +17,7 @@ import os.path as osp, shutil, time, atexit, os, subprocess
 import pickle
 import tensorflow as tf
 
-from utils import yaml_op
+from utility import yaml_op
 
 color2num = dict(
     gray=30,

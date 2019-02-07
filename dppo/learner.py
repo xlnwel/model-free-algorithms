@@ -3,7 +3,7 @@ import tensorflow as tf
 import ray
 
 from agent import Agent
-from utils.np_math import normalize
+from utility.utils import normalize
 
 
 @ray.remote#(num_cpus=0.5, num_gpus=0.04)

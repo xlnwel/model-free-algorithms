@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
-from utils import tf_utils
+from utility import tf_utils
 from model import Model
 from actor_critic import Actor, Critic, DoubleCritic
-from utils.debug_tools import timeit
-from utils.losses import huber_loss
+from utility.debug_tools import timeit
+from utility.losses import huber_loss
 
 # different replay buffers
 from replay.uniform_replay import UniformReplay

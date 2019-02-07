@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
 
-from utils import yaml_op, tf_utils
+from utility import yaml_op, tf_utils
 """ 
 Module defines the basic functions to build a tesorflow graph
 Model further defines save & restore functionns based onn Module

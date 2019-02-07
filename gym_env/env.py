@@ -1,7 +1,7 @@
 import gym
 import ray
 
-from utils import tf_distributions
+from utility import tf_distributions
 
 def action_dist_type(env):
     if isinstance(env.action_space, gym.spaces.Discrete):

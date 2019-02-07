@@ -1,7 +1,7 @@
 import numpy as np
 import ray
 
-from utils.np_math import normalize
+from utility.utils import normalize
 from agent import Agent
 
 
@@ -20,6 +20,7 @@ class Worker(Agent):
                          reuse=reuse, save=save, device=device)
 
         self._shuffle = self._args['option']['shuffle']
+        self._entropy_coef = self._args['actor']['entropy_coef']
         self._init_data()
 
     @ray.method(num_return_vals=2)
@@ -48,7 +49,8 @@ class Worker(Agent):
                 self.action: sample_actions,
                 self.env_phs['return']: sample_returns,
                 self.env_phs['advantage']: sample_advantages,
-                self.actor.old_neglogpi_ph: sample_old_neglogpi
+                self.env_phs['old_neglogpi']: sample_old_neglogpi,
+                self.env_phs['entropy_coef']: self._entropy_coef
             })
         
         return grads, loss_info
