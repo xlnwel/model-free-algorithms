@@ -69,11 +69,11 @@ def train(agent_args, env_args):
         learner.log_score.remote(score, np.mean(score_deque))
         
         # data logging
-        actor_ppo_losses, actor_entropy_losses, actor_losses, critic_losses, total_losses = [], [], [], [], []
+        actor_ppo_losses, actor_entropy, actor_losses, critic_losses, total_losses = [], [], [], [], []
         for losses in loss_info_list:
             assert len(losses) == 5, losses
             actor_ppo_losses.append(losses[0])
-            actor_entropy_losses.append(losses[1])
+            actor_entropy.append(losses[1])
             actor_losses.append(losses[2])
             critic_losses.append(losses[3])
             total_losses.append(losses[4])
@@ -84,7 +84,7 @@ def train(agent_args, env_args):
         logger.log_tabular('MaxScore', np.max(scores))
         logger.log_tabular('MinScore', np.min(scores))
         logger.log_tabular('ActorPPOLoss', np.mean(actor_ppo_losses))
-        logger.log_tabular('ActorEntropy', np.mean(actor_entropy_losses))
+        logger.log_tabular('ActorEntropy', np.mean(actor_entropy))
         logger.log_tabular('ActorLoss', np.mean(actor_losses))
         logger.log_tabular('CriticLoss', np.mean(critic_losses))
         logger.log_tabular('TotalLoss', np.mean(total_losses))

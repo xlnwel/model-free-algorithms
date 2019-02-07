@@ -42,7 +42,7 @@ class Worker(Agent):
 
         grads, loss_info = self.sess.run(
             [[grad_and_var[0] for grad_and_var in self.grads_and_vars], 
-            [self.actor.ppo_loss, self.actor.entropy_loss, self.actor.loss, self.critic.loss, self.loss]],
+            [self.actor.ppo_loss, self.actor.entropy, self.actor.loss, self.critic.loss, self.loss]],
             feed_dict={
                 self.env_phs['observation']: sample_obs,
                 self.action: sample_actions,
