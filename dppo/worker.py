@@ -1,7 +1,7 @@
 import numpy as np
 import ray
 
-from utils.np_math import norm
+from utils.np_math import normalize
 from agent import Agent
 
 
@@ -94,7 +94,7 @@ class Worker(Agent):
                             np.asarray(values, dtype=np.float32),
                             np.asarray(nonterminals, dtype=np.uint8))
         
-        def compute_returns_advantages(rewards, values, nonterminals, gamma):
+        def compute_returns_advantages(rewards, values, nonterminals, gamma, gae_discount):
             adv_type =self._args['option']['advantage_type']
             if adv_type == 'norm':
                 returns = rewards
@@ -104,25 +104,27 @@ class Worker(Agent):
                     next_return = returns[i]
 
                 # normalize returns and advantages
-                values = norm(values[:-1], np.mean(returns), np.std(returns))
-                advantages = norm(returns - values)
-                returns = norm(returns)
+                values = normalize(values[:-1], np.mean(returns), np.std(returns))
+                advantages = normalize(returns - values)
+                returns = normalize(returns)
             elif adv_type == 'gae':
                 advantages = np.zeros_like(rewards)
                 last_adv = 0
                 for i in reversed(range(len(rewards))):
-                    delta = rewards[i] + nonterminals[i] * self._gamma * values[i+1] - values[i]
-                    advantages[i] = last_adv = delta + nonterminals[i] * self._advantage_discount * last_adv
-                # deltas = rewards + nonterminals * self._gamma * values[1:] - values[:-1]
+                    delta = rewards[i] + nonterminals[i] * gamma * values[i+1] - values[i]
+                    advantages[i] = last_adv = delta + nonterminals[i] * gae_discount * last_adv
+                # deltas = rewards + nonterminals * gamma * values[1:] - values[:-1]
                 # advantages = deltas
-                # for i in reversed(range(len(rewards) - 1)):
-                #     advantages[i] += nonterminals[i] * self._advantage_discount * advantages[i+1]
+                # next_adv = 0
+                # for i in reversed(range(len(rewards))):
+                #     advantages[i] += nonterminals[i] * gae_discount * next_adv
+                #     next_adv = advantages[i]
                 returns = advantages + values[:-1]
 
                 # normalize returns and advantages
-                # values = norm(values[:-1], np.mean(returns), np.std(returns))
-                advantages = norm(advantages)
-                # returns = norm(returns)
+                # values = normalize(values[:-1], np.mean(returns), np.std(returns))
+                advantages = normalize(advantages)
+                # returns = normalize(returns)
             else:
                 NotImplementedError
             
@@ -138,7 +140,7 @@ class Worker(Agent):
                                     self._max_path_length)
         obs, actions, old_neglogpi, rewards, values, nonterminals = data
 
-        returns, advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma)
+        returns, advantages = compute_returns_advantages(rewards, values, nonterminals, self._gamma, self._gae_discount)
 
         if self._shuffle:
             indices = np.arange(len(obs))
@@ -148,11 +150,6 @@ class Worker(Agent):
             self.old_neglogpi = old_neglogpi[indices]
             self.returns = returns[indices]
             self.advantages = advantages[indices]
-            # print('type(self.obs)', type(self.obs))
-            # print('type(self.actions)', type(self.actions))
-            # print('type(self.old_neglogpi)', type(self.old_neglogpi))
-            # print('type(self.returns)', type(self.returns))
-            # print('type(self.advantages)', type(self.advantages))
         else:
             self.obs = obs
             self.actions = actions
