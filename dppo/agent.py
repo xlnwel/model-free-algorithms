@@ -23,7 +23,7 @@ class Agent(Model):
                  device=None):
         # hyperparameters
         self._gamma = args['gamma']
-        self._advantage_discount = self._gamma * args['lambda']
+        self._gae_discount = self._gamma * args['lambda']
         self._minibatch_size = args['minibatch_size']
         self._n_minibatches = args['n_minibatches']
 
