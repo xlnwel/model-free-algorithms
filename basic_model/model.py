@@ -432,7 +432,7 @@ class Module():
 
         outputs, final_state = tf.nn.dynamic_rnn(cells, x, initial_state=initial_state)
 
-        return outputs, final_state
+        return outputs, initial_state, final_state
 
     """ Auxiliary functions """
     def _reset_counter(self, name):
@@ -482,7 +482,7 @@ class Model(Module):
             args {dict} -- A dictionary which specifies necessary arguments for building graph
         
         Keyword Arguments:
-            sess_config {[type]} -- session configuration (default: {None})
+            sess_config {tf.ConfigProto} -- session configuration (default: {None})
             reuse {[bool or None]} -- Option for resuing variables (default: {None})
             save {bool} -- Option for saving model (default: {True})
             log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
