@@ -60,7 +60,6 @@ def train(agent_args, env_args):
             weights_id = learner.apply_gradients.remote(*grads_ids)
 
         # score logging
-        
         scores = []
         for sl in score_lists:
             scores += sl
@@ -101,8 +100,6 @@ def train_agent(agent_args, env_args):
 
     logger.configure_output_dir(logdir)
     logger.save_args(agent_args)
-
-    # tf.logging.set_verbosity(tf.logging.ERROR)
 
     train(agent_args, env_args)
 
