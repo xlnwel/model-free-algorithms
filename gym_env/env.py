@@ -19,8 +19,10 @@ class GymEnvironment():
         self.observation_dim = self.env.observation_space.shape[0]
         self.is_action_discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
         self.action_dim = self.env.action_space.n if self.is_action_discrete else self.env.action_space.shape[0]
-
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
         self.action_dist_type = action_dist_type(self.env)
+        
         self.max_episode_steps = self.env.spec.max_episode_steps
 
     def reset(self):
@@ -31,3 +33,6 @@ class GymEnvironment():
 
     def render(self):
         return self.env.render()
+
+    def is_inrange(self, action):
+        return action > self.action_low and action < self.action_high
