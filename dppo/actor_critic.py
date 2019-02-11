@@ -50,7 +50,7 @@ class Actor(Base):
 
         self.action_distribution = self.env.action_dist_type(output)
 
-        self.action = self.action_distribution.sample()
+        self.action = tf.clip_by_value(self.action_distribution.sample(), self.env.action_low, self.env.action_high)
         self.neglogpi = self.action_distribution.neglogp(tf.stop_gradient(self.action))
 
         self.ppo_loss, self.entropy, self.loss = self._loss_func(self.neglogpi, self.old_neglogpi_ph, self.advantage_ph, self.clip_range)
