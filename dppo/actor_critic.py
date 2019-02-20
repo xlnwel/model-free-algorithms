@@ -45,8 +45,7 @@ class Actor(Base):
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        output = self._network(self.observations_ph, 
-                               self.env.is_action_discrete)
+        output = self._network(self.observations_ph, self.env.is_action_discrete)
 
         self.action_distribution = self.env.action_dist_type(output)
 
