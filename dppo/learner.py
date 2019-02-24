@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 import ray
 
-from agent import Agent
 from utility.utils import normalize
+from dppo.agent import Agent
 
 
 @ray.remote#(num_cpus=0.5, num_gpus=0.04)
@@ -32,10 +32,10 @@ class Learner(Agent):
         
         feed_dict = {grad_and_var[0]: grad for grad_and_var, grad in zip(self.grads_and_vars, grads)}
         
-        learn_steps, _, summary = self.sess.run([self.learn_steps, self.opt_op, self.graph_summary], feed_dict=feed_dict)
+        learn_step, _, summary = self.sess.run([self.global_step, self.opt_op, self.graph_summary], feed_dict=feed_dict)
 
-        if self._log_tensorboard and learn_steps % 10 == 0:
-            self.writer.add_summary(summary, learn_steps)
+        if self._log_tensorboard and learn_step % 10 == 0:
+            self.writer.add_summary(summary, learn_step)
             self.save()
 
         return self.get_weights()
