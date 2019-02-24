@@ -17,7 +17,6 @@ class Agent(Model):
                  sess_config=None,
                  reuse=None,
                  save=True,
-                 trainable=True,
                  log_tensorboard=False,
                  log_params=False,
                  log_score=False,
@@ -28,7 +27,6 @@ class Agent(Model):
         self._minibatch_size = args['minibatch_size']
         self._n_minibatches = args['n_minibatches']
 
-        self._trainable = trainable
         # environment info
         self.env = GymEnvironment(env_args['name'])
         self._max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
