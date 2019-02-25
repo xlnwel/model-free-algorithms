@@ -7,7 +7,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
     def __init__(self, args, sample_size, n_steps=1, gamma=1):
         super().__init__(args, sample_size, n_steps=n_steps, gamma=gamma)
         self.data_structure = SumTree(self.capacity)
-        self._epsilon = args['epsilon'] if 'epsilon' in args else 1e-4
+        self._epsilon = float(args['epsilon'])
 
     """ Implementation """
     def _sample(self):

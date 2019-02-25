@@ -44,7 +44,7 @@ class Module(Layer):
         self._log_tensorboard = log_tensorboard
         self._log_params = log_params
         self._device = device
-        
+
         super().__init__(name, args)
 
         self.build_graph(device=device)
@@ -89,7 +89,7 @@ class Module(Layer):
 
         return opt
 
-    def _adam_optimizer(self):
+    def _adam_optimizer(self, global_step=None):
         # params for optimizer
         learning_rate = float(self._args['optimizer']['learning_rate'])
         beta1 = float(self._args['optimizer']['beta1']) if 'beta1' in self._args else 0.9
@@ -99,7 +99,7 @@ class Module(Layer):
         epsilon = float(self._args['optimizer']['epsilon']) if 'epsilon' in self._args else 1e-8
 
         # setup optimizer
-        if self._log_tensorboard or decay_rate != 1.:
+        if global_step or (self._log_tensorboard and decay_rate != 1.):
             global_step = tf.get_variable('global_step', shape=(), initializer=tf.constant_initializer(), trainable=False)
         else:
             global_step = None
@@ -119,15 +119,16 @@ class Module(Layer):
         clip_norm = self._args['optimizer']['clip_norm'] if 'clip_norm' in self._args else 5.
     
         update_ops = self._graph.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with self._graph.control_dependencies(update_ops):
-            tvars = self.trainable_variables if tvars is None else tvars
-            grads, tvars = list(zip(*optimizer.compute_gradients(loss, var_list=tvars)))
-            grads, _ = tf.clip_by_global_norm(grads, clip_norm)
+        with tf.name_scope(self.name + '_gradients'):
+            with self._graph.control_dependencies(update_ops):
+                tvars = self.trainable_variables if tvars is None else tvars
+                grads, tvars = list(zip(*optimizer.compute_gradients(loss, var_list=tvars)))
+                grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         
         return list(zip(grads, tvars))
 
     def _apply_gradients(self, optimizer, grads_and_vars, global_step=None):
-        opt_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+        opt_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step, name=self.name + '_apply_gradients')
         
         if self._log_params:
             with tf.name_scope('grads'):
@@ -173,7 +174,7 @@ class Model(Module):
 
         self._graph = tf.Graph()
 
-        super().__init__(name, args, self._graph, reuse, log_tensorboard, 
+        super().__init__(name, args, self._graph, reuse=reuse, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device, **kwargs)
             
         if self._log_tensorboard:

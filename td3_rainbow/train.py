@@ -11,8 +11,8 @@ import tensorflow as tf
 from multiprocessing import Process
 
 from utility.debug_tools import timeit
-import utility.utility as utility
-from ddpg import DDPG
+from utility import utils, yaml_op
+from agent import Agent
 
 def print_args(args, i=0):
     for key, value in args.items():
@@ -32,9 +32,9 @@ def setup_logging(ddpg_args):
     logging.basicConfig(filename=str(log_dir / log_filename), level=logging.DEBUG)
     logging.info('gamma: {}, tau: {}'.format(ddpg_args['gamma'], ddpg_args['tau']))
     logging.info('actor\nlearning_rate: {}, noisy_sigma: {}'.format(
-        ddpg_args['actor']['learning_rate'], ddpg_args['actor']['noisy_sigma']))
+        ddpg_args['actor']['optimizer']['learning_rate'], ddpg_args['actor']['noisy_sigma']))
     logging.info('critic\nlearning_rate: {}'.format(
-        ddpg_args['critic']['learning_rate']))
+        ddpg_args['critic']['optimizer']['learning_rate']))
     logging.info('buffer\nalpha: {}, beta0: {}, beta_steps: {}'.format(
         ddpg_args['buffer']['alpha'], ddpg_args['buffer']['beta0'], ddpg_args['buffer']['beta_steps']))
 
@@ -111,23 +111,19 @@ def train(env_args, ddpg_args, on_notebook=False, print_terminal_info=False):
     env = gym.make(env_args['name'])
     if 'seed' in env_args:
         env.seed(env_args['seed'])
-    
-    ddpg_args['state_size'] = env.observation_space.shape[0]
-    ddpg_args['action_size'] = env.action_space.shape[0]
 
     setup_logging(ddpg_args)
 
     agent_name = 'DDPG'
 
-    agent = DDPG(agent_name, ddpg_args)
-    agent.restore()
+    agent = Agent(agent_name, ddpg_args, env_args, log_tensorboard=True, log_score=True)
     print('Model {} starts training'.format(Path(ddpg_args['model_dir']) / ddpg_args['model_name']))
     
     run(env, agent, on_notebook, print_terminal_info=print_terminal_info)
-    sess.close()
+
 
 if __name__ == '__main__':
-    args = utility.load_args()
+    args = yaml_op.load_args()
     env_args = args['env']
     ddpg_args = args['ddpg']
 

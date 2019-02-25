@@ -10,7 +10,7 @@ class UniformReplay(ReplayBuffer):
         self.memory = deque(maxlen=self.capacity)
         
     def sample(self):
-        assert(self.good_to_learn, 'There are not sufficient transitions in buffer to learn')
+        assert self.good_to_learn, 'There are not sufficient transitions in buffer to learn'
         exps = random.sample(self.memory, self.sample_size)
         
         # None here for being consistent with the prioritized API

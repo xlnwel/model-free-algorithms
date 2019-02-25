@@ -3,13 +3,13 @@ import numpy as np
 
 class ReplayBuffer():
     def __init__(self, args, sample_size, n_steps=1, gamma=1):
-        self.capacity = args['capacity'] if 'capacity' in args else 10
-        self.min_size = args['min_size'] if 'min_size' in args else 5
+        self.capacity = int(float(args['capacity']))
+        self.min_size = int(float(args['min_size']))
         self.memory = None
         self.sample_size = sample_size
         # rewards here are discounted
         # 'next_state' here is the state n_steps latter
-        self.experience = namedtuple('experience', ('state', 'action', 'rewards', 'next_state', 'done', 'steps'))
+        self.experience = namedtuple('experience', ('state', 'action', 'reward', 'next_state', 'done', 'steps'))
 
         self.n_steps = n_steps
         self.gamma = gamma
@@ -38,8 +38,8 @@ class ReplayBuffer():
             for i, e in enumerate(self.temporary_buffer):
                 # WARNING: exp as tuple here will introduce some overhead
                 steps = original_n - i + 1
-                e.rewards[steps - 1] = self.gamma ** (steps - 1) * reward
-                self.temporary_buffer[i] = self.experience(e.state, e.action, e.rewards, next_state, done, steps)
+                e.reward[steps - 1] = self.gamma ** (steps - 1) * reward
+                self.temporary_buffer[i] = self.experience(e.state, e.action, e.reward, next_state, done, steps)
                 
             if done:
                 # flush all elements in buffer to memory if the episode is done
@@ -74,7 +74,7 @@ class ReplayBuffer():
     def _unpack_samples(self, exps):
         states = np.vstack([e.state for e in exps if e is not None])
         actions = np.vstack([e.action for e in exps if e is not None])
-        rewards = np.expand_dims(np.vstack([e.rewards for e in exps if e is not None]), axis=-1)
+        rewards = np.expand_dims(np.vstack([e.reward for e in exps if e is not None]), axis=-1)
         next_states = np.vstack([e.next_state for e in exps if e is not None])
         dones = np.vstack([e.done for e in exps if e is not None])
         steps = np.vstack([e.steps for e in exps if e is not None])

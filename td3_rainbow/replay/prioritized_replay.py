@@ -8,10 +8,10 @@ class PrioritizedReplay(ReplayBuffer):
         self.memory = []                        # exp_id    -->     exp
         self.data_structure = None              # prio_id   -->     priority, exp_id
         
-        self._alpha = args['alpha'] if 'alpha' in args else .5
-        self._beta = args['beta0'] if 'beta0' in args else .4
-        self._epsilon = args['epsilon'] if 'epsilon' in args else 1e-4
-        self._beta_grad = (1 - self._beta) / args['beta_steps'] if 'beta_steps' in args else 1e-4
+        self._alpha = float(args['alpha']) if 'alpha' in args else .5
+        self._beta = float(args['beta0']) if 'beta0' in args else .4
+        self._epsilon = float(args['epsilon']) if 'epsilon' in args else 1e-4
+        self._beta_grad = (1 - self._beta) / float(args['beta_steps']) if 'beta_steps' in args else 1e-4
 
         self._exp_id = -1
         self._saved_exp_ids = None               # saved exp ids, whose priorities will get updated latter
