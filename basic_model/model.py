@@ -193,9 +193,11 @@ class Model(Module):
             
         if save:
             self._saver = self._setup_saver(save)
-            self._model_name, self._model_dir, self._model_file = self._setup_model_path(args['model_root_dir'],
-                                                                                         args['model_dir'],
-                                                                                         args['model_name'])
+            self._model_name, self._model_dir, self._model_file = self._setup_model_path(
+                args['model_root_dir'],
+                args['model_dir'],
+                args['model_name']
+            )
             self.restore()
     
     @property
