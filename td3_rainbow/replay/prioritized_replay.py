@@ -1,5 +1,7 @@
 import numpy as np
-from replay.replaybuffer import ReplayBuffer
+
+from td3_rainbow.replay.replaybuffer import ReplayBuffer
+
 
 class PrioritizedReplay(ReplayBuffer):
     """ Interface """

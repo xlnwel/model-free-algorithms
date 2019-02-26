@@ -1,6 +1,7 @@
 from collections import namedtuple, deque
 import numpy as np
 
+
 class ReplayBuffer():
     def __init__(self, args, sample_size, n_steps=1, gamma=1):
         self.capacity = int(float(args['capacity']))
@@ -24,6 +25,9 @@ class ReplayBuffer():
     @property
     def good_to_learn(self):
         return len(self) >= self.min_size
+
+    def __call__(self):
+        yield self.sample()
 
     def add(self, state, action, reward, next_state, done):
         rewards = np.zeros(self.n_steps)
@@ -51,7 +55,7 @@ class ReplayBuffer():
                 ready_exp = self.temporary_buffer.popleft()
                 self._add_exp(ready_exp)
         elif self.n_steps == 1:
-            exp.rewards[0] = reward
+            exp.reward[0] = reward
             self._add_exp(exp)
         else:
             raise ValueError('Invalid n for multi-step learning')

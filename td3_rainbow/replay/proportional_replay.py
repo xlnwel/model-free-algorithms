@@ -1,6 +1,8 @@
 import numpy as np
-from replay.ds.sum_tree import SumTree
-from replay.prioritized_replay import PrioritizedReplay
+
+from td3_rainbow.replay.ds.sum_tree import SumTree
+from td3_rainbow.replay.prioritized_replay import PrioritizedReplay
+
 
 class ProportionalPrioritizedReplay(PrioritizedReplay):
     """ Interface """

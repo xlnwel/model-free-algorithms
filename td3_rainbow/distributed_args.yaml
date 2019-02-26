@@ -3,10 +3,10 @@ n_experiments: 1 # 1 run the following configuration, otherwise, run test code i
 env:
     name: &env_name BipedalWalker-v2
     max_episode_steps: 1000
-ddpg:
-    gamma: 0.99
+agent:
+    gamma: &gamma 0.99
     tau: 0.001      # moving average rate
-    batch_size: 128
+    batch_size: &batch_size 2
     done: 1
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -14,14 +14,13 @@ ddpg:
     model_root_dir: ./saved_models            # root path for savinng models
     tensorboard_root_dir: ./tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: test-actor_loss_Q1
+    model_name: test
 
     # options for different improvements on DDPG
     options:
         # noisy layer is used as the default strategy to introduce exploration
-        buffer_type: proportional  # uniform, rank, proportional
         double: True           # double is implemented based on TD3
-        n_steps: 3
+        n_steps: &n_steps 3
         
     actor:
         optimizer:
@@ -33,14 +32,19 @@ ddpg:
         loss_type: mse   # huber or mse
         update_times: 1
 
-    # argumennts for prioritized replay
-    buffer:
-        alpha: 0.1
-        beta0: 0.4
-        epsilon: 1e-4
-        beta_steps: 5e5
-        min_size: 1000
-        capacity: 1e6
-        categories: 5
-        min_elements: 1          # minimum number of elements in a rank
-        top_priority: 2.
+# argumennts for prioritized replay
+buffer:
+    type: proportional  # uniform, rank, proportional
+    batch_size: *batch_size
+    n_steps: *n_steps
+    gamma: *gamma
+
+    alpha: 0.1
+    beta0: 0.4
+    epsilon: 1e-4
+    beta_steps: 5e5
+    min_size: 1
+    capacity: 5
+    categories: 5
+    min_elements: 1          # minimum number of elements in a rank
+    top_priority: 2.

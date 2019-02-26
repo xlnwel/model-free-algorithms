@@ -43,7 +43,6 @@ class Module(Layer):
         self._reuse = reuse
         self._log_tensorboard = log_tensorboard
         self._log_params = log_params
-        self._device = device
 
         super().__init__(name, args)
 
@@ -51,9 +50,6 @@ class Module(Layer):
         
     def build_graph(self, **kwargs):
         if kwargs['device']:
-            if 'gpu' in kwargs['device']:
-                import ray
-                os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in ray.get_gpu_ids()])
             with tf.device(kwargs['device']):
                 with tf.variable_scope(self.name, reuse=self._reuse):
                     self._build_graph(**kwargs)
@@ -81,13 +77,13 @@ class Module(Layer):
     def _build_graph(self, **kwargs):
         raise NotImplementedError
         
-    def _optimization_op(self, loss, tvars=None):
+    def _optimization_op(self, loss, tvars=None, global_step=None):
         with tf.variable_scope(self.name + '_optimizer', reuse=self._reuse):
-            optimizer, global_step = self._adam_optimizer()
+            optimizer, global_step = self._adam_optimizer(global_step=global_step)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
             opt = self._apply_gradients(optimizer, grads_and_vars, global_step)
 
-        return opt
+        return opt, global_step
 
     def _adam_optimizer(self, global_step=None):
         # params for optimizer
@@ -99,7 +95,7 @@ class Module(Layer):
         epsilon = float(self._args['optimizer']['epsilon']) if 'epsilon' in self._args else 1e-8
 
         # setup optimizer
-        if global_step or (self._log_tensorboard and decay_rate != 1.):
+        if global_step or decay_rate != 1.:
             global_step = tf.get_variable('global_step', shape=(), initializer=tf.constant_initializer(), trainable=False)
         else:
             global_step = None
@@ -110,8 +106,8 @@ class Module(Layer):
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps, decay_rate, staircase=True)
             optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
 
-        if self._log_tensorboard and decay_rate != 1:
-            tf.summary.scalar('learning_rate_', learning_rate)
+            if self._log_tensorboard:
+                tf.summary.scalar('learning_rate_', learning_rate)
 
         return optimizer, global_step
 
@@ -121,7 +117,7 @@ class Module(Layer):
         update_ops = self._graph.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.name_scope(self.name + '_gradients'):
             with self._graph.control_dependencies(update_ops):
-                tvars = self.trainable_variables if tvars is None else tvars
+                tvars = tvars if tvars else self.trainable_variables
                 grads, tvars = list(zip(*optimizer.compute_gradients(loss, var_list=tvars)))
                 grads, _ = tf.clip_by_global_norm(grads, clip_norm)
         

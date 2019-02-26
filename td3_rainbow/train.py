@@ -116,7 +116,7 @@ def train(env_args, ddpg_args, on_notebook=False, print_terminal_info=False):
 
     agent_name = 'DDPG'
 
-    agent = Agent(agent_name, ddpg_args, env_args, log_tensorboard=True, log_score=True)
+    agent = Agent(agent_name, ddpg_args, env_args, log_tensorboard=True, log_score=True, device='/gpu:0')
     print('Model {} starts training'.format(Path(ddpg_args['model_dir']) / ddpg_args['model_name']))
     
     run(env, agent, on_notebook, print_terminal_info=print_terminal_info)

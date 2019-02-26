@@ -59,13 +59,13 @@ class Actor(Base):
 
 class Critic(Base):
     """ Interface """
-    def __init__(self, 
-                 name, 
-                 args, 
+    def __init__(self,
+                 name,
+                 args,
                  graph,
                  observations_ph,
                  action_ph,
-                 actor_action, 
+                 actor_action,
                  action_dim,
                  reuse=False, 
                  is_target=False, 
@@ -74,7 +74,7 @@ class Critic(Base):
         self.actor_action = actor_action
         self.action_dim = action_dim
 
-        super().__init__(name, args, graph, 
+        super().__init__(name, args, graph,
                          observations_ph, 
                          reuse=reuse, 
                          is_target=is_target, 

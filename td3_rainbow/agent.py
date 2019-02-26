@@ -46,6 +46,7 @@ class Agent(Model):
                                  else self.env.max_episode_steps)
         self._observation_dim = self.env.observation_dim
         self._action_dim = self.env.action_dim
+
         super().__init__(name, args, sess_config=sess_config, 
                          reuse=reuse, save=save, 
                          log_tensorboard=log_tensorboard, 
@@ -82,19 +83,13 @@ class Agent(Model):
     def _build_graph(self, **kwargs):
         # environment info
         self.env_phs = self._setup_env_placeholders(self._observation_dim, self._action_dim)
-        
+
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
 
         self.priorities, self.actor_loss, self.critic_loss = self._loss()
-    
-        self.actor_optimizer, self.global_step = self.actor._adam_optimizer(global_step=True)
-        self.critic_optimizer, critic_step = self.critic._adam_optimizer()
 
-        self.actor_grads_vars = self.actor._compute_gradients(self.actor_loss, self.actor_optimizer, self.actor.trainable_variables)
-        self.critic_grads_vars = self.critic._compute_gradients(self.critic_loss, self.critic_optimizer, self.critic.trainable_variables)
-
-        self.actor_opt_op = self.actor._apply_gradients(self.actor_optimizer, self.actor_grads_vars, self.global_step)
-        self.critic_opt_op = self.critic._apply_gradients(self.critic_optimizer, self.critic_grads_vars, critic_step)
+        self.actor_opt_op, self.global_step = self.actor._optimization_op(self.actor_loss, global_step=True)
+        self.critic_opt_op, _ = self.critic._optimization_op(self.critic_loss)
         
         # target net operations
         self.init_target_op, self.update_target_op = self._target_net_ops()
@@ -108,8 +103,8 @@ class Agent(Model):
             env_phs['action'] = tf.placeholder(tf.float32, shape=(None, action_dim), name='action')
             env_phs['reward'] = tf.placeholder(tf.float32, shape=(None, self.n_steps, 1), name='reward')
             env_phs['next_observation'] = tf.placeholder(tf.float32, shape=(None, observation_dim), name='next_observation')
-            env_phs['done'] = tf.placeholder(tf.uint8, shape=(None, 1), name='done')
-            env_phs['steps'] = tf.placeholder(tf.uint8, shape=(None, 1), name='steps')
+            env_phs['done'] = tf.placeholder(tf.float32, shape=(None, 1), name='done')
+            env_phs['steps'] = tf.placeholder(tf.float32, shape=(None, 1), name='steps')
             if self._buffer_type != 'uniform':
                 env_phs['IS_ratio'] = tf.placeholder(tf.float32, shape=(self.batch_size), name='importance_sampling_ratio')
         
@@ -146,19 +141,19 @@ class Agent(Model):
                                                              reuse=self._reuse,
                                                              is_target=is_target, 
                                                              scope_prefix=scope_prefix)
-        
+
         return actor, critic
 
     """ Losses """
     def _loss(self):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
-                Q_with_actor = self.critic.Q_with_actor
+                Q_with_actor = self.critic.Q1_with_actor if self._double else self.critic.Q_with_actor
                 actor_loss = tf.negative(tf.reduce_mean(Q_with_actor), name='actor_loss')
 
             with tf.name_scope('critic_loss'):
                 priorities, critic_loss = self._double_critic_loss() if self._double else self._plain_critic_loss()
-            
+
         return priorities, actor_loss, critic_loss
 
     def _double_critic_loss(self):
@@ -190,16 +185,16 @@ class Agent(Model):
 
     def _average_critic_loss(self, loss):
         weighted_loss = loss if self._buffer_type == 'uniform' else self.env_phs['IS_ratio'] * loss
-        
+
         critic_loss = tf.reduce_mean(weighted_loss, name='critic_loss')
 
         return critic_loss
 
     def _n_step_target(self, n_step_value):
         rewards_sum = tf.reduce_sum(self.env_phs['reward'], axis=1)
-        n_step_gamma = self.gamma**tf.cast(self.env_phs['steps'], tf.float32)
+        n_step_gamma = self.gamma**self.env_phs['steps']
         n_step_target = tf.add(rewards_sum, n_step_gamma
-                                            * tf.cast(1 - self.env_phs['done'], tf.float32)
+                                            * (1. - self.env_phs['done'])
                                             * n_step_value, name='target_Q')
         
         return tf.stop_gradient(n_step_target)
@@ -226,6 +221,29 @@ class Agent(Model):
 
         return buffer
 
+    def _initialize_target_net(self):
+        self.sess.run(self.init_target_op)
+
+    def _log_loss(self):
+        if self._log_tensorboard:
+            if self._buffer_type != 'uniform':
+                with tf.name_scope('priority'):
+                    tf.summary.histogram('priorities_', self.priorities)
+                    tf.summary.scalar('priority_', tf.reduce_mean(self.priorities))
+
+                with tf.name_scope('IS_ratio'):
+                    tf.summary.histogram('IS_ratios_', self.env_phs['IS_ratio'])
+                    tf.summary.scalar('IS_ratio_', tf.reduce_mean(self.env_phs['IS_ratio']))
+
+            with tf.variable_scope('loss', reuse=self._reuse):
+                tf.summary.scalar('actor_loss_', self.actor_loss)
+                tf.summary.scalar('critic_loss_', self.critic_loss)
+            
+            with tf.name_scope('Q'):
+                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.critic.Q_with_actor))
+                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.critic.Q_with_actor))
+                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.critic.Q_with_actor))
+            
     def _learn(self):
         def env_feed_dict(buffer):
             IS_ratios, (observation, actions, rewards, next_observations, dones, steps) = buffer.sample()
@@ -247,6 +265,7 @@ class Agent(Model):
 
         # update critic a few times first
         for _ in range(self._critic_update_times-1):
+            print('extra critic update')
             feed_dict = env_feed_dict(self.buffer)
             self.sess.run([self.critic_opt_op], feed_dict=feed_dict)
 
@@ -271,27 +290,3 @@ class Agent(Model):
 
         # update the target networks
         self.sess.run(self.update_target_op)
-
-    def _initialize_target_net(self):
-        self.sess.run(self.init_target_op)
-
-    def _log_loss(self):
-        if self._log_tensorboard:
-            if self._buffer_type != 'uniform':
-                with tf.name_scope('priority'):
-                    tf.summary.histogram('priorities_', self.priorities)
-                    tf.summary.scalar('priority_', tf.reduce_mean(self.priorities))
-
-                with tf.name_scope('IS_ratio'):
-                    tf.summary.histogram('IS_ratios_', self.env_phs['IS_ratio'])
-                    tf.summary.scalar('IS_ratio_', tf.reduce_mean(self.env_phs['IS_ratio']))
-
-            with tf.variable_scope('loss', reuse=self._reuse):
-                tf.summary.scalar('actor_loss_', self.actor_loss)
-                tf.summary.scalar('critic_loss_', self.critic_loss)
-            
-            with tf.name_scope('Q'):
-                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.critic.Q_with_actor))
-                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.critic.Q_with_actor))
-                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.critic.Q_with_actor))
-            

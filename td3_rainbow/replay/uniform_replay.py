@@ -1,7 +1,9 @@
 import random
 from collections import deque
 import numpy as np
-from replay.replaybuffer import ReplayBuffer
+
+from td3_rainbow.replay.replaybuffer import ReplayBuffer
+
 
 class UniformReplay(ReplayBuffer):
     # Interface

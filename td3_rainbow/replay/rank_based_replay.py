@@ -1,6 +1,8 @@
 import numpy as np
-from replay.ds.priotity_queue import PriorityQueue
-from replay.prioritized_replay import PrioritizedReplay
+
+from td3_rainbow.replay.ds.priotity_queue import PriorityQueue
+from td3_rainbow.replay.prioritized_replay import PrioritizedReplay
+
 
 class RankBasedPrioritizedReplay(PrioritizedReplay):
     """ Interface """
@@ -8,7 +10,7 @@ class RankBasedPrioritizedReplay(PrioritizedReplay):
         super().__init__(args, sample_size, n_steps=n_steps, gamma=gamma)
         self.data_structure = PriorityQueue(self.capacity)
 
-        self.total_categories = args['categories'] if 'categories' in args else 2
+        self.total_categories = args['categories'] if 'categories' in args else 10
         self.min_elements = args['min_elements'] if 'min_elements' in args else 1
         self.categorical_ranks = self._build_ranks()
 
