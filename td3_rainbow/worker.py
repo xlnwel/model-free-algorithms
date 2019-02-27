@@ -82,5 +82,7 @@ class Worker(Agent):
             if buffer['done'][-idx] == True:
                 break
             idx = i + 1
-            buffer['steps'][-idx] += 1
             buffer['reward'][-idx] += self.gamma**i * reward
+            buffer['next_state'][-idx] = next_state
+            buffer['done'][-idx] = done
+            buffer['steps'][-idx] += 1
