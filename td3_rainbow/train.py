@@ -13,6 +13,7 @@ from multiprocessing import Process
 from utility.debug_tools import timeit
 from utility import utils, yaml_op
 from agent import Agent
+from td3_rainbow.replay.select_buffer import construct_buffer
 
 def print_args(args, i=0):
     for key, value in args.items():
@@ -23,20 +24,20 @@ def print_args(args, i=0):
         else:
             print(value)
 
-def setup_logging(ddpg_args):
-    log_dir = Path(ddpg_args['model_root_dir']) / ddpg_args['model_dir']
+def setup_logging(agent_args, buffer_args):
+    log_dir = Path(agent_args['model_root_dir']) / agent_args['model_dir']
     if not log_dir.is_dir():
         log_dir.mkdir(parents=True)
 
-    log_filename = ddpg_args['model_name'] + '_timeit.log'
+    log_filename = agent_args['model_name'] + '_timeit.log'
     logging.basicConfig(filename=str(log_dir / log_filename), level=logging.DEBUG)
-    logging.info('gamma: {}, tau: {}'.format(ddpg_args['gamma'], ddpg_args['tau']))
+    logging.info('gamma: {}, tau: {}'.format(agent_args['gamma'], agent_args['tau']))
     logging.info('actor\nlearning_rate: {}, noisy_sigma: {}'.format(
-        ddpg_args['actor']['optimizer']['learning_rate'], ddpg_args['actor']['noisy_sigma']))
+        agent_args['actor']['optimizer']['learning_rate'], agent_args['actor']['noisy_sigma']))
     logging.info('critic\nlearning_rate: {}'.format(
-        ddpg_args['critic']['optimizer']['learning_rate']))
+        agent_args['critic']['optimizer']['learning_rate']))
     logging.info('buffer\nalpha: {}, beta0: {}, beta_steps: {}'.format(
-        ddpg_args['buffer']['alpha'], ddpg_args['buffer']['beta0'], ddpg_args['buffer']['beta_steps']))
+        buffer_args['alpha'], buffer_args['beta0'], buffer_args['beta_steps']))
 
 def run_episodes(env, agent, n_episodes, scores_deque, hundred_episodes, 
                  on_notebook, image=None, print_terminal_info=False):
@@ -98,10 +99,10 @@ def run(env, agent, on_notebook, n_episodes=3000, print_terminal_info=False):
         run_episodes(env, agent, interval, scores_deque, i, on_notebook, 
                      image, print_terminal_info=print_terminal_info)
 
-def train(env_args, ddpg_args, on_notebook=False, print_terminal_info=False):
+def train(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_info=False):
     if print_terminal_info:
         print('Arguments:')
-        print_args(ddpg_args)
+        print_args(agent_args)
     
     # os.environ['PYTHONHASHSEED']=str(42)
     # random.seed(42)
@@ -112,12 +113,14 @@ def train(env_args, ddpg_args, on_notebook=False, print_terminal_info=False):
     if 'seed' in env_args:
         env.seed(env_args['seed'])
 
-    setup_logging(ddpg_args)
+    setup_logging(agent_args, buffer_args)
 
-    agent_name = 'DDPG'
+    agent_name = 'Agent'
 
-    agent = Agent(agent_name, ddpg_args, env_args, log_tensorboard=True, log_score=True, device='/gpu:0')
-    print('Model {} starts training'.format(Path(ddpg_args['model_dir']) / ddpg_args['model_name']))
+    buffer = construct_buffer(buffer_args)
+    
+    agent = Agent(agent_name, agent_args, env_args, buffer, log_tensorboard=True, log_score=True, device='/gpu:0')
+    print('Model {} starts training'.format(Path(agent_args['model_dir']) / agent_args['model_name']))
     
     run(env, agent, on_notebook, print_terminal_info=print_terminal_info)
 
@@ -125,13 +128,14 @@ def train(env_args, ddpg_args, on_notebook=False, print_terminal_info=False):
 if __name__ == '__main__':
     args = yaml_op.load_args()
     env_args = args['env']
-    ddpg_args = args['ddpg']
+    agent_args = args['agent']
+    buffer_args = args['buffer']
 
     # disable tensorflow debug information
     logging.getLogger("tensorflow").setLevel(logging.WARNING)
 
     if args['n_experiments'] == 1:
-        train(env_args, ddpg_args, print_terminal_info=True)
+        train(env_args, agent_args, buffer_args, print_terminal_info=True)
     else:
         processes = []
 
@@ -140,13 +144,13 @@ if __name__ == '__main__':
                 for noisy_sigma in [.4]:
                     for loss in ['huber', 'mse']:
                         for t in [1, 2]:
-                            ddpg_args['gamma'] = gamma
-                            ddpg_args['tau'] = tau
-                            ddpg_args['actor']['noisy_sigma'] = noisy_sigma
-                            ddpg_args['critic']['loss_type'] = loss
-                            ddpg_args['model_dir'] = 'test'
-                            ddpg_args['model_name'] = 'loss-{}_trial-{}'.format(loss, t)
-                            p = Process(target=train, args=(env_args, ddpg_args))
+                            agent_args['gamma'] = gamma
+                            agent_args['tau'] = tau
+                            agent_args['actor']['noisy_sigma'] = noisy_sigma
+                            agent_args['critic']['loss_type'] = loss
+                            agent_args['model_dir'] = 'test'
+                            agent_args['model_name'] = 'loss-{}_trial-{}'.format(loss, t)
+                            p = Process(target=train, args=(env_args, agent_args, buffer_args))
                             p.start()
                             processes.append(p)
         

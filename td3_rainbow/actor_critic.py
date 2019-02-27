@@ -10,11 +10,11 @@ class Base(Module):
                  name, 
                  args, 
                  graph,
-                 observations_ph,
+                 observation_ph,
                  reuse=False, 
                  is_target=False, 
                  scope_prefix='',):
-        self.observations_ph = observations_ph
+        self.observation_ph = observation_ph
         self._variable_scope = (scope_prefix + '/' 
                                 if scope_prefix != '' and not scope_prefix.endswith('/') 
                                 else scope_prefix) + name
@@ -28,7 +28,7 @@ class Actor(Base):
                  name, 
                  args, 
                  graph,
-                 observations_ph,
+                 observation_ph,
                  action_dim,
                  reuse=False, 
                  is_target=False, 
@@ -37,18 +37,18 @@ class Actor(Base):
         self._noisy_sigma = args['noisy_sigma']
 
         super().__init__(name, args, graph, 
-                         observations_ph, 
+                         observation_ph, 
                          reuse=reuse, 
                          is_target=is_target, 
                          scope_prefix=scope_prefix)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.action = self._network(self.observations_ph, self.action_dim)
+        self.action = self._network(self.observation_ph, self.action_dim)
         
-    def _network(self, observations, action_dim):
+    def _network(self, observation, action_dim):
         with tf.variable_scope('net', reuse=self._reuse):
-            x = self._dense(observations, 512)
+            x = self._dense(observation, 512)
             x = self._dense_resnet_norm_activation(x, 512)
             x = self._noisy_norm_activation(x, 256, sigma=self._noisy_sigma)
             x = self._noisy(x, action_dim, sigma=self._noisy_sigma)
@@ -63,7 +63,7 @@ class Critic(Base):
                  name,
                  args,
                  graph,
-                 observations_ph,
+                 observation_ph,
                  action_ph,
                  actor_action,
                  action_dim,
@@ -75,7 +75,7 @@ class Critic(Base):
         self.action_dim = action_dim
 
         super().__init__(name, args, graph,
-                         observations_ph, 
+                         observation_ph, 
                          reuse=reuse, 
                          is_target=is_target, 
                          scope_prefix=scope_prefix)
@@ -86,16 +86,16 @@ class Critic(Base):
 
     def _build_net(self, name):
         with tf.variable_scope(name, reuse=self._reuse):
-            Q = self._network(self.observations_ph, self.action_ph, self.action_dim, self._reuse)
-            Q_with_actor = self._network(self.observations_ph, self.actor_action, self.action_dim, True)
+            Q = self._network(self.observation_ph, self.action_ph, self.action_dim, self._reuse)
+            Q_with_actor = self._network(self.observation_ph, self.actor_action, self.action_dim, True)
 
         return Q, Q_with_actor
 
-    def _network(self, observations_ph, action_ph, action_dim, reuse):
+    def _network(self, observation_ph, action_ph, action_dim, reuse):
         self._reset_counter('dense_resnet')
         
-        with tf.variable_scope('plain_net', reuse=reuse):
-            x = self._dense(observations_ph, 512-action_dim, kernel_initializer=tf_utils.kaiming_initializer())
+        with tf.variable_scope('net', reuse=reuse):
+            x = self._dense(observation_ph, 512-action_dim, kernel_initializer=tf_utils.kaiming_initializer())
             x = tf.concat([x, action_ph], 1)
             x = self._dense_resnet_norm_activation(x, 512)
             x = self._dense_norm_activation(x, 256)
@@ -109,7 +109,7 @@ class DoubleCritic(Critic):
                  name, 
                  args, 
                  graph, 
-                 observations_ph,
+                 observation_ph,
                  action_ph,
                  actor_action, 
                  action_dim,
@@ -117,7 +117,7 @@ class DoubleCritic(Critic):
                  is_target=False, 
                  scope_prefix=''):
         super().__init__(name, args, graph, 
-                         observations_ph, 
+                         observation_ph, 
                          action_ph,
                          actor_action,
                          action_dim,
@@ -127,6 +127,6 @@ class DoubleCritic(Critic):
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.Q1, self.Q1_with_actor = self._build_net(name='net1')
-        self.Q2, self.Q2_with_actor = self._build_net(name='net2')
+        self.Q1, self.Q1_with_actor = self._build_net(name='Q1')
+        self.Q2, self.Q2_with_actor = self._build_net(name='Q2')
         self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')

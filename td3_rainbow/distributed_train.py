@@ -2,14 +2,15 @@ import os, sys
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
+import gym
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utility.yaml_op import load_args
 from td3_rainbow.replay.select_buffer import construct_buffer
 
 
-def add_exps(buffer, state, extra_items=0):
-    for i in range(buffer.capacity + extra_items):
+def add_exps(buffer, state, items=1):
+    for i in range(items):
         state = state + 1
         action = np.random.randint(5, 10)
         reward = np.random.randint(2, 4)
@@ -26,19 +27,34 @@ def main():
     agent_args = args['agent']
     buffer_args = args['buffer']
 
-    buffer = construct_buffer(buffer_args)
-    ds = tf.data.Dataset.from_generator(buffer, (tf.float32, 
-        (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)))
-    val = ds.make_one_shot_iterator().get_next()
-    i = 1
-    i = add_exps(buffer, i)
-    i = add_exps(buffer, i)
+    env = gym.make(env_args['name'])
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0]
 
-    for i in range(3):
+    buffer = construct_buffer(buffer_args)
+    sample_types = (tf.float32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
+    sample_shapes =((batch_size), (
+        (None, state_dim),
+        (None, action_dim),
+        (None, 3, 1),
+        (None, state_dim),
+        (None, 1),
+        (None, 1)
+    ))
+    ds = tf.data.Dataset.from_generator(buffer, sample_types, sample_shapes)
+    ds = ds.prefetch(1)
+    IS_ratio, (obs, action, reward, next_obs, done, steps) = ds.make_one_shot_iterator().get_next()
+
+    add_exps(buffer, 0, 100)
+    for i in range(1000):
+        i = add_exps(buffer, i)
         print(i)
         with tf.Session() as sess:
-            data = sess.run(val)
+            data = sess.run(obs)
             print(data)
+        x = tf.layers.dense(obs, 1)
+        with tf.Session() as sess:
+            print(sess.run(x))
 
     for item in buffer.memory:
         print(item)
