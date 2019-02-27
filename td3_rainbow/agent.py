@@ -80,7 +80,8 @@ class Agent(Model):
 
         self.priorities, self.actor_loss, self.critic_loss = self._loss()
     
-        self.opt_op = self._optimize_op(self.actor_loss, self.critic_loss)
+        self.actor_opt_op, self.global_step = self.actor._optimization_op(self.actor_loss, global_step=True)
+        self.critic_opt_op, _ = self.critic._optimization_op(self.critic_loss)
 
         # target net operations
         self.init_target_op, self.update_target_op = self._target_net_ops()
@@ -199,21 +200,6 @@ class Agent(Model):
 
         return tf.stop_gradient(n_step_target)
 
-    def _optimize_op(self, actor_loss, critic_loss):
-        with tf.variable_scope('learn_steps', reuse=self._reuse):
-            self.learn_steps = tf.get_variable('learn_steps', shape=[], 
-                                               initializer=tf.constant_initializer(), trainable=False)
-            step_op = tf.assign(self.learn_steps, self.learn_steps + 1, name='update_learn_steps')
-
-        with tf.variable_scope('optimizer', reuse=self._reuse):
-            actor_opt_op, _ = self.actor._optimization_op(actor_loss)
-            critic_opt_op, _ = self.critic._optimization_op(critic_loss)
-
-            with tf.control_dependencies([step_op]):
-                opt_op = tf.group(actor_opt_op, critic_opt_op)
-
-        return opt_op
-
     def _target_net_ops(self):
         with tf.name_scope('target_net_op'):
             target_main_var_pairs = list(zip(self._target_variables, self.main_variables))
@@ -246,12 +232,17 @@ class Agent(Model):
 
         # update the main networks
         if self._log_tensorboard:
-            priorities, learn_steps, _, summary = self.sess.run([self.priorities, self.learn_steps, self.opt_op, self.graph_summary], feed_dict=feed_dict)
+            priorities, learn_steps, _, _, summary = self.sess.run([self.priorities, 
+                                                                    self.learn_steps, 
+                                                                    self.actor_opt_op, 
+                                                                    self.critic_opt_op, 
+                                                                    self.graph_summary], 
+                                                                   feed_dict=feed_dict)
             if learn_steps % 100 == 0:
                 self.writer.add_summary(summary, learn_steps)
                 self.save()
         else:
-            priorities, _ = self.sess.run([self.priorities, self.opt_op], feed_dict=feed_dict)
+            priorities, _, _ = self.sess.run([self.priorities, self.actor_opt_op, self.critic_opt_op], feed_dict=feed_dict)
 
         if self._buffer_type != 'uniform':
             self.buffer.update_priorities(priorities, saved_exp_ids)
