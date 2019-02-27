@@ -74,7 +74,8 @@ class Agent(Model):
     
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.data = self._setup_env_placeholders()
+        with tf.device('/cpu: 2'):
+            self.data = self._prepare_data(self.buffer)
         
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
 
@@ -88,18 +89,35 @@ class Agent(Model):
 
         self._log_loss()
 
-    def _setup_env_placeholders(self):
-        data = {}
-        with tf.name_scope('placeholders'):
-            data['state'] = tf.placeholder(tf.float32, shape=(None, self._state_dim), name='state')
-            data['action'] = tf.placeholder(tf.float32, shape=(None, self._action_dim), name='action')
-            data['next_state'] = tf.placeholder(tf.float32, shape=(None, self._state_dim), name='next_state')
-            data['rewards'] = tf.placeholder(tf.float32, shape=(None, self.n_steps, 1), name='rewards')
-            data['done'] = tf.placeholder(tf.float32, shape=(None, 1), name='done')
-            data['steps'] = tf.placeholder(tf.float32, shape=(None, 1), name='steps')
-            if self._buffer_type != 'uniform':
-                data['IS_ratio'] = tf.placeholder(tf.float32, shape=(self.batch_size), name='importance_sampling_ratio')
+    def _prepare_data(self, buffer):
+        with tf.name_scope('data'):
+            sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
+            sample_shapes =((self.batch_size), (self.batch_size), (
+                (None, self._state_dim),
+                (None, self._action_dim),
+                (None, self.n_steps, 1),
+                (None, self._state_dim),
+                (None, 1),
+                (None, 1)
+            ))
+            ds = tf.data.Dataset.from_generator(buffer, sample_types, sample_shapes)
+            ds = ds.prefetch(1)
+            iterator = ds.make_one_shot_iterator()
+            samples = iterator.get_next(name='samples')
         
+        # prepare data
+        IS_ratio, saved_exp_ids, (state, action, reward, next_state, done, steps) = samples
+
+        data = {}
+        data['IS_ratio'] = IS_ratio
+        data['saved_exp_ids'] = saved_exp_ids
+        data['state'] = state
+        data['action'] = action
+        data['reward'] = reward
+        data['next_state'] = next_state
+        data['done'] = done
+        data['steps'] = steps
+
         return data
 
     def _create_main_target_actor_critic(self):
@@ -193,7 +211,7 @@ class Agent(Model):
         return critic_loss
 
     def _n_step_target(self, nth_Q):
-        rewards_sum = tf.reduce_sum(self.data['rewards'], axis=1)
+        rewards_sum = tf.reduce_sum(self.data['reward'], axis=1)
         n_step_target = tf.add(rewards_sum, self.gamma**self.data['steps']
                                             * (1 - self.data['done'])
                                             * nth_Q, name='target_Q')
@@ -209,23 +227,6 @@ class Agent(Model):
         return init_target_op, update_target_op
 
     def _learn(self):
-        def env_feed_dict():
-            if self._buffer_type == 'uniform':
-                feed_dict = {}
-            else:
-                feed_dict = {self.data['IS_ratio']: IS_ratios}
-
-            feed_dict.update({
-                self.data['state']: states,
-                self.data['action']: actions,
-                self.data['rewards']: rewards,
-                self.data['next_state']: next_states,
-                self.data['done']: dones,
-                self.data['steps']: steps
-            })
-
-            return feed_dict
-
         IS_ratios, saved_exp_ids, (states, actions, rewards, next_states, dones, steps) = self.buffer.sample()
 
         feed_dict = env_feed_dict()
@@ -244,8 +245,7 @@ class Agent(Model):
         else:
             priorities, _, _ = self.sess.run([self.priorities, self.actor_opt_op, self.critic_opt_op], feed_dict=feed_dict)
 
-        if self._buffer_type != 'uniform':
-            self.buffer.update_priorities(priorities, saved_exp_ids)
+        self.buffer.update_priorities(priorities, saved_exp_ids)
 
         # update the target networks
         self.sess.run(self.update_target_op)
