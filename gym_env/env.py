@@ -16,7 +16,7 @@ class GymEnvironment():
         self.env = gym.make(name)
         self.env.seed(seed)
 
-        self.observation_dim = self.env.observation_space.shape[0]
+        self.state_dim = self.env.observation_space.shape[0]
         self.is_action_discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
         self.action_dim = self.env.action_space.n if self.is_action_discrete else self.env.action_space.shape[0]
         self.action_low = self.env.action_space.low
