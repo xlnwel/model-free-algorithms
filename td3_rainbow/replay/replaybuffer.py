@@ -27,7 +27,8 @@ class ReplayBuffer():
         return len(self) >= self.min_size
 
     def __call__(self):
-        yield self.sample()
+        while True:
+            yield self.sample()
 
     def add(self, state, action, reward, next_state, done):
         rewards = np.zeros(self.n_steps)

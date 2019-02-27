@@ -6,7 +6,7 @@ env:
 agent:
     gamma: &gamma 0.99
     tau: 0.001      # moving average rate
-    batch_size: &batch_size 2
+    batch_size: &batch_size 5
     done: 1
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -44,7 +44,7 @@ buffer:
     epsilon: 1e-4
     beta_steps: 5e5
     min_size: 1
-    capacity: 5
+    capacity: 100
     categories: 5
     min_elements: 1          # minimum number of elements in a rank
     top_priority: 2.

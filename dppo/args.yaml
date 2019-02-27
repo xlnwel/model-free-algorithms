@@ -13,7 +13,7 @@ agent:
     n_epochs: 500
 
     option:
-        advantage_type: gae    # norm or gae
+        advantage_type: norm    # norm or gae
         shuffle: False          # shuffle data or not
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -21,16 +21,15 @@ agent:
     model_root_dir: ./saved_models            # root path for savinng models
     tensorboard_root_dir: ./tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: gae-seq-lr3_4
+    model_name: test-norm
 
     optimizer:
-        learning_rate: 3e-4
+        learning_rate: 1e-3
         epsilon: 1e-5
 
     actor:
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
-        noisy_sigma: 0.4    # standard deviation for noisy layers
 
     critic:
         loss_type: 'mse'   # huber or mse

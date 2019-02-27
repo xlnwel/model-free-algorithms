@@ -2,7 +2,7 @@ import numpy as np
 import ray
 
 from utility.utils import normalize
-from agent import Agent
+from dppo.agent import Agent
 
 
 @ray.remote#(num_cpus=0.5, num_gpus=0.04)
@@ -110,22 +110,22 @@ class Worker(Agent):
                 advantages = normalize(returns - values)
                 returns = normalize(returns)
             elif adv_type == 'gae':
-                advantages = np.zeros_like(rewards)
-                last_adv = 0
-                for i in reversed(range(len(rewards))):
-                    delta = rewards[i] + nonterminals[i] * gamma * values[i+1] - values[i]
-                    advantages[i] = last_adv = delta + nonterminals[i] * gae_discount * last_adv
-                # deltas = rewards + nonterminals * gamma * values[1:] - values[:-1]
-                # advantages = deltas
-                # next_adv = 0
+                # advantages = np.zeros_like(rewards)
+                # last_adv = 0
                 # for i in reversed(range(len(rewards))):
-                #     advantages[i] += nonterminals[i] * gae_discount * next_adv
-                #     next_adv = advantages[i]
+                #     delta = rewards[i] + nonterminals[i] * gamma * values[i+1] - values[i]
+                #     advantages[i] = last_adv = delta + nonterminals[i] * gae_discount * last_adv
+                deltas = rewards + nonterminals * gamma * values[1:] - values[:-1]
+                advantages = deltas
+                next_adv = 0
+                for i in reversed(range(len(rewards))):
+                    advantages[i] += nonterminals[i] * gae_discount * next_adv
+                    next_adv = advantages[i]
                 returns = advantages + values[:-1]
 
                 # normalize returns and advantages
                 # values = normalize(values[:-1], np.mean(returns), np.std(returns))
-                advantages = normalize(advantages)
+                # advantages = normalize(advantages)
                 # returns = normalize(returns)
             else:
                 NotImplementedError

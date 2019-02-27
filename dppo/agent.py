@@ -58,7 +58,7 @@ class Agent(Model):
 
         self.loss = tf.add(self.actor.loss, self.critic.loss, name='total_loss')
 
-        self.optimizer, self.global_step = self._adam_optimizer()
+        self.optimizer, self.global_step = self._adam_optimizer(global_step=True)
 
         self.grads_and_vars = self._compute_gradients(self.loss, self.optimizer)
 
