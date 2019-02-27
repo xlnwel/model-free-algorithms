@@ -10,20 +10,17 @@ class Base(Module):
                  name, 
                  args, 
                  graph,
-                 state, 
+                 state,
                  reuse=False, 
                  is_target=False, 
-                 scope_prefix='',
-                 log_tensorboard=True,
-                 log_params=False):
+                 scope_prefix='',):
         self.state = state
-        self._variable_scope = scope_prefix + '/' + name
+        self._variable_scope = (scope_prefix + '/' 
+                                if scope_prefix != '' and not scope_prefix.endswith('/') 
+                                else scope_prefix) + name
         
-        super().__init__(name, args, graph, reuse=reuse, log_tensorboard=log_tensorboard, log_params=log_params)
+        super().__init__(name, args, graph, reuse=reuse)
 
-    @property
-    def trainable_variables(self):
-        return tf.trainable_variables(scope=self._variable_scope)
 
 class Actor(Base):
     """ Interface """
@@ -31,35 +28,32 @@ class Actor(Base):
                  name, 
                  args, 
                  graph,
-                 state, 
-                 action_dim, 
+                 state,
+                 action_dim,
                  reuse=False, 
                  is_target=False, 
-                 scope_prefix='', 
-                 log_tensorboard=False, 
-                 log_params=False):
+                 scope_prefix=''):
         self.action_dim = action_dim
         self._noisy_sigma = args['noisy_sigma']
+
         super().__init__(name, 
                          args, 
-                         graph,
+                         graph, 
                          state, 
                          reuse=reuse, 
-                         is_target=is_target,
-                         scope_prefix=scope_prefix,
-                         log_tensorboard=log_tensorboard,
-                         log_params=log_params)
+                         is_target=is_target, 
+                         scope_prefix=scope_prefix)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.action = self._network(self.state, self.action_dim, self._noisy_sigma)
+        self.action = self._network(self.state, self.action_dim)
         
-    def _network(self, state, action_dim, noisy_sigma):
+    def _network(self, state, action_dim):
         with tf.variable_scope('net', reuse=self._reuse):
             x = self._dense(state, 512)
             x = self._dense_resnet_norm_activation(x, 512)
-            x = self._noisy_norm_activation(x, 256, sigma=noisy_sigma)
-            x = self._noisy(x, action_dim, sigma=noisy_sigma)
+            x = self._noisy_norm_activation(x, 256, sigma=self._noisy_sigma)
+            x = self._noisy(x, action_dim, sigma=self._noisy_sigma)
             x = tf.tanh(x, name='action')
 
         return x
@@ -67,36 +61,32 @@ class Actor(Base):
 
 class Critic(Base):
     """ Interface """
-    def __init__(self, 
-                 name, 
-                 args, 
+    def __init__(self,
+                 name,
+                 args,
                  graph,
                  state,
                  action,
-                 actor_action, 
-                 action_dim, 
+                 actor_action,
+                 action_dim,
                  reuse=False, 
                  is_target=False, 
-                 scope_prefix='',
-                 log_tensorboard=False,
-                 log_params=False):
+                 scope_prefix=''):
         self.action = action
         self.actor_action = actor_action
         self.action_dim = action_dim
-        
+
         super().__init__(name, 
-                         args, 
+                         args,
                          graph, 
-                         state,
+                         state, 
                          reuse=reuse, 
-                         is_target=is_target,
-                         scope_prefix=scope_prefix, 
-                         log_tensorboard=log_tensorboard, 
-                         log_params=log_params)
+                         is_target=is_target, 
+                         scope_prefix=scope_prefix)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.Q, self.Q_with_actor = self._build_net('Q_net')
+        self.Q, self.Q_with_actor = self._build_net('net')
 
     def _build_net(self, name):
         with tf.variable_scope(name, reuse=self._reuse):
@@ -109,9 +99,8 @@ class Critic(Base):
         self._reset_counter('dense_resnet')
         
         with tf.variable_scope('net', reuse=reuse):
-            x = self._dense(state, 512 - action_dim, kernel_initializer=tf_utils.kaiming_initializer())
+            x = self._dense(state, 512-action_dim, kernel_initializer=tf_utils.kaiming_initializer())
             x = tf.concat([x, action], 1)
-            # x = self._dense_resnet(x, 512)
             x = self._dense_resnet_norm_activation(x, 512)
             x = self._dense_norm_activation(x, 256)
             x = self._dense(x, 1, name='Q')
@@ -123,31 +112,27 @@ class DoubleCritic(Critic):
     def __init__(self, 
                  name, 
                  args, 
-                 graph,
+                 graph, 
                  state,
                  action,
                  actor_action, 
-                 action_dim, 
+                 action_dim,
                  reuse=False, 
                  is_target=False, 
-                 scope_prefix='',
-                 log_tensorboard=False,
-                 log_params=False):
+                 scope_prefix=''):
         super().__init__(name, 
                          args, 
                          graph, 
-                         state,
+                         state, 
                          action,
                          actor_action,
-                         action_dim, 
-                         reuse=reuse, 
-                         is_target=is_target,
-                         scope_prefix=scope_prefix,
-                         log_tensorboard=log_tensorboard,
-                         log_params=log_params)
+                         action_dim,
+                         reuse=reuse,
+                         is_target=is_target, 
+                         scope_prefix=scope_prefix)
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.Q1, self.Q1_with_actor = self._build_net(name='Qnet1')
-        self.Q2, self.Q2_with_actor = self._build_net(name='Qnet2')
+        self.Q1, self.Q1_with_actor = self._build_net(name='Q1')
+        self.Q2, self.Q2_with_actor = self._build_net(name='Q2')
         self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')

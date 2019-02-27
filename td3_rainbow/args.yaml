@@ -14,12 +14,12 @@ agent:
     model_root_dir: ./saved_models            # root path for savinng models
     tensorboard_root_dir: ./tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: 0227-dataset
+    model_name: 0228-interface
 
     # options for different improvements on DDPG
     options:
         # noisy layer is used as the default strategy to introduce exploration
-        buffer_type: &buffer_type proportional  # uniform, rank, proportional
+        buffer_type: &buffer_type proportional  # rank, proportional
         double_Q: True           # double is implemented based on TD3
         distributional: False
         n_steps: &n_steps 3

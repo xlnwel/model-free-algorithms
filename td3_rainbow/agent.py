@@ -4,29 +4,24 @@ import tensorflow.contrib as tc
 
 from utility import tf_utils
 from basic_model.model import Model
+from gym_env.env import GymEnvironment
 from actor_critic import Actor, Critic, DoubleCritic
 from utility.debug_tools import timeit
 from utility.losses import huber_loss
-from gym_env.env import GymEnvironment
 
-# different replay buffers
-from td3_rainbow.replay.uniform_replay import UniformReplay
-from td3_rainbow.replay.rank_based_replay import RankBasedPrioritizedReplay
-from td3_rainbow.replay.proportional_replay import ProportionalPrioritizedReplay
 
 class Agent(Model):
     """ Interface """
-    def __init__(self, 
-                 name, 
+    def __init__(self, name, 
                  args, 
-                 env_args,
-                 buffer,
+                 env_args, 
+                 buffer, 
                  sess_config=None, 
                  reuse=None, 
+                 log_tensorboard=True, 
                  save=True, 
-                 log_tensorboard=False, 
-                 log_params=False,
-                 log_score=False,
+                 log_params=False, 
+                 log_score=True, 
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99 
@@ -40,7 +35,6 @@ class Agent(Model):
         self.n_steps = options['n_steps']
 
         self._critic_loss_type = args['critic']['loss_type']
-        self._critic_update_times = args['critic']['update_times']
 
         # environment info
         self.env = GymEnvironment(env_args['name'])
@@ -48,15 +42,13 @@ class Agent(Model):
                                  else self.env.max_episode_steps)
         self._state_dim = self.env.state_dim
         self._action_dim = self.env.action_dim
-
+        
+        # replay buffer
         self.buffer = buffer
 
-        super().__init__(name, args, sess_config=sess_config, 
-                         reuse=reuse, save=save, 
-                         log_tensorboard=log_tensorboard, 
-                         log_params=log_params,
-                         log_score=log_score,
-                         device=device)
+        super().__init__(name, args, sess_config=sess_config, reuse=reuse,
+                         log_tensorboard=log_tensorboard, save=save, 
+                         log_params=log_params, log_score=log_score, device=device)
 
         self._initialize_target_net()
 
@@ -69,7 +61,7 @@ class Agent(Model):
         return self._target_actor.trainable_variables + self._target_critic.trainable_variables
 
     def act(self, state):
-        state = state.reshape((-1, self.env.state_dim))
+        state = state.reshape((-1, self._state_dim))
         action = self.sess.run(self.actor.action, feed_dict={self.actor.state: state})
 
         return np.squeeze(action)
@@ -79,100 +71,88 @@ class Agent(Model):
 
         if self.trainable and self.buffer.good_to_learn:
             self._learn()
-
+    
     """ Implementation """
     def _build_graph(self, **kwargs):
-        with tf.device('/cpu: 2'):
-            self.data = self._prepare_data(self.buffer)
-
-        self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic(self._double_Q)
-
-        self.priorities, self.actor_loss, self.critic_loss = self._loss(self.critic, self._double_Q)
-
-        self.actor_opt_op, self.global_step = self.actor._optimization_op(self.actor_loss, global_step=True)
-        self.critic_opt_op, _ = self.critic._optimization_op(self.critic_loss)
+        self.data = self._setup_env_placeholders()
         
+        self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
+
+        self.priorities, self.actor_loss, self.critic_loss = self._loss()
+    
+        self.opt_op = self._optimize_op(self.actor_loss, self.critic_loss)
+
         # target net operations
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
         self._log_loss()
 
-    def _create_main_target_actor_critic(self, double_Q):
+    def _setup_env_placeholders(self):
+        data = {}
+        with tf.name_scope('placeholders'):
+            data['state'] = tf.placeholder(tf.float32, shape=(None, self._state_dim), name='state')
+            data['action'] = tf.placeholder(tf.float32, shape=(None, self._action_dim), name='action')
+            data['next_state'] = tf.placeholder(tf.float32, shape=(None, self._state_dim), name='next_state')
+            data['rewards'] = tf.placeholder(tf.float32, shape=(None, self.n_steps, 1), name='rewards')
+            data['done'] = tf.placeholder(tf.float32, shape=(None, 1), name='done')
+            data['steps'] = tf.placeholder(tf.float32, shape=(None, 1), name='steps')
+            if self._buffer_type != 'uniform':
+                data['IS_ratio'] = tf.placeholder(tf.float32, shape=(self.batch_size), name='importance_sampling_ratio')
+        
+        return data
+
+    def _create_main_target_actor_critic(self):
         # main actor-critic
-        actor, critic = self._create_actor_critic(is_target=False, double_Q=double_Q)
+        actor, critic = self._create_actor_critic(is_target=False, double_Q=self._double_Q)
         # target actor-critic
-        target_actor, target_critic = self._create_actor_critic(is_target=True, double_Q=double_Q)
+        target_actor, target_critic = self._create_actor_critic(is_target=True, double_Q=self._double_Q)
 
         return actor, critic, target_actor, target_critic
         
-    def _create_actor_critic(self, is_target, double_Q):
+    def _create_actor_critic(self, is_target=False, double_Q=False):
+        log_tensorboard = False if is_target else self._log_tensorboard
+        log_params = False if is_target else self._log_params
+
         scope_name = 'target' if is_target else 'main'
         state = self.data['next_state'] if is_target else self.data['state']
         scope_prefix = self.name + '/' + scope_name
+        
         with tf.variable_scope(scope_name, reuse=self._reuse):
             actor = Actor('actor', 
                           self._args['actor'], 
-                          self._graph, 
+                          self._graph,
                           state, 
-                          self._action_dim,
-                          reuse=self._reuse,
-                          is_target=is_target,
-                          scope_prefix=scope_prefix)
+                          self._action_dim, 
+                          reuse=self._reuse, 
+                          is_target=is_target, 
+                          scope_prefix=scope_prefix, 
+                          log_tensorboard=log_tensorboard, 
+                          log_params=log_params)
 
             critic_type = (DoubleCritic if double_Q else Critic)
             critic = critic_type('critic', 
-                                self._args['critic'], 
-                                self._graph,
-                                state, 
-                                self.data['action'], 
-                                actor.action,
-                                self._action_dim,
-                                reuse=self._reuse,
-                                is_target=is_target, 
-                                scope_prefix=scope_prefix)
-
+                                 self._args['critic'],
+                                 self._graph,
+                                 state,
+                                 self.data['action'], 
+                                 actor.action,
+                                 self._action_dim,
+                                 reuse=self._reuse, 
+                                 is_target=is_target, 
+                                 scope_prefix=scope_prefix, 
+                                 log_tensorboard=log_tensorboard,
+                                 log_params=log_params)
+        
         return actor, critic
 
-    def _prepare_data(self, buffer):
-        with tf.name_scope('data'):
-            sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
-            sample_shapes =((self.batch_size), (self.batch_size), (
-                (None, self._state_dim),
-                (None, self._action_dim),
-                (None, self.n_steps, 1),
-                (None, self._state_dim),
-                (None, 1),
-                (None, 1)
-            ))
-            ds = tf.data.Dataset.from_generator(buffer, sample_types, sample_shapes)
-            ds = ds.prefetch(1)
-            iterator = ds.make_one_shot_iterator()
-            samples = iterator.get_next(name='samples')
-        
-        # prepare data
-        IS_ratio, saved_exp_ids, (obs, action, reward, next_obs, done, steps) = samples
-
-        data = {}
-        data['IS_ratio'] = IS_ratio
-        data['saved_exp_ids'] = saved_exp_ids
-        data['state'] = obs
-        data['action'] = action
-        data['reward'] = reward
-        data['next_state'] = next_obs
-        data['done'] = done
-        data['steps'] = steps
-
-        return data
-
-    """ Losses """
-    def _loss(self, critic, double_Q):
+    def _loss(self):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
-                Q_with_actor = critic.Q1_with_actor if double_Q else critic.Q_with_actor
+                Q_with_actor = self.critic.Q1_with_actor if self._double_Q else self.critic.Q_with_actor
                 actor_loss = tf.negative(tf.reduce_mean(Q_with_actor), name='actor_loss')
 
             with tf.name_scope('critic_loss'):
-                critic_loss_func = self._double_critic_loss if double_Q else self._plain_critic_loss
+                critic_loss_func = self._double_critic_loss if self._double_Q else self._plain_critic_loss
                 priorities, critic_loss = critic_loss_func()
 
         return priorities, actor_loss, critic_loss
@@ -186,7 +166,7 @@ class Agent(Model):
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
-        
+
         critic_loss = self._average_critic_loss(TD_squared)
 
         return priorities, critic_loss
@@ -206,19 +186,33 @@ class Agent(Model):
 
     def _average_critic_loss(self, loss):
         weighted_loss = loss if self._buffer_type == 'uniform' else self.data['IS_ratio'] * loss
-
+        
         critic_loss = tf.reduce_mean(weighted_loss, name='critic_loss')
 
         return critic_loss
 
-    def _n_step_target(self, n_step_value):
-        rewards_sum = tf.reduce_sum(self.data['reward'], axis=1)
-        n_step_gamma = self.gamma**self.data['steps']
-        n_step_target = tf.add(rewards_sum, n_step_gamma
-                                            * (1. - self.data['done'])
-                                            * n_step_value, name='target_Q')
-        
+    def _n_step_target(self, nth_Q):
+        rewards_sum = tf.reduce_sum(self.data['rewards'], axis=1)
+        n_step_target = tf.add(rewards_sum, self.gamma**self.data['steps']
+                                            * (1 - self.data['done'])
+                                            * nth_Q, name='target_Q')
+
         return tf.stop_gradient(n_step_target)
+
+    def _optimize_op(self, actor_loss, critic_loss):
+        with tf.variable_scope('learn_steps', reuse=self._reuse):
+            self.learn_steps = tf.get_variable('learn_steps', shape=[], 
+                                               initializer=tf.constant_initializer(), trainable=False)
+            step_op = tf.assign(self.learn_steps, self.learn_steps + 1, name='update_learn_steps')
+
+        with tf.variable_scope('optimizer', reuse=self._reuse):
+            actor_opt_op, _ = self.actor._optimization_op(actor_loss)
+            critic_opt_op, _ = self.critic._optimization_op(critic_loss)
+
+            with tf.control_dependencies([step_op]):
+                opt_op = tf.group(actor_opt_op, critic_opt_op)
+
+        return opt_op
 
     def _target_net_ops(self):
         with tf.name_scope('target_net_op'):
@@ -227,6 +221,43 @@ class Agent(Model):
             update_target_op = list(map(lambda v: tf.assign(v[0], self.tau * v[1] + (1. - self.tau) * v[0], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op
+
+    def _learn(self):
+        def env_feed_dict():
+            if self._buffer_type == 'uniform':
+                feed_dict = {}
+            else:
+                feed_dict = {self.data['IS_ratio']: IS_ratios}
+
+            feed_dict.update({
+                self.data['state']: states,
+                self.data['action']: actions,
+                self.data['rewards']: rewards,
+                self.data['next_state']: next_states,
+                self.data['done']: dones,
+                self.data['steps']: steps
+            })
+
+            return feed_dict
+
+        IS_ratios, saved_exp_ids, (states, actions, rewards, next_states, dones, steps) = self.buffer.sample()
+
+        feed_dict = env_feed_dict()
+
+        # update the main networks
+        if self._log_tensorboard:
+            priorities, learn_steps, _, summary = self.sess.run([self.priorities, self.learn_steps, self.opt_op, self.graph_summary], feed_dict=feed_dict)
+            if learn_steps % 100 == 0:
+                self.writer.add_summary(summary, learn_steps)
+                self.save()
+        else:
+            priorities, _ = self.sess.run([self.priorities, self.opt_op], feed_dict=feed_dict)
+
+        if self._buffer_type != 'uniform':
+            self.buffer.update_priorities(priorities, saved_exp_ids)
+
+        # update the target networks
+        self.sess.run(self.update_target_op)
 
     def _initialize_target_net(self):
         self.sess.run(self.init_target_op)
@@ -247,42 +278,7 @@ class Agent(Model):
                 tf.summary.scalar('critic_loss_', self.critic_loss)
             
             with tf.name_scope('Q'):
-                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.critic.Q1_with_actor))
-                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.critic.Q1_with_actor))
-                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.critic.Q1_with_actor))
-
-    def _learn(self):
-        # update critic a few times first
-        for _ in range(self._critic_update_times-1):
-            priorities, saved_exp_ids, _ = self.sess.run([self.priorities, 
-                                                          self.data['saved_exp_ids'], 
-                                                          self.critic_opt_op])
-            if self._buffer_type != 'uniform':
-                self.buffer.update_priorities(priorities)
-
-        # update the main networks
-        if self._log_tensorboard:
-            priorities, saved_exp_ids, learn_steps, _, _, summary = self.sess.run(
-                [self.priorities, 
-                self.data['saved_exp_ids'],
-                self.global_step, 
-                self.critic_opt_op, 
-                self.actor_opt_op, 
-                self.graph_summary]
-            )
-            if learn_steps % 100 == 0:
-                self.writer.add_summary(summary, learn_steps)
-                self.save()
-        else:
-            priorities, saved_exp_ids, _, _ = self.sess.run(
-                [self.priorities, 
-                self.data['saved_exp_ids'], 
-                self.critic_opt_op, 
-                self.actor_opt_op]
-            ) 
-                
-        if self._buffer_type != 'uniform':
-            self.buffer.update_priorities(priorities, saved_exp_ids)
-
-        # update the target networks
-        self.sess.run(self.update_target_op)
+                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.critic.Q_with_actor))
+                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.critic.Q_with_actor))
+                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.critic.Q_with_actor))
+            
