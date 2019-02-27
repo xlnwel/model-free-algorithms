@@ -66,6 +66,10 @@ class ReplayBuffer():
             print('\nfull memory')
             self.full = True
 
+    # TODO
+    def merge(self, local_buffer):
+        raise NotImplementedError
+
     def sample(self):
         raise NotImplementedError
 

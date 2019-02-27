@@ -16,28 +16,22 @@ class PrioritizedReplay(ReplayBuffer):
         self._beta_grad = (1 - self._beta) / float(args['beta_steps']) if 'beta_steps' in args else 1e-4
 
         self._exp_id = -1
-        self._saved_exp_ids = None               # saved exp ids, whose priorities will get updated latter
         self.beta1 = False
         self.top_priority = args['top_priority'] if 'top_priority' in args else 2.
 
     def sample(self):
         assert self.good_to_learn, 'There are not sufficient transitions in buffer to learn'
-        IS_ratios, self._saved_exp_ids, exps = self._sample()
+        IS_ratios, saved_exp_ids, exps = self._sample()
 
-        return IS_ratios, self._unpack_samples(exps)
+        return IS_ratios, saved_exp_ids, self._unpack_samples(exps)
 
-    def update_priorities(self, priorities):
+    def update_priorities(self, priorities, saved_exp_ids):
         priorities = self._compute_priority(priorities)
         
-        if self._saved_exp_ids is None:
-            raise ValueError('update_priorities() should be called only after sample()!')
-        
-        for priority, exp_id in zip(priorities, self._saved_exp_ids):
+        for priority, exp_id in zip(priorities, saved_exp_ids):
             if priority > self.top_priority:
                 self.top_priority = priority
             self.data_structure.update(priority, exp_id)
-
-        self._saved_exp_ids = None
         
     def __len__(self):
         return len(self.memory)

@@ -175,7 +175,7 @@ class Model(Module):
             
         if self._log_tensorboard:
             self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
-            
+        
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if self._log_tensorboard and log_score:
             self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()

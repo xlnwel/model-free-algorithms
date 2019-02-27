@@ -16,7 +16,7 @@ class UniformReplay(ReplayBuffer):
         exps = random.sample(self.memory, self.sample_size)
         
         # the first item here for being consistent with the prioritized API
-        return np.random.randn(self.sample_size) self._unpack_samples(exps)
+        return np.zeros(self.sample_size), np.zeros(self.sample_size), self._unpack_samples(exps)
 
     def __len__(self):
         return len(self.memory)

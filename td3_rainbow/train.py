@@ -112,7 +112,8 @@ def train(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_i
     env = gym.make(env_args['name'])
     if 'seed' in env_args:
         env.seed(env_args['seed'])
-
+    agent_args['state_size'] = env.observation_space.shape[0]
+    agent_args['action_size'] = env.action_space.n if isinstance(env.action_space, gym.spaces.Discrete) else env.action_space.shape[0]
     setup_logging(agent_args, buffer_args)
 
     agent_name = 'Agent'
