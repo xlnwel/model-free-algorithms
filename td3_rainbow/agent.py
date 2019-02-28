@@ -227,23 +227,18 @@ class Agent(Model):
         return init_target_op, update_target_op
 
     def _learn(self):
-        IS_ratios, saved_exp_ids, (states, actions, rewards, next_states, dones, steps) = self.buffer.sample()
-
-        feed_dict = env_feed_dict()
-
         # update the main networks
         if self._log_tensorboard:
             priorities, learn_steps, _, _, summary = self.sess.run([self.priorities, 
                                                                     self.learn_steps, 
                                                                     self.actor_opt_op, 
                                                                     self.critic_opt_op, 
-                                                                    self.graph_summary], 
-                                                                   feed_dict=feed_dict)
+                                                                    self.graph_summary])
             if learn_steps % 100 == 0:
                 self.writer.add_summary(summary, learn_steps)
                 self.save()
         else:
-            priorities, _, _ = self.sess.run([self.priorities, self.actor_opt_op, self.critic_opt_op], feed_dict=feed_dict)
+            priorities, _, _ = self.sess.run([self.priorities, self.actor_opt_op, self.critic_opt_op])
 
         self.buffer.update_priorities(priorities, saved_exp_ids)
 
