@@ -19,6 +19,9 @@ class PriorityQueue(Container):
 
         self._update_steps()
 
+    def get_exp_ids(self, prio_ids):
+        return [self.prio2exp[i] for i in prio_ids]
+        
     def __len__(self):
         return len(self.container)
         

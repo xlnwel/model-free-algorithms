@@ -18,9 +18,6 @@ class Container():
             self._update(priority, exp_id)
         else:
             self._add(priority, exp_id)
-    
-    def get_exp_ids(self, prio_ids):
-        return [self.prio2exp[i] for i in prio_ids]
 
     def top_priority(self):
         raise NotImplementedError

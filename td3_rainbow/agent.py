@@ -6,7 +6,6 @@ from utility import tf_utils
 from basic_model.model import Model
 from gym_env.env import GymEnvironment
 from actor_critic import Actor, Critic, DoubleCritic
-from utility.debug_tools import timeit
 from utility.losses import huber_loss
 
 
@@ -74,7 +73,7 @@ class Agent(Model):
     
     """ Implementation """
     def _build_graph(self, **kwargs):
-        with tf.device('/cpu: 2'):
+        with tf.device('/cpu: 1'):
             self.data = self._prepare_data(self.buffer)
         
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
@@ -95,7 +94,7 @@ class Agent(Model):
             sample_shapes =((self.batch_size), (self.batch_size), (
                 (None, self._state_dim),
                 (None, self._action_dim),
-                (None, self.n_steps, 1),
+                (None, 1),
                 (None, self._state_dim),
                 (None, 1),
                 (None, 1)
@@ -181,7 +180,8 @@ class Agent(Model):
         
         TD_error1 = tf.abs(target_Q - self.critic.Q1, name='TD_error1')
         TD_error2 = tf.abs(target_Q - self.critic.Q2, name='TD_error2')
-        priorities = tf.divide(TD_error1 + TD_error2, 2., name='priorities')
+        with tf.name_scope(name='priorities'):
+            priorities = self.buffer.compute_priorities((TD_error1 + TD_error2) / 2.)
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
@@ -194,7 +194,8 @@ class Agent(Model):
         target_Q = self._n_step_target(self._target_critic.Q_with_actor)
         
         TD_error = tf.abs(target_Q - self.critic.Q, name='TD_error')
-        priorities = tf.identity(TD_error, name='priorities')
+        with tf.name_scope(name='priorities'):
+            priorities = self.buffer.compute_priorities(TD_error)
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error)
@@ -211,10 +212,9 @@ class Agent(Model):
         return critic_loss
 
     def _n_step_target(self, nth_Q):
-        rewards_sum = tf.reduce_sum(self.data['reward'], axis=1)
-        n_step_target = tf.add(rewards_sum, self.gamma**self.data['steps']
-                                            * (1 - self.data['done'])
-                                            * nth_Q, name='target_Q')
+        n_step_target = tf.add(self.data['reward'], self.gamma**self.data['steps']
+                                                    * (1 - self.data['done'])
+                                                    * nth_Q, name='target_Q')
 
         return tf.stop_gradient(n_step_target)
 

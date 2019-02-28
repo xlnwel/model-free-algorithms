@@ -13,7 +13,8 @@ from multiprocessing import Process
 from utility.debug_tools import timeit
 from utility import utils, yaml_op
 from agent import Agent
-from td3_rainbow.replay.select_buffer import construct_buffer
+from gym_env.env import GymEnvironment
+from replay.proportional_replay import ProportionalPrioritizedReplay
 
 def print_args(args, i=0):
     for key, value in args.items():
@@ -85,7 +86,7 @@ def run_episodes(env, agent, n_episodes, scores_deque, hundred_episodes,
     if print_terminal_info:
         print('\r{}:\tEpisode {}\tAverage Score: {:3.2f}'.format(title, i_episode, average_score))
 
-def run(env, agent, on_notebook, n_episodes=3000, print_terminal_info=False):
+def train(env, agent, on_notebook, n_episodes=3000, print_terminal_info=False):
     interval = 100
     scores_deque = deque(maxlen=interval)
     if on_notebook:
@@ -99,7 +100,7 @@ def run(env, agent, on_notebook, n_episodes=3000, print_terminal_info=False):
         run_episodes(env, agent, interval, scores_deque, i, on_notebook, 
                      image, print_terminal_info=print_terminal_info)
 
-def train(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_info=False):
+def main(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_info=False):
     if print_terminal_info:
         print('Arguments:')
         print_args(agent_args)
@@ -109,21 +110,17 @@ def train(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_i
     # np.random.seed(42)
     # tf.set_random_seed(42)
 
-    env = gym.make(env_args['name'])
-    if 'seed' in env_args:
-        env.seed(env_args['seed'])
-    agent_args['state_size'] = env.observation_space.shape[0]
-    agent_args['action_size'] = env.action_space.n if isinstance(env.action_space, gym.spaces.Discrete) else env.action_space.shape[0]
+    env = GymEnvironment(env_args['name'])
     setup_logging(agent_args, buffer_args)
 
     agent_name = 'Agent'
 
-    buffer = construct_buffer(buffer_args)
+    buffer = ProportionalPrioritizedReplay(buffer_args, env.state_dim, env.action_dim)
     
     agent = Agent(agent_name, agent_args, env_args, buffer, log_tensorboard=True, log_score=True, device='/gpu:0')
     print('Model {} starts training'.format(Path(agent_args['model_dir']) / agent_args['model_name']))
     
-    run(env, agent, on_notebook, print_terminal_info=print_terminal_info)
+    train(env, agent, on_notebook, print_terminal_info=print_terminal_info)
 
 
 if __name__ == '__main__':
@@ -136,7 +133,7 @@ if __name__ == '__main__':
     logging.getLogger("tensorflow").setLevel(logging.WARNING)
 
     if args['n_experiments'] == 1:
-        train(env_args, agent_args, buffer_args, print_terminal_info=True)
+        main(env_args, agent_args, buffer_args, print_terminal_info=True)
     else:
         processes = []
 
@@ -151,7 +148,7 @@ if __name__ == '__main__':
                             agent_args['critic']['loss_type'] = loss
                             agent_args['model_dir'] = 'test'
                             agent_args['model_name'] = 'loss-{}_trial-{}'.format(loss, t)
-                            p = Process(target=train, args=(env_args, agent_args, buffer_args))
+                            p = Process(target=main, args=(env_args, agent_args, buffer_args))
                             p.start()
                             processes.append(p)
         
