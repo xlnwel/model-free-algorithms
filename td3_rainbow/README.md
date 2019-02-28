@@ -4,8 +4,9 @@ In which I try to combine DDPG with "Rainbow: Combining Improvements in Deep Rei
 
 - [x]: Noisy Nets in Actor
 - [x]: Multi-Step Learning
-- [x]: Twin Delayed Deep Deterministic policy gradient algorithm 
+- [x]: Twin Delayed Deep Deterministic policy gradient algorithm (TD3)
 - [x]: Prioritized Replay
+- [x]: Apex
 
 ## Playground
 

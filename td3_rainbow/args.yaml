@@ -34,7 +34,6 @@ agent:
 
 # argumennts for prioritized replay
 buffer:
-    type: *buffer_type 
     batch_size: *batch_size
     n_steps: *n_steps
     gamma: *gamma

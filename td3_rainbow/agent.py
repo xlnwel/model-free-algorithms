@@ -29,7 +29,6 @@ class Agent(Model):
 
         # options for DDPG improvements
         options = args['options']
-        self._buffer_type = options['buffer_type']
         self._double_Q = options['double_Q']
         self.n_steps = options['n_steps']
 
@@ -205,7 +204,7 @@ class Agent(Model):
         return priorities, critic_loss
 
     def _average_critic_loss(self, loss):
-        weighted_loss = loss if self._buffer_type == 'uniform' else self.data['IS_ratio'] * loss
+        weighted_loss = self.data['IS_ratio'] * loss
         
         critic_loss = tf.reduce_mean(weighted_loss, name='critic_loss')
 
@@ -251,14 +250,13 @@ class Agent(Model):
 
     def _log_loss(self):
         if self._log_tensorboard:
-            if self._buffer_type != 'uniform':
-                with tf.name_scope('priority'):
-                    tf.summary.histogram('priorities_', self.priorities)
-                    tf.summary.scalar('priority_', tf.reduce_mean(self.priorities))
+            with tf.name_scope('priority'):
+                tf.summary.histogram('priorities_', self.priorities)
+                tf.summary.scalar('priority_', tf.reduce_mean(self.priorities))
 
-                with tf.name_scope('IS_ratio'):
-                    tf.summary.histogram('IS_ratios_', self.data['IS_ratio'])
-                    tf.summary.scalar('IS_ratio_', tf.reduce_mean(self.data['IS_ratio']))
+            with tf.name_scope('IS_ratio'):
+                tf.summary.histogram('IS_ratios_', self.data['IS_ratio'])
+                tf.summary.scalar('IS_ratio_', tf.reduce_mean(self.data['IS_ratio']))
 
             with tf.variable_scope('loss', reuse=self._reuse):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
