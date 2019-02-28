@@ -14,7 +14,7 @@ agent:
     model_root_dir: ./saved_models            # root path for savinng models
     tensorboard_root_dir: ./tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: 0228-dataset
+    model_name: 0228-optimization
 
     # options for different improvements on DDPG
     options:
