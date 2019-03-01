@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
+import ray
 
 from utility import tf_utils
 from basic_model.model import Model
@@ -29,7 +30,7 @@ class Agent(Model):
 
         # options for DDPG improvements
         options = args['options']
-        self._double_Q = options['double_Q']
+        self.double_Q = options['double_Q']
         self.n_steps = options['n_steps']
 
         self._critic_loss_type = args['critic']['loss_type']
@@ -64,7 +65,7 @@ class Agent(Model):
         action = self.sess.run(self.actor.action, feed_dict={self.actor.state: state})
 
         return np.squeeze(action)
-
+    
     def learn(self, state, action, reward, next_state, done):
         self.buffer.add(state, action, reward, next_state, done)
 
@@ -78,7 +79,7 @@ class Agent(Model):
         
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
 
-        self.priorities, self.actor_loss, self.critic_loss = self._loss()
+        self.priority, self.actor_loss, self.critic_loss = self._loss()
     
         self.actor_opt_op, self.global_step = self.actor._optimization_op(self.actor_loss, global_step=True)
         self.critic_opt_op, _ = self.critic._optimization_op(self.critic_loss)
@@ -121,9 +122,9 @@ class Agent(Model):
 
     def _create_main_target_actor_critic(self):
         # main actor-critic
-        actor, critic = self._create_actor_critic(is_target=False, double_Q=self._double_Q)
+        actor, critic = self._create_actor_critic(is_target=False, double_Q=self.double_Q)
         # target actor-critic
-        target_actor, target_critic = self._create_actor_critic(is_target=True, double_Q=self._double_Q)
+        target_actor, target_critic = self._create_actor_critic(is_target=True, double_Q=self.double_Q)
 
         return actor, critic, target_actor, target_critic
         
@@ -166,43 +167,43 @@ class Agent(Model):
     def _loss(self):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
-                Q_with_actor = self.critic.Q1_with_actor if self._double_Q else self.critic.Q_with_actor
+                Q_with_actor = self.critic.Q1_with_actor if self.double_Q else self.critic.Q_with_actor
                 actor_loss = tf.negative(tf.reduce_mean(Q_with_actor), name='actor_loss')
 
             with tf.name_scope('critic_loss'):
-                critic_loss_func = self._double_critic_loss if self._double_Q else self._plain_critic_loss
-                priorities, critic_loss = critic_loss_func()
+                critic_loss_func = self._double_critic_loss if self.double_Q else self._plain_critic_loss
+                priority, critic_loss = critic_loss_func()
 
-        return priorities, actor_loss, critic_loss
+        return priority, actor_loss, critic_loss
 
     def _double_critic_loss(self):
         target_Q = self._n_step_target(self._target_critic.Q_with_actor)
         
         TD_error1 = tf.abs(target_Q - self.critic.Q1, name='TD_error1')
         TD_error2 = tf.abs(target_Q - self.critic.Q2, name='TD_error2')
-        with tf.name_scope(name='priorities'):
-            priorities = self.buffer.compute_priorities((TD_error1 + TD_error2) / 2.)
+        with tf.name_scope(name='priority'):
+            priority = self.buffer.compute_priorities((TD_error1 + TD_error2) / 2.)
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
 
         critic_loss = self._average_critic_loss(TD_squared)
 
-        return priorities, critic_loss
+        return priority, critic_loss
         
     def _plain_critic_loss(self):
         target_Q = self._n_step_target(self._target_critic.Q_with_actor)
         
         TD_error = tf.abs(target_Q - self.critic.Q, name='TD_error')
-        with tf.name_scope(name='priorities'):
-            priorities = self.buffer.compute_priorities(TD_error)
+        with tf.name_scope(name='priority'):
+            priority = self.buffer.compute_priorities(TD_error)
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error)
 
         critic_loss = self._average_critic_loss(TD_squared)
         
-        return priorities, critic_loss
+        return priority, critic_loss
 
     def _average_critic_loss(self, loss):
         weighted_loss = self.data['IS_ratio'] * loss
@@ -229,13 +230,13 @@ class Agent(Model):
     def _learn(self):
         # update the main networks
         for _ in range(self._extra_critic_updates):
-            priorities, saved_exp_ids, _ = self.sess.run([self.priorities,
+            priority, saved_exp_ids, _ = self.sess.run([self.priority,
                                                         self.data['saved_exp_ids'],
                                                         self.critic_opt_op])
-            self.buffer.update_priorities(priorities, saved_exp_ids)
+            self.buffer.update_priorities(priority, saved_exp_ids)
 
         if self._log_tensorboard:
-            priorities, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priorities, 
+            priority, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priority, 
                                                                                 self.data['saved_exp_ids'],
                                                                                 self.global_step, 
                                                                                 self.actor_opt_op, 
@@ -245,9 +246,9 @@ class Agent(Model):
                 self.writer.add_summary(summary, global_step)
                 self.save()
         else:
-            priorities, saved_exp_ids, _, _ = self.sess.run([self.priorities, self.data['saved_exp_ids'], self.actor_opt_op, self.critic_opt_op])
+            priority, saved_exp_ids, _, _ = self.sess.run([self.priority, self.data['saved_exp_ids'], self.actor_opt_op, self.critic_opt_op])
 
-        self.buffer.update_priorities(priorities, saved_exp_ids)
+        self.buffer.update_priorities(priority, saved_exp_ids)
 
         # update the target networks
         self.sess.run(self.update_target_op)
@@ -258,11 +259,11 @@ class Agent(Model):
     def _log_loss(self):
         if self._log_tensorboard:
             with tf.name_scope('priority'):
-                tf.summary.histogram('priorities_', self.priorities)
-                tf.summary.scalar('priority_', tf.reduce_mean(self.priorities))
+                tf.summary.histogram('priority_', self.priority)
+                tf.summary.scalar('priority_', tf.reduce_mean(self.priority))
 
             with tf.name_scope('IS_ratio'):
-                tf.summary.histogram('IS_ratios_', self.data['IS_ratio'])
+                tf.summary.histogram('IS_ratio_', self.data['IS_ratio'])
                 tf.summary.scalar('IS_ratio_', tf.reduce_mean(self.data['IS_ratio']))
 
             with tf.variable_scope('loss', reuse=self._reuse):
