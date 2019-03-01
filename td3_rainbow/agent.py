@@ -33,6 +33,7 @@ class Agent(Model):
         self.n_steps = options['n_steps']
 
         self._critic_loss_type = args['critic']['loss_type']
+        self._extra_critic_updates = args['critic']['extra_updates']
 
         # environment info
         self.env = GymEnvironment(env_args['name'])
@@ -72,7 +73,7 @@ class Agent(Model):
     
     """ Implementation """
     def _build_graph(self, **kwargs):
-        with tf.device('/cpu: 1'):
+        with tf.device('/cpu: 2'):
             self.data = self._prepare_data(self.buffer)
         
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
@@ -227,6 +228,12 @@ class Agent(Model):
 
     def _learn(self):
         # update the main networks
+        for _ in range(self._extra_critic_updates):
+            priorities, saved_exp_ids, _ = self.sess.run([self.priorities,
+                                                        self.data['saved_exp_ids'],
+                                                        self.critic_opt_op])
+            self.buffer.update_priorities(priorities, saved_exp_ids)
+
         if self._log_tensorboard:
             priorities, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priorities, 
                                                                                 self.data['saved_exp_ids'],
