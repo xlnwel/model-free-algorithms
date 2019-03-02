@@ -1,9 +1,8 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib as tc
 
 from basic_model.model import Module
-import utility.tf_utils as tf_utils
+
 
 class Base(Module):
     def __init__(self, 
@@ -20,10 +19,6 @@ class Base(Module):
         self._variable_scope = scope_prefix + '/' + name
         
         super().__init__(name, args, graph, reuse=reuse, log_tensorboard=log_tensorboard, log_params=log_params)
-
-    @property
-    def trainable_variables(self):
-        return tf.trainable_variables(scope=self._variable_scope)
 
 class Actor(Base):
     """ Interface """
@@ -56,9 +51,9 @@ class Actor(Base):
         
     def _network(self, state, action_dim, noisy_sigma):
         with tf.variable_scope('net', reuse=self._reuse):
-            x = self._dense(state, 512)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._noisy_norm_activation(x, 256, sigma=noisy_sigma)
+            x = self._noisy(state, 512)
+            x = self._noisy_resnet_norm_activation(x, 512)
+            x = self._noisy_norm_activation(x, 256)
             x = self._noisy(x, action_dim, sigma=noisy_sigma)
             x = tf.tanh(x, name='action')
 
@@ -96,7 +91,7 @@ class Critic(Base):
 
     """ Implementation """
     def _build_graph(self, **kwargs):
-        self.Q, self.Q_with_actor = self._build_net('Q_net')
+        self.Q, self.Q_with_actor = self._build_net('Qnet')
 
     def _build_net(self, name):
         with tf.variable_scope(name, reuse=self._reuse):
@@ -107,11 +102,10 @@ class Critic(Base):
 
     def _network(self, state, action, action_dim, reuse):
         self._reset_counter('dense_resnet')
-        
+
         with tf.variable_scope('net', reuse=reuse):
-            x = self._dense(state, 512 - action_dim, kernel_initializer=tf_utils.kaiming_initializer())
+            x = self._dense_norm_activation(state, 512 - action_dim, normalization=None, activation=None)
             x = tf.concat([x, action], 1)
-            # x = self._dense_resnet(x, 512)
             x = self._dense_resnet_norm_activation(x, 512)
             x = self._dense_norm_activation(x, 256)
             x = self._dense(x, 1, name='Q')

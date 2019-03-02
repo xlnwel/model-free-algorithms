@@ -1,9 +1,7 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib as tc
 import ray
 
-from utility import tf_utils
 from basic_model.model import Model
 from gym_env.env import GymEnvironment
 from actor_critic import Actor, Critic, DoubleCritic
@@ -12,7 +10,8 @@ from utility.losses import huber_loss
 
 class Agent(Model):
     """ Interface """
-    def __init__(self, name, 
+    def __init__(self, 
+                 name, 
                  args, 
                  env_args, 
                  buffer, 
@@ -51,6 +50,9 @@ class Agent(Model):
                          log_params=log_params, log_score=log_score, device=device)
 
         self._initialize_target_net()
+
+        with self._graph.as_default():
+            self.variables = ray.experimental.TensorFlowVariables([self.actor_loss, self.critic_loss], self.sess)
 
     @property
     def main_variables(self):
@@ -128,7 +130,7 @@ class Agent(Model):
 
         return actor, critic, target_actor, target_critic
         
-    def _create_actor_critic(self, is_target=False, double_Q=False):
+    def _create_actor_critic(self, is_target, double_Q):
         log_tensorboard = False if is_target else self._log_tensorboard
         log_params = False if is_target else self._log_params
 

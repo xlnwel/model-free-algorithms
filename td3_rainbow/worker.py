@@ -1,12 +1,15 @@
 from collections import deque
+import ray
 
 from td3_rainbow.agent import Agent
-from td3_rainbow.replay.utils import init_buffer, add_buffer
+from replay.utils import init_buffer, add_buffer
 
 
+@ray.remote
 class Worker(Agent):
     def __init__(self, 
                  name, 
+                 worker_no,
                  args, 
                  env_args,
                  buffer,
@@ -26,30 +29,34 @@ class Worker(Agent):
                          log_params,
                          log_score,
                          device) 
+        self.no = worker_no
         self.local_buffer_capacity = int(1e3)
-        self.local_buffer = init_buffer(self.local_buffer_capacity + self.n_steps, self.state_dim, self.action_dim)
+        self._init_buffer = lambda: init_buffer(self.local_buffer_capacity + self.n_steps, self._state_dim, self._action_dim, True)
+        self.local_buffer = self._init_buffer()
         self.lb_idx = 0
         self.learner = learner
         self.weight_update_steps = weight_update_steps
-        # TODO: move to agent
-        with self._graph.as_default():
-            self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
 
     def sample_data(self):
         i = 0
-        for _ range(3000):
+        while True:
             state = self.env.reset()
             for _ in range(self._max_path_length):
                 i += 1
-                action = self.act(ob)
+                action = self.act(state)
                 next_state, reward, done, _ = self.env.step(action)
 
                 add_buffer(self.local_buffer, self.lb_idx, state, action, reward, 
                             next_state, done, self.n_steps, self.gamma)
 
                 if self.local_buffer['counter'] >= self.local_buffer_capacity + self.n_steps:
-                    self.buffer.merge.remote(self.local_buffer, self.local_buffer_capacity)
-                    self.local_buffer = init_buffer(self.local_buffer_capacity + self.n_steps)
+                    priority = self.sess.run(self.priority)
+                    self.local_buffer['priority']= priority
+
+                    buffer_id = ray.put(self.local_buffer)
+                    self.buffer.merge.remote(buffer_id, self.local_buffer_capacity)
+                    self.local_buffer = self._init_buffer()
+                    self.lb_idx = 0
                     break
             
             if i > self.weight_update_steps:
@@ -60,20 +67,3 @@ class Worker(Agent):
 
     def _set_weights(self, weights):
         self.variables.set_flat(weights)
-
-    def _add_buffer(self, buffer, state, action, reward, next_state, done):
-        buffer['counter'] += 1
-        buffer['state'].append(state)
-        buffer['action'].append(action)
-        buffer['reward'].append(reward)
-        buffer['next_state'].append(next_state),
-        buffer['done'].append(done)
-        buffer['steps'].append(1)
-        for i in range(1, self.n_steps):
-            k = i + 1
-            if buffer['done'][-k] == True or k > buffer['counter']:
-                break
-            buffer['reward'][-k] += self.gamma**i * reward
-            buffer['next_state'][-k] = next_state
-            buffer['done'][-k] = done
-            buffer['steps'][-k] += 1
