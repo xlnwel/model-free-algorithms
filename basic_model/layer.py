@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
+import tensorflow.keras as tk
 
 from utility import tf_utils
 
@@ -22,7 +23,7 @@ class Layer():
 
     @property
     def l2_regularizer(self):
-        return tc.layers.l2_regularizer(self._args['weight_decay'] if self.name in self._args and 'weight_decay' in self._args else 0.)
+        return tc.layers.l2_regularizer(self._args['weight_decay']) if self.name in self._args and 'weight_decay' in self._args else None
     
     @property
     def l2_loss(self):
@@ -273,32 +274,25 @@ class Layer():
 
         return x
 
-    def _lstm(self, x, units, keep_prob=1.0):
+    def _lstm(self, x, units, initial_state=None, return_cell=False):
         if isinstance(units, int):
             num_layers = 1
             units = [units]
         else:
             num_layers = len(units)
         
-        if isinstance(keep_prob, float):
-            keep_prob = [keep_prob] * num_layers
-        assert len(units) == len(keep_prob), 'Dimensions of units and keep_prob do not match.'
-        
-        def cell(units, keep_prob):
-            cell = tc.rnn.BasicLSTMCell(units)
-            if keep_prob != 1.0:
-                cell = tc.rnn.DropoutWrapper(cell, output_keep_prob=keep_prob)
+        if num_layers == 1:
+            lstm = tk.layers.CuDNNLSTM(units[0])
+        else:
+            cells = [tk.layers.CuDNNLSTM(n) for n in units]
+            lstm = tk.layers.StackedRNNCells(cells)
 
-            return cell
-        
-        if num_layers > 1:
-            cells = tc.rnn.MultiRNNCell([cell(n, keep_prob) for n in units])
-    
-        initial_state = cells.zero_state(x.shape[0], tf.float16)
+        x = lstm(x, initial_state=initial_state)
 
-        outputs, final_state = tf.nn.dynamic_rnn(cells, x, initial_state=initial_state)
-
-        return outputs, initial_state, final_state
+        if return_cell:
+            return x, lstm
+        else:
+            return x
 
     """ Auxiliary functions """
     def _reset_counter(self, name):
