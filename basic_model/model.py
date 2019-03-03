@@ -43,14 +43,15 @@ class Module(Layer):
         self._reuse = reuse
         self._log_tensorboard = log_tensorboard
         self._log_params = log_params
+        self._device = device
 
         super().__init__(name, args)
 
-        self.build_graph(device=device)
+        self.build_graph()
         
     def build_graph(self, **kwargs):
-        if kwargs['device']:
-            with tf.device(kwargs['device']):
+        if self._device:
+            with tf.device(self._device):
                 with tf.variable_scope(self.name, reuse=self._reuse):
                     self._build_graph(**kwargs)
         else:
@@ -178,7 +179,10 @@ class Model(Module):
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if self._log_tensorboard and log_score:
-            self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
+            if 'num_workers' in self._args:
+                self.scores, self.avg_scores, self.score_counters, self.score_log_ops = self._setup_multiple_score_logs()
+            else:
+                self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
 
         # initialize session and global variables
         if sess_config is None:
@@ -235,9 +239,12 @@ class Model(Module):
             self.writer.add_summary(summary, score_count)
 
     """ Implementation """
-    def _setup_score_logs(self):
+    def _setup_score_logs(self, name=None):
+        """ score logs for a single agent """
         with self._graph.as_default():
-            with tf.variable_scope('scores', reuse=self._reuse):
+            if name is None:
+                name = 'scores'
+            with tf.variable_scope(name, reuse=self._reuse):
                 score = tf.placeholder(tf.float32, shape=None, name='score')
                 avg_score = tf.placeholder(tf.float32, shape=None, name='average_score')
 
@@ -251,6 +258,24 @@ class Model(Module):
                     score_log_op = tf.summary.merge([score_log, avg_score_log], name='score_log_op')
 
         return score, avg_score, score_counter, score_log_op
+
+    def _setup_multiple_score_logs(self):
+        with self._graph.as_default():
+            scores = []
+            avg_scores = []
+            score_counters = []
+            score_log_ops = []
+
+            with tf.variable_scope('scores', reuse=self._reuse):
+                for i in range(1, self._args['num_workers']+1):
+                    score, avg_score, score_counter, score_log_op = super()._setup_score_logs(name='worker_{}'.format(i))
+
+                    scores.append(score)
+                    avg_scores.append(avg_score)
+                    score_counters.append(score_counter)
+                    score_log_ops.append(score_log_op)
+
+        return scores, avg_scores, score_counters, score_log_ops
 
     def _setup_saver(self, save):
         return tf.train.Saver(self.global_variables) if save else None
