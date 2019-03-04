@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function, unicode_literals  # provide backward compatibility
 import numpy as np
 import tensorflow as tf
 import ray
@@ -6,6 +7,7 @@ from basic_model.model import Model
 from gym_env.env import GymEnvironment
 from actor_critic import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
+from replay.proportional_replay import ProportionalPrioritizedReplay
 
 
 class Agent(Model):
@@ -14,13 +16,13 @@ class Agent(Model):
                  name, 
                  args, 
                  env_args, 
-                 buffer, 
+                 buffer_args=None, 
                  sess_config=None, 
                  reuse=None, 
-                 log_tensorboard=True, 
                  save=True, 
+                 log_tensorboard=False, 
                  log_params=False, 
-                 log_score=True, 
+                 log_score=False, 
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99 
@@ -43,11 +45,21 @@ class Agent(Model):
         self._action_dim = self.env.action_dim
         
         # replay buffer
-        self.buffer = buffer
+        if not hasattr(self, 'buffer'):
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self._state_dim, self._action_dim)
 
-        super().__init__(name, args, sess_config=sess_config, reuse=reuse,
-                         log_tensorboard=log_tensorboard, save=save, 
-                         log_params=log_params, log_score=log_score, device=device)
+        # arguments for prioritized replay
+        self.prio_alpha = float(buffer_args['alpha'])
+        self.prio_epsilon = float(buffer_args['epsilon'])
+
+        super().__init__(name, args, 
+                         sess_config=sess_config, 
+                         reuse=reuse,
+                         save=save, 
+                         log_tensorboard=log_tensorboard, 
+                         log_params=log_params, 
+                         log_score=log_score, 
+                         device=device)
 
         self._initialize_target_net()
 
@@ -76,9 +88,12 @@ class Agent(Model):
     
     """ Implementation """
     def _build_graph(self, **kwargs):
-        with tf.device('/cpu: 2'):
+        if 'gpu' in self._device:
+            with tf.device('/cpu: 0'):
+                self.data = self._prepare_data(self.buffer)
+        else:
             self.data = self._prepare_data(self.buffer)
-        
+            
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
 
         self.priority, self.actor_loss, self.critic_loss = self._loss()
@@ -94,7 +109,7 @@ class Agent(Model):
     def _prepare_data(self, buffer):
         with tf.name_scope('data'):
             sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
-            sample_shapes =((self.batch_size), (self.batch_size), (
+            sample_shapes =((None), (None), (
                 (None, self._state_dim),
                 (None, self._action_dim),
                 (None, 1),
@@ -184,7 +199,7 @@ class Agent(Model):
         TD_error1 = tf.abs(target_Q - self.critic.Q1, name='TD_error1')
         TD_error2 = tf.abs(target_Q - self.critic.Q2, name='TD_error2')
         with tf.name_scope(name='priority'):
-            priority = self.buffer.compute_priorities((TD_error1 + TD_error2) / 2.)
+            priority = self._compute_priorities((TD_error1 + TD_error2) / 2.)
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
@@ -198,7 +213,7 @@ class Agent(Model):
         
         TD_error = tf.abs(target_Q - self.critic.Q, name='TD_error')
         with tf.name_scope(name='priority'):
-            priority = self.buffer.compute_priorities(TD_error)
+            priority = self._compute_priorities(TD_error)
 
         loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error)
@@ -213,6 +228,12 @@ class Agent(Model):
         critic_loss = tf.reduce_mean(weighted_loss, name='critic_loss')
 
         return critic_loss
+
+    def _compute_priorities(self, priorities):
+        priorities += self.prio_epsilon
+        priorities **= self.prio_alpha
+        
+        return priorities
 
     def _n_step_target(self, nth_Q):
         n_step_target = tf.add(self.data['reward'], self.gamma**self.data['steps']
