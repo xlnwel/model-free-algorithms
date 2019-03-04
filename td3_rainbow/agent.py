@@ -71,7 +71,7 @@ class Agent(Model):
         return self.actor.trainable_variables + self.critic.trainable_variables
 
     @property
-    def _target_variables(self):
+    def target_variables(self):
         return self._target_actor.trainable_variables + self._target_critic.trainable_variables
 
     def act(self, state):
@@ -87,7 +87,7 @@ class Agent(Model):
             self._learn()
     
     """ Implementation """
-    def _build_graph(self, **kwargs):
+    def _build_graph(self):
         if 'gpu' in self._device:
             with tf.device('/cpu: 0'):
                 self.data = self._prepare_data(self.buffer)
@@ -183,7 +183,7 @@ class Agent(Model):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
                 Q_with_actor = self.critic.Q1_with_actor if self.double_Q else self.critic.Q_with_actor
-                actor_loss = tf.negative(tf.reduce_mean(Q_with_actor), name='actor_loss')
+                actor_loss = -tf.reduce_mean(Q_with_actor)
 
             with tf.name_scope('critic_loss'):
                 critic_loss_func = self._double_critic_loss if self.double_Q else self._plain_critic_loss
@@ -223,7 +223,7 @@ class Agent(Model):
     def _average_critic_loss(self, loss):
         weighted_loss = self.data['IS_ratio'] * loss
         
-        critic_loss = tf.reduce_mean(weighted_loss, name='critic_loss')
+        critic_loss = tf.reduce_mean(weighted_loss)
 
         return critic_loss
 
@@ -236,13 +236,13 @@ class Agent(Model):
     def _n_step_target(self, nth_Q):
         n_step_target = tf.add(self.data['reward'], self.gamma**self.data['steps']
                                                     * (1 - self.data['done'])
-                                                    * nth_Q, name='target_Q')
+                                                    * nth_Q, name='n_step_target')
 
         return tf.stop_gradient(n_step_target)
 
     def _target_net_ops(self):
         with tf.name_scope('target_net_op'):
-            target_main_var_pairs = list(zip(self._target_variables, self.main_variables))
+            target_main_var_pairs = list(zip(self.target_variables, self.main_variables))
             init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
             update_target_op = list(map(lambda v: tf.assign(v[0], self.tau * v[1] + (1. - self.tau) * v[0], name='update_target_op'), target_main_var_pairs))
 
