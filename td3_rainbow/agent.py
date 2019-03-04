@@ -160,7 +160,6 @@ class Agent(Model):
                           state, 
                           self._action_dim, 
                           reuse=self._reuse, 
-                          is_target=is_target, 
                           scope_prefix=scope_prefix, 
                           log_tensorboard=log_tensorboard, 
                           log_params=log_params)
@@ -174,7 +173,6 @@ class Agent(Model):
                                  actor.action,
                                  self._action_dim,
                                  reuse=self._reuse, 
-                                 is_target=is_target, 
                                  scope_prefix=scope_prefix, 
                                  log_tensorboard=log_tensorboard,
                                  log_params=log_params)

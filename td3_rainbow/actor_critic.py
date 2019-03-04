@@ -11,7 +11,6 @@ class Base(Module):
                  graph,
                  state, 
                  reuse=False, 
-                 is_target=False, 
                  scope_prefix='',
                  log_tensorboard=True,
                  log_params=False):
@@ -29,7 +28,6 @@ class Actor(Base):
                  state, 
                  action_dim, 
                  reuse=False, 
-                 is_target=False, 
                  scope_prefix='', 
                  log_tensorboard=False, 
                  log_params=False):
@@ -40,7 +38,6 @@ class Actor(Base):
                          graph,
                          state, 
                          reuse=reuse, 
-                         is_target=is_target,
                          scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
@@ -71,7 +68,6 @@ class Critic(Base):
                  actor_action, 
                  action_dim, 
                  reuse=False, 
-                 is_target=False, 
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
@@ -84,7 +80,6 @@ class Critic(Base):
                          graph, 
                          state,
                          reuse=reuse, 
-                         is_target=is_target,
                          scope_prefix=scope_prefix, 
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params)
@@ -123,7 +118,6 @@ class DoubleCritic(Critic):
                  actor_action, 
                  action_dim, 
                  reuse=False, 
-                 is_target=False, 
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
@@ -135,7 +129,6 @@ class DoubleCritic(Critic):
                          actor_action,
                          action_dim, 
                          reuse=reuse, 
-                         is_target=is_target,
                          scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
