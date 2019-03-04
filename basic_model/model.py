@@ -268,7 +268,7 @@ class Model(Module):
 
             with tf.variable_scope('scores', reuse=self._reuse):
                 for i in range(1, self._args['num_workers']+1):
-                    score, avg_score, score_counter, score_log_op = super()._setup_score_logs(name='worker_{}'.format(i))
+                    score, avg_score, score_counter, score_log_op = self._setup_score_logs(name='worker_{}'.format(i))
 
                     scores.append(score)
                     avg_scores.append(avg_score)
