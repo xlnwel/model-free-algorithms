@@ -1,3 +1,7 @@
+"""
+Legacy code for single agent, not supported anymore, only leaving for reference
+"""
+
 import os
 import gym
 import random
@@ -12,9 +16,10 @@ from multiprocessing import Process
 
 from utility.debug_tools import timeit
 from utility import utils, yaml_op
-from agent import Agent
 from gym_env.env import GymEnvironment
 from replay.proportional_replay import ProportionalPrioritizedReplay
+from agent import Agent
+
 
 def print_args(args, i=0):
     for key, value in args.items():
@@ -82,7 +87,8 @@ def run_episodes(env, agent, n_episodes, scores_deque, hundred_episodes,
         agent.log_score(score, average_score)
         title = 'Training' if agent.trainable else 'Testing'
         if print_terminal_info:
-            print('\r{}:\tEpisode {}\tAverage Score: {:3.2f}\tScore: {:3.2f}'.format(title, i_episode, average_score, score), end="")
+            print('\r{}:\tEpisode {}\tAverage Score: {:3.2f}\tScore: {:3.2f}'.format(
+                title, i_episode, average_score, score), end="")
     if print_terminal_info:
         print('\r{}:\tEpisode {}\tAverage Score: {:3.2f}'.format(title, i_episode, average_score))
 
@@ -102,8 +108,10 @@ def train(env, agent, on_notebook, n_episodes=3000, print_terminal_info=False):
 
 def main(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_info=False):
     if print_terminal_info:
-        print('Arguments:')
+        print('Agent Arguments:\n')
         print_args(agent_args)
+        print('Buffer Arguments:\n')
+        print_args(buffer_args)
     
     # os.environ['PYTHONHASHSEED']=str(42)
     # random.seed(42)
@@ -114,14 +122,11 @@ def main(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_in
     setup_logging(agent_args, buffer_args)
 
     agent_name = 'Agent'
-
-    buffer = ProportionalPrioritizedReplay(buffer_args, env.state_dim, env.action_dim)
     
-    agent = Agent(agent_name, agent_args, env_args, buffer, log_tensorboard=True, log_score=True, device='/gpu:0')
+    agent = Agent(agent_name, agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
     print('Model {} starts training'.format(Path(agent_args['model_dir']) / agent_args['model_name']))
     
     train(env, agent, on_notebook, print_terminal_info=print_terminal_info)
-
 
 if __name__ == '__main__':
     args = yaml_op.load_args()
