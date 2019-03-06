@@ -2,7 +2,6 @@ import os
 import time
 from collections import deque
 from multiprocessing import Process
-import logging
 import numpy as np
 import tensorflow as tf
 import gym
