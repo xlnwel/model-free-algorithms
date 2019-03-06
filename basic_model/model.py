@@ -21,8 +21,7 @@ class Module(Layer):
                  reuse=None,
                  log_tensorboard=False, 
                  log_params=False,
-                 device=None,
-                 **kwargs):
+                 device=None):
         """ Basic module which defines the basic functions to build a tensorflow graph
         
         Arguments:
@@ -49,14 +48,14 @@ class Module(Layer):
 
         self.build_graph()
         
-    def build_graph(self, **kwargs):
+    def build_graph(self):
         if self._device:
             with tf.device(self._device):
                 with tf.variable_scope(self.name, reuse=self._reuse):
-                    self._build_graph(**kwargs)
+                    self._build_graph()
         else:
             with tf.variable_scope(self.name, reuse=self._reuse):
-                self._build_graph(**kwargs)
+                self._build_graph()
 
     @property
     def global_variables(self):
@@ -75,7 +74,7 @@ class Module(Layer):
         return [var for var in self.trainable_variables if 'LayerNorm' not in var.name]
             
     """ Implementation """
-    def _build_graph(self, **kwargs):
+    def _build_graph(self):
         raise NotImplementedError
         
     def _optimization_op(self, loss, tvars=None, global_step=None):
@@ -150,8 +149,7 @@ class Model(Module):
                  log_tensorboard=False,  
                  log_params=False,
                  log_score=False,
-                 device=None,
-                 **kwargs):
+                 device=None):
         """ Model, inherited from Module, further defines some boookkeeping functions,
         such as session management, save & restore operations, tensorboard loggings, and etc.
         
@@ -172,7 +170,7 @@ class Model(Module):
         self._graph = tf.Graph()
 
         super().__init__(name, args, self._graph, reuse=reuse, log_tensorboard=log_tensorboard, 
-                         log_params=log_params, device=device, **kwargs)
+                         log_params=log_params, device=device)
             
         if self._log_tensorboard:
             self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
@@ -208,9 +206,9 @@ class Model(Module):
     def global_variables(self):
         return super().global_variables + self._graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope='scores')
         
-    def build_graph(self, **kwargs):
+    def build_graph(self):
         with self._graph.as_default():
-            super().build_graph(**kwargs)
+            super().build_graph()
 
     def restore(self):
         """ To restore the most recent model, simply leave filename None
