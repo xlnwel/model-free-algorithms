@@ -13,15 +13,15 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         reset_buffer(self.memory, self.capacity, state_dim, action_dim, False)     # exp_id    -->     exp
         self.data_structure = SumTree(self.capacity)                               # prio_id   -->     priority, exp_id
 
-    def sample(self):
+    """ Implementation """
+    def _sample(self):
         assert self.good_to_learn, 'There are not sufficient transitions in buffer to learn'
         total_priorities = self.data_structure.total_priorities
         
         segment = total_priorities / self.batch_size
 
-        data = zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment))
-                            for i in range(self.batch_size)])
-        priorities, exp_ids = data
+        priorities, exp_ids = list(zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment), i, (i+1) * segment, total_priorities, self.data_structure.total_priorities)
+                                        for i in range(self.batch_size)]))
 
         priorities = np.squeeze(priorities)
         probabilities = priorities / total_priorities
@@ -33,7 +33,6 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         
         return IS_ratios, exp_ids, self._get_samples(exp_ids)
 
-    """ Implementation """
     def _compute_IS_ratios(self, N, probabilities):
         IS_ratios = np.power(probabilities * N, -self.beta)
         IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upwards
