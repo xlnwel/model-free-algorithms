@@ -28,6 +28,8 @@ def main():
                                 weight_update_interval, device='/cpu: {}'.format(worker_no + 1))
         workers.append(worker)
 
+    sample_ids = [worker.sample_data.remote() for worker in workers]
+    
     while True:
         time.sleep(60)
 
