@@ -83,7 +83,7 @@ class Agent(Model):
     def learn(self, state, action, reward, next_state, done):
         self.buffer.add(state, action, reward, next_state, done)
 
-        if self.trainable and self.buffer.good_to_learn:
+        if self.buffer.good_to_learn:
             self._learn()
     
     """ Implementation """
