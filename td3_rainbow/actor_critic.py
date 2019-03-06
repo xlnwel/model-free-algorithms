@@ -1,23 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from basic_model.model import Module
+from basic_model.basic_nets import Base
 
-
-class Base(Module):
-    def __init__(self, 
-                 name, 
-                 args, 
-                 graph,
-                 state, 
-                 reuse=False, 
-                 scope_prefix='',
-                 log_tensorboard=True,
-                 log_params=False):
-        self.state = state
-        self._variable_scope = scope_prefix + '/' + name
-        
-        super().__init__(name, args, graph, reuse=reuse, log_tensorboard=log_tensorboard, log_params=log_params)
 
 class Actor(Base):
     """ Interface """
@@ -43,18 +28,9 @@ class Actor(Base):
                          log_params=log_params)
 
     """ Implementation """
-    def _build_graph(self, **kwargs):
-        self.action = self._network(self.state, self.action_dim, self._noisy_sigma)
-        
-    def _network(self, state, action_dim, noisy_sigma):
-        with tf.variable_scope('net', reuse=self._reuse):
-            x = self._noisy(state, 512)
-            x = self._noisy_resnet_norm_activation(x, 512)
-            x = self._noisy_norm_activation(x, 256)
-            x = self._noisy(x, action_dim, sigma=noisy_sigma)
-            x = tf.tanh(x, name='action')
-
-        return x
+    def _build_graph(self):
+        self.action = self._deterministic_policy_net(self.state, self.action_dim, 
+                                                    self._noisy_sigma, reuse=self._reuse)
 
 
 class Critic(Base):
@@ -85,27 +61,15 @@ class Critic(Base):
                          log_params=log_params)
 
     """ Implementation """
-    def _build_graph(self, **kwargs):
+    def _build_graph(self):
         self.Q, self.Q_with_actor = self._build_net('Qnet')
 
     def _build_net(self, name):
         with tf.variable_scope(name, reuse=self._reuse):
-            Q = self._network(self.state, self.action, self.action_dim, self._reuse)
-            Q_with_actor = self._network(self.state, self.actor_action, self.action_dim, True)
+            Q = self._Q_net(self.state, self.action, self.action_dim, self._reuse)
+            Q_with_actor = self._Q_net(self.state, self.actor_action, self.action_dim, True)
 
         return Q, Q_with_actor
-
-    def _network(self, state, action, action_dim, reuse):
-        self._reset_counter('dense_resnet')
-
-        with tf.variable_scope('net', reuse=reuse):
-            x = self._dense_norm_activation(state, 512 - action_dim, normalization=None, activation=None)
-            x = tf.concat([x, action], 1)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._dense_norm_activation(x, 256)
-            x = self._dense(x, 1, name='Q')
-
-        return x
         
 class DoubleCritic(Critic):
     """ Interface """
@@ -134,7 +98,8 @@ class DoubleCritic(Critic):
                          log_params=log_params)
 
     """ Implementation """
-    def _build_graph(self, **kwargs):
+    def _build_graph(self):
         self.Q1, self.Q1_with_actor = self._build_net(name='Qnet1')
         self.Q2, self.Q2_with_actor = self._build_net(name='Qnet2')
+        self.Q = tf.minimum(self.Q1, self.Q2, 'Q')
         self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
