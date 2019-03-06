@@ -7,7 +7,7 @@ import ray
 
 from td3_rainbow.agent import Agent
 
-@ray.remote(num_gpus=1, num_cpus=1)
+@ray.remote(num_gpus=.1, num_cpus=1)
 class Learner(Agent):
     """ Interface """
     def __init__(self, 
@@ -47,14 +47,15 @@ class Learner(Agent):
 
     def merge_buffer(self, local_buffer, length):
         self.buffer.merge(local_buffer, length)
-
+        
     """ Implementation """
     def _background_learning(self):
         while not self.buffer.good_to_learn:
             sleep(1)
         i = 0
-        print('Start Learning')
+        print('Start Learning...')
         while True:
             i += 1
-            print('\rLearning step: {}'.format(i))
+            if i % 1000 == 0:
+                print('\rLearning step: {}'.format(i))
             self._learn()
