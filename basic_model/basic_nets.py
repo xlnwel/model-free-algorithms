@@ -20,9 +20,9 @@ class Base(Module):
 
     def _deterministic_policy_net(self, state, action_dim, noisy_sigma, reuse, name='policy_net'):
         with tf.variable_scope(name, reuse=reuse):
-            x = self._noisy(state, 512)
-            x = self._noisy_resnet_norm_activation(x, 512)
-            x = self._noisy_norm_activation(x, 256)
+            x = self._dense(state, 512)
+            x = self._dense_resnet_norm_activation(x, 512)
+            x = self._noisy_norm_activation(x, 256, sigma=noisy_sigma)
             x = self._noisy(x, action_dim, sigma=noisy_sigma)
             x = tf.tanh(x, name='action')
 
