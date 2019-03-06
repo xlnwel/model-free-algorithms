@@ -52,12 +52,11 @@ class Worker(Agent):
                          log_score=log_score,
                          device=device)
 
-        def reset():
-            reset_buffer(self.buffer, self.local_buffer_capacity + self.n_steps, 
-                                                self._state_dim, self._action_dim, True)
         self._reset_buffer = lambda: reset_buffer(self.buffer, self.local_buffer_capacity + self.n_steps, 
                                                 self._state_dim, self._action_dim, True)
         self._reset_buffer()
+
+        print('Worker {} has been constructed.'.format(self.no))
 
     def sample_data(self):
         i = 0
@@ -75,7 +74,7 @@ class Worker(Agent):
                             next_state, done, self.n_steps, self.gamma)
                 self.lb_idx += 1
 
-                if self.buffer['counter'] >= self.local_buffer_capacity + self.n_steps:
+                if self.lb_idx >= self.local_buffer_capacity + self.n_steps:
                     priority = self.sess.run(self.priority)
                     self.buffer['priority'] = priority
 
