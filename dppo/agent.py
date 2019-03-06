@@ -2,8 +2,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import ray
-from gym_env.env import GymEnvironment
 
+from gym_env.env import GymEnvironment
 from utility.losses import huber_loss
 from basic_model.model import Model
 from actor_critic import Actor, Critic
@@ -43,7 +43,7 @@ class Agent(Model):
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
 
     """ Implementation """
-    def _build_graph(self, **kwargs):
+    def _build_graph(self):
         self.env_phs = self._setup_env_placeholders(self.env.observation_dim, self.env.action_dim)
 
         self.actor = Actor('actor', self._args['actor'], self._graph,
