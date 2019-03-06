@@ -2,24 +2,9 @@ import numpy as np
 import tensorflow as tf
 import gym
 
-from basic_model.model import Module
+from basic_model.basic_nets import Base
 from utility import tf_utils, tf_distributions
 from utility.losses import huber_loss
-
-class Base(Module):
-    def __init__(self,
-                 name,
-                 args,
-                 graph,
-                 observations_ph,
-                 scope_prefix,
-                 reuse):
-        self.observations_ph = observations_ph
-        self._variable_scope = (scope_prefix + '/' 
-                                if scope_prefix != '' and not scope_prefix.endswith('/') 
-                                else scope_prefix) + name
-
-        super().__init__(name, args, graph, reuse=reuse)
 
 
 class Actor(Base):
@@ -27,7 +12,7 @@ class Actor(Base):
                  name, 
                  args, 
                  graph,
-                 observations_ph,
+                 state,
                  old_neglogpi_ph,
                  advantage_ph,
                  entropy_coef_ph,
@@ -41,11 +26,11 @@ class Actor(Base):
         self.advantage_ph = advantage_ph
         self.entropy_coef_ph = entropy_coef_ph
 
-        super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
+        super().__init__(name, args, graph, state, scope_prefix, reuse)
 
     """ Implementation """
-    def _build_graph(self, **kwargs):
-        output = self._network(self.observations_ph, self.env.is_action_discrete)
+    def _build_graph(self):
+        output = self._network(self.state, self.env.is_action_discrete)
 
         self.action_distribution = self.env.action_dist_type(output)
 
@@ -88,17 +73,17 @@ class Critic(Base):
                  name,
                  args,
                  graph,
-                 observations_ph,
+                 state,
                  return_ph,
                  scope_prefix,
                  reuse=None):
         self.loss_func = self._loss_func(args['loss_type'])
         self.return_ph = return_ph
-        super().__init__(name, args, graph, observations_ph, scope_prefix, reuse)
+        super().__init__(name, args, graph, state, scope_prefix, reuse)
 
     """ Implementation """
-    def _build_graph(self, **kwargs):
-        self.V = self._network(self.observations_ph)
+    def _build_graph(self):
+        self.V = self._network(self.state)
 
         self.loss = self._loss(self.V, self.return_ph)
 
