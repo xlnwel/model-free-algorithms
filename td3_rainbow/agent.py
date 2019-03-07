@@ -1,4 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals  # provide backward compatibility
+
+import time
 import numpy as np
 import tensorflow as tf
 import ray
@@ -62,7 +64,7 @@ class Agent(Model):
                          device=device)
 
         self._initialize_target_net()
-
+        self.i = 0
         with self._graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables([self.actor_loss, self.critic_loss], self.sess)
 
@@ -79,12 +81,35 @@ class Agent(Model):
         action = self.sess.run(self.actor.action, feed_dict={self.actor.state: state})
 
         return np.squeeze(action)
-    
-    def learn(self, state, action, reward, next_state, done):
+
+    def add_data(self, state, action, reward, next_state, done):
         self.buffer.add(state, action, reward, next_state, done)
 
-        if self.buffer.good_to_learn:
-            self._learn()
+    def learn(self):
+        # update the main networks
+        for _ in range(self._extra_critic_updates):
+            priority, saved_exp_ids, _ = self.sess.run([self.priority,
+                                                        self.data['saved_exp_ids'],
+                                                        self.critic_opt_op])
+            self.buffer.update_priorities(priority, saved_exp_ids)
+
+        if self._log_tensorboard:
+            priority, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priority, 
+                                                                                self.data['saved_exp_ids'],
+                                                                                self.global_step, 
+                                                                                self.actor_opt_op, 
+                                                                                self.critic_opt_op, 
+                                                                                self.graph_summary])
+            if global_step % 100 == 0:
+                self.writer.add_summary(summary, global_step)
+                self.save()
+        else:
+            priority, saved_exp_ids, _, _ = self.sess.run([self.priority, self.data['saved_exp_ids'], self.actor_opt_op, self.critic_opt_op])
+
+        self.buffer.update_priorities(priority, saved_exp_ids)
+
+        # update the target networks
+        self.sess.run(self.update_target_op)
     
     """ Implementation """
     def _build_graph(self):
@@ -247,32 +272,6 @@ class Agent(Model):
             update_target_op = list(map(lambda v: tf.assign(v[0], self.tau * v[1] + (1. - self.tau) * v[0], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op
-
-    def _learn(self):
-        # update the main networks
-        for _ in range(self._extra_critic_updates):
-            priority, saved_exp_ids, _ = self.sess.run([self.priority,
-                                                        self.data['saved_exp_ids'],
-                                                        self.critic_opt_op])
-            self.buffer.update_priorities(priority, saved_exp_ids)
-
-        if self._log_tensorboard:
-            priority, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priority, 
-                                                                                self.data['saved_exp_ids'],
-                                                                                self.global_step, 
-                                                                                self.actor_opt_op, 
-                                                                                self.critic_opt_op, 
-                                                                                self.graph_summary])
-            if global_step % 100 == 0:
-                self.writer.add_summary(summary, global_step)
-                self.save()
-        else:
-            priority, saved_exp_ids, _, _ = self.sess.run([self.priority, self.data['saved_exp_ids'], self.actor_opt_op, self.critic_opt_op])
-
-        self.buffer.update_priorities(priority, saved_exp_ids)
-
-        # update the target networks
-        self.sess.run(self.update_target_op)
 
     def _initialize_target_net(self):
         self.sess.run(self.init_target_op)
