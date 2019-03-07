@@ -4,6 +4,7 @@ import ray
 
 from replay.utils import reset_buffer, add_buffer, copy_buffer
 
+
 class PrioritizedReplay():
     """ Interface """
     def __init__(self, args, state_dim, action_dim):
@@ -51,8 +52,11 @@ class PrioritizedReplay():
 
     def sample(self):
         self.locker.acquire()
+        
         samples = self._sample()
+        
         self.locker.release()
+
         return samples
 
     def merge(self, local_buffer, length, start=0):
@@ -62,10 +66,6 @@ class PrioritizedReplay():
         end_idx = self.exp_id + length
 
         if end_idx > self.capacity:
-            # memory is full, recycle buffer via FIFO
-            if not self.is_full:
-                print('Memory is fulll')
-                self.is_full = True
             first_part = self.capacity - self.exp_id
             second_part = length - first_part
             
@@ -77,6 +77,10 @@ class PrioritizedReplay():
         for prio_id, exp_id in enumerate(range(self.exp_id, end_idx)):
             self.data_structure.update(local_buffer['priority'][prio_id], exp_id % self.capacity)
         
+        # memory is full, recycle buffer via FIFO
+        if not self.is_full and end_idx >= self.capacity:
+            print('Memory is fulll')
+            self.is_full = True
         self.exp_id = end_idx % self.capacity
 
         self.locker.release()

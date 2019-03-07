@@ -15,7 +15,8 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
 
     """ Implementation """
     def _sample(self):
-        assert self.good_to_learn, 'There are not sufficient transitions in buffer to learn'
+        assert self.good_to_learn, 'There are not sufficient transitions in buffer to learn \
+                                -- buffer length: {}\t minimum size: {}'.format(len(self), self.min_size)
         total_priorities = self.data_structure.total_priorities
         
         segment = total_priorities / self.batch_size

@@ -20,13 +20,6 @@ class SumTree(Container):
 
     def find(self, value, i, high, total, total2):
         idx = 0                 # start from the root
-        if value > self.total_priorities:
-            print()
-            print('value:', value)
-            print('i, high, total, total2:', i, high, total, total2, sep='\t')
-            print('total_priority:', self.total_priorities)
-            print('segment:', self.total_priorities / 512)
-            print('last segment:', self.total_priorities / 512 * 512)
 
         while idx < self.capacity - 1:
             left, right = 2 * idx + 1, 2 * idx + 2
@@ -35,21 +28,6 @@ class SumTree(Container):
             else:
                 idx = right
                 value -= self.container[left][0]
-            # if self.container[idx][0] == 0:
-            #     print('find value:', value)
-            #     print('internal idx:', idx)
-            #     print('internal sibling:', left, self.container[left], right, self.container[right])
-
-        # if not isinstance(self.container[idx], self.prio_expid):
-        #     print('find value:', value)
-        #     print('idx:', idx)
-        #     print('item:', self.container[idx])
-        #     par = (idx-1) // 2
-        #     while self.container[par] == 0:
-        #         print('parrent:', par, self.container[par])
-        #         par = (par-1) // 2
-        #     print('parent:', par, self.container[par])
-        #     print('sibling:', 2*par + 1, self.container[2*par+1], 2*par+2, self.container[2*par+2])
 
         return self.container[idx]
 
