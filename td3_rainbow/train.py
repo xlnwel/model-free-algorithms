@@ -8,6 +8,7 @@ import random
 import numpy as np
 from collections import deque
 import logging
+import threading
 from pathlib import Path
 from IPython import display
 import matplotlib.pyplot as plt
@@ -53,7 +54,6 @@ def run_episodes(env, agent, n_episodes, scores_deque, hundred_episodes,
         
         total_act_time = 0
         total_env_time = 0
-        total_learn_time = 0
         for t in range(1000):
             if on_notebook:
                 image.set_data(env.render(mode='rgb_array'))
@@ -63,10 +63,9 @@ def run_episodes(env, agent, n_episodes, scores_deque, hundred_episodes,
                 env.render()
             act_time, action = timeit(lambda: agent.act(state))
             env_time, (next_state, reward, done, _) = timeit(lambda: env.step(action))
-            learn_time, _ = timeit(lambda: agent.learn(state, action, reward, next_state, done))
+            agent.add_data(state, action, reward, next_state, done)
             total_act_time += act_time
             total_env_time += env_time
-            total_learn_time += learn_time
 
             state = next_state
             score += reward
@@ -74,13 +73,10 @@ def run_episodes(env, agent, n_episodes, scores_deque, hundred_episodes,
                 break
         avg_act_time = total_act_time / t
         avg_env_time = total_env_time / t
-        avg_learn_time = total_learn_time / t
         logging.debug('Average act time at {} episodes: {:.2f} msec'.format(
             100 * hundred_episodes + i_episode, 1000 * avg_act_time))
         logging.debug('Average env time at {} episodes: {:.2f} msec'.format(
             100 * hundred_episodes + i_episode, 1000 * avg_env_time))
-        logging.debug('Average learn time at {} episodes: {:.2f} msec'.format(
-            100 * hundred_episodes + i_episode, 1000 * avg_learn_time))
 
         scores_deque.append(score)
         average_score = np.mean(scores_deque)
@@ -124,6 +120,8 @@ def main(env_args, agent_args, buffer_args, on_notebook=False, print_terminal_in
     agent_name = 'Agent'
     
     agent = Agent(agent_name, agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
+    lt = threading.Thread(target=agent.background_learning, args=())
+    lt.start()
     print('Model {} starts training'.format(Path(agent_args['model_dir']) / agent_args['model_name']))
     
     train(env, agent, on_notebook, print_terminal_info=print_terminal_info)
