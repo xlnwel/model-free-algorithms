@@ -85,6 +85,13 @@ class Agent(Model):
     def add_data(self, state, action, reward, next_state, done):
         self.buffer.add(state, action, reward, next_state, done)
 
+    def background_learning(self):
+        while not self.buffer.good_to_learn:
+            time.sleep(1)
+        print('Start Learning...')
+        while True:
+            self.learn()
+
     def learn(self):
         # update the main networks
         for _ in range(self._extra_critic_updates):
