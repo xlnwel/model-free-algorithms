@@ -6,6 +6,7 @@ import ray
 
 
 from td3_rainbow.agent import Agent
+from utility import tf_utils
 
 @ray.remote(num_gpus=.1, num_cpus=1)
 class Learner(Agent):
@@ -19,7 +20,7 @@ class Learner(Agent):
                  reuse=None, 
                  save=True, 
                  log_tensorboard=True, 
-                 log_params=False,
+                 log_params=True,
                  log_score=True,
                  device=None):
         super().__init__(name, args, env_args,
@@ -29,11 +30,16 @@ class Learner(Agent):
                          log_params,
                          log_score,
                          device)
+        self.net_locker = threading.Lock()
         self.learning_thread = threading.Thread(target=self._background_learning, args=())
         self.learning_thread.start()
         
-    def get_weights(self):
-        return self.variables.get_flat()
+    def get_weights(self, no):
+        self.net_locker.acquire()
+        weights = self.variables.get_flat()
+        self.net_locker.release()
+
+        return weights
     
     def log_score(self, worker_no, score, avg_score):
         feed_dict = {
@@ -56,6 +62,8 @@ class Learner(Agent):
         print('Start Learning...')
         while True:
             i += 1
-            if i % 1000 == 0:
+            if i % 100 == 0:
                 print('\rLearning step: {}'.format(i))
-            self._learn()
+            self.net_locker.acquire()
+            self.learn()
+            self.net_locker.release()
