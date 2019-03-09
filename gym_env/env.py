@@ -3,6 +3,7 @@ import ray
 
 from utility import tf_distributions
 
+
 def action_dist_type(env):
     if isinstance(env.action_space, gym.spaces.Discrete):
         return tf_distributions.Categorical
