@@ -9,6 +9,7 @@ from basic_model.model import Model
 from gym_env.env import GymEnvironment
 from actor_critic import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
+from replay.local_buffer import LocalBuffer
 from replay.proportional_replay import ProportionalPrioritizedReplay
 
 
@@ -18,7 +19,7 @@ class Agent(Model):
                  name, 
                  args, 
                  env_args, 
-                 buffer_args=None, 
+                 buffer_args, 
                  sess_config=None, 
                  reuse=None, 
                  save=True, 
@@ -35,19 +36,21 @@ class Agent(Model):
         self.double_Q = options['double_Q']
         self.n_steps = options['n_steps']
 
-        self._critic_loss_type = args['critic']['loss_type']
-        self._extra_critic_updates = args['critic']['extra_updates']
+        self.critic_loss_type = args['critic']['loss_type']
+        self.extra_critic_updates = args['critic']['extra_updates']
 
         # environment info
         self.env = GymEnvironment(env_args['name'])
-        self._max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
+        self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
                                  else self.env.max_episode_steps)
-        self._state_dim = self.env.state_dim
-        self._action_dim = self.env.action_dim
+        self.state_dim = self.env.state_dim
+        self.action_dim = self.env.action_dim
         
         # replay buffer
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self._state_dim, self._action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_dim, self.action_dim)
+        elif buffer_args['type'] == 'local':
+            self.buffer = LocalBuffer(buffer_args['store_episodes'] * self.max_path_length)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
@@ -76,7 +79,7 @@ class Agent(Model):
         return self._target_actor.trainable_variables + self._target_critic.trainable_variables
 
     def act(self, state):
-        state = state.reshape((-1, self._state_dim))
+        state = state.reshape((-1, self.state_dim))
         action = self.sess.run(self.actor.action, feed_dict={self.actor.state: state})
 
         return np.squeeze(action)
@@ -93,7 +96,7 @@ class Agent(Model):
 
     def learn(self):
         # update the main networks
-        for _ in range(self._extra_critic_updates):
+        for _ in range(self.extra_critic_updates):
             priority, saved_exp_ids, _ = self.sess.run([self.priority,
                                                         self.data['saved_exp_ids'],
                                                         self.critic_opt_op])
@@ -141,10 +144,10 @@ class Agent(Model):
         with tf.name_scope('data'):
             sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
             sample_shapes =((None), (None), (
-                (None, self._state_dim),
-                (None, self._action_dim),
+                (None, self.state_dim),
+                (None, self.action_dim),
                 (None, 1),
-                (None, self._state_dim),
+                (None, self.state_dim),
                 (None, 1),
                 (None, 1)
             ))
@@ -189,7 +192,7 @@ class Agent(Model):
                           self._args['actor'], 
                           self._graph,
                           state, 
-                          self._action_dim, 
+                          self.action_dim, 
                           reuse=self._reuse, 
                           scope_prefix=scope_prefix, 
                           log_tensorboard=log_tensorboard, 
@@ -202,7 +205,7 @@ class Agent(Model):
                                  state,
                                  self.data['action'], 
                                  actor.action,
-                                 self._action_dim,
+                                 self.action_dim,
                                  reuse=self._reuse, 
                                  scope_prefix=scope_prefix, 
                                  log_tensorboard=log_tensorboard,
@@ -230,7 +233,7 @@ class Agent(Model):
         with tf.name_scope(name='priority'):
             priority = self._compute_priorities((TD_error1 + TD_error2) / 2.)
 
-        loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
+        loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
 
         critic_loss = self._average_critic_loss(TD_squared)
@@ -244,7 +247,7 @@ class Agent(Model):
         with tf.name_scope(name='priority'):
             priority = self._compute_priorities(TD_error)
 
-        loss_func = huber_loss if self._critic_loss_type == 'huber' else tf.square
+        loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error)
 
         critic_loss = self._average_critic_loss(TD_squared)
