@@ -1,13 +1,15 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
+import tensorflow.keras as tk
+
 
 # kaiming initializer
-def kaiming_initializer(uniform=False, seed=None, dtype=tf.float32):
-    return tc.layers.variance_scaling_initializer(factor=2., mode='FAN_IN', uniform=uniform, seed=seed, dtype=dtype)
+def kaiming_initializer(distribution='truncated_normal', seed=None, dtype=tf.dtypes.float32):
+    return tk.initializers.VarianceScaling(scale=2., mode='fan_in', distribution=distribution, seed=seed, dtype=dtype)
 
 # xavier initializer
-def xavier_initializer(uniform=False, seed=None, dtype=tf.float32):
-    return tc.layers.variance_scaling_initializer(factor=1., mode='FAN_AVG', uniform=uniform, seed=seed, dtype=dtype)
+def xavier_initializer(distribution='truncated_normal', seed=None, dtype=tf.dtypes.float32):
+    return tk.initializers.VarianceScaling(scale=1., mode='fan_avg', distribution=distribution, seed=seed, dtype=dtype)
 
 # batch normalization and relu
 def bn_relu(x, training): 
@@ -17,15 +19,15 @@ def bn_relu(x, training):
 def ln_relu(x):
     return tf.nn.relu(tc.layers.layer_norm(x))
 
-def bn_activation(x, training, activation=None):
-    x = tf.layers.batch_normalization(x, training=training)
+def bn_activation(x, training, activation=None, return_layer_obj=False):
+    x = tc.layers.batch_normalization(x, training=training)
 
     if activation:
         x = activation(x)
 
     return x
 
-def ln_activation(x, activation=None):
+def ln_activation(x, activation=None, return_layer_obj=False):
     x = tc.layers.layer_norm(x)
 
     if activation:
@@ -33,11 +35,11 @@ def ln_activation(x, activation=None):
 
     return x
 
-def norm_activation(x, normalization=None, activation=None, training=False, trainable=True):
+def norm_activation(x, normalization=None, activation=None, training=False):
     if normalization:
-        x = (normalization(x, training=training, trainable=trainable) if
-                           'batch_normalization' in str(normalization) else
-                           normalization(x, trainable=trainable))
+        x = (normalization(x, training=training) if
+                'batch_normalization' in str(normalization) else
+                normalization(x))
     if activation:
         x = activation(x)
 
