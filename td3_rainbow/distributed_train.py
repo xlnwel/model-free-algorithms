@@ -22,11 +22,12 @@ def main():
     learner = Learner.remote(agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
 
     workers = []
-    
+    buffer_args['type'] = 'local'
     for worker_no in range(agent_args['num_workers']):
-        local_buffer_capacity = np.random.randint(1, 10) * 1e3
+        store_episodes = np.random.randint(1, 10)
+        agent_args['actor']['noisy_sigma'] = np.random.randint(3, 8) * .1
         worker = Worker.remote(agent_name, worker_no, agent_args, env_args, buffer_args, 
-                    local_buffer_capacity, device='/cpu: {}'.format(worker_no + 1))
+                    store_episodes, device='/cpu: {}'.format(worker_no + 1))
         workers.append(worker)
 
     pids = [worker.sample_data.remote(learner) for worker in workers]
