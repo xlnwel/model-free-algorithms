@@ -29,7 +29,6 @@ class Agent(Model):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99 
         self.tau = args['tau'] if 'tau' in args else 1e-3
-        self.batch_size = args['batch_size'] if 'batch_size' in args else 128
 
         # options for DDPG improvements
         options = args['options']
@@ -47,7 +46,7 @@ class Agent(Model):
         self._action_dim = self.env.action_dim
         
         # replay buffer
-        if not hasattr(self, 'buffer'):
+        if buffer_args['type'] == 'proportional':
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self._state_dim, self._action_dim)
 
         # arguments for prioritized replay
@@ -64,7 +63,7 @@ class Agent(Model):
                          device=device)
 
         self._initialize_target_net()
-        self.i = 0
+
         with self._graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables([self.actor_loss, self.critic_loss], self.sess)
 
