@@ -19,9 +19,6 @@ class Container():
         else:
             self._add(priority, exp_id)
 
-    def top_priority(self):
-        raise NotImplementedError
-        
     def __len__(self):
         raise NotImplementedError
 
