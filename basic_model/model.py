@@ -2,6 +2,7 @@ import os, atexit, time
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras as tk
 
 from utility import yaml_op
 from basic_model.layer import Layer
@@ -96,7 +97,7 @@ class Module(Layer):
 
         # setup optimizer
         if global_step or decay_rate != 1.:
-            global_step = tf.get_variable('global_step', shape=(), initializer=tf.constant_initializer(), trainable=False)
+            global_step = tf.Variable(0, trainable=False, name='global_step')
         else:
             global_step = None
 
@@ -246,7 +247,7 @@ class Model(Module):
                 score = tf.placeholder(tf.float32, shape=None, name='score')
                 avg_score = tf.placeholder(tf.float32, shape=None, name='average_score')
 
-                score_counter = tf.get_variable('score_counter', shape=[], initializer=tf.constant_initializer(1), trainable=False)
+                score_counter = tf.Variable(0, trainable=False, name='score_counter')
                 step_op = tf.assign(score_counter, score_counter + 1, name='update_score_counter')
                 
                 score_log = tf.summary.scalar('score_', score)
