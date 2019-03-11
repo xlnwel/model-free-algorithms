@@ -32,7 +32,7 @@ class PrioritizedReplay():
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
 
-        # Legacy code for single agent, not supported anymore, only leaving for reference
+        # Code for single agent
         if self.n_steps > 1:
             self.temporary_buffer = {}
             reset_buffer(self.temporary_buffer, self.n_steps, state_dim, action_dim, True)
@@ -91,6 +91,12 @@ class PrioritizedReplay():
             self.data_structure.update(priority, exp_id)
         self.locker.release()
 
+    def _compute_IS_ratios(self, N, probabilities):
+        IS_ratios = np.power(probabilities * N, -self.beta)
+        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upwards
+
+        return IS_ratios
+        
     """ Implementation """
     def _sample(self):
         raise NotImplementedError
@@ -98,7 +104,7 @@ class PrioritizedReplay():
     def _update_beta(self):
         self.beta = min(self.beta + self.beta_grad, 1)
 
-    # Legacy code for single agent, not supported anymore, only leaving for reference
+    # Code for single agent
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
             add_buffer(self.temporary_buffer, self.tb_idx, state, action, reward, 

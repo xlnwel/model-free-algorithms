@@ -1,3 +1,5 @@
+Tested on BipedalWalkerHardcore-v2, achieving better results than those proposed in [OpenAI Gym Learderboard](https://github.com/openai/gym/wiki/Leaderboard)
+
 # An Implementation of DDPG in conjunction with Rainbow and others
 
 In which I try to combine DDPG with "Rainbow: Combining Improvements in Deep Reinforcement Learning" and "Twin Delayed Deep Deterministic policy gradient algorithm "
@@ -5,7 +7,7 @@ In which I try to combine DDPG with "Rainbow: Combining Improvements in Deep Rei
 - [x]: Noisy Nets in Actor
 - [x]: Multi-Step Learning
 - [x]: Twin Delayed Deep Deterministic policy gradient algorithm (TD3)
-- [x]: Prioritized Replay
+- [x]: Prioritized Experience Replay
 - [x]: Apex
 
 ## Playground

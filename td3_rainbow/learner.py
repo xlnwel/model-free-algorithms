@@ -53,6 +53,16 @@ class Learner(Agent):
 
     def merge_buffer(self, local_buffer, length):
         self.buffer.merge(local_buffer, length)
+
+    def demonstrate(self):
+        while True:
+            state = self.env.reset()
+
+            for _ in range(self.max_path_length):
+                self.env.render()
+                action = self.act(state)
+
+                state = self.env.step(action)
         
     """ Implementation """
     def _background_learning(self):

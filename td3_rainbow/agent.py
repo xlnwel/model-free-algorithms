@@ -33,7 +33,6 @@ class Agent(Model):
 
         # options for DDPG improvements
         options = args['options']
-        self.double_Q = options['double_Q']
         self.n_steps = options['n_steps']
 
         self.critic_loss_type = args['critic']['loss_type']
@@ -173,13 +172,13 @@ class Agent(Model):
 
     def _create_main_target_actor_critic(self):
         # main actor-critic
-        actor, critic = self._create_actor_critic(is_target=False, double_Q=self.double_Q)
+        actor, critic = self._create_actor_critic(is_target=False)
         # target actor-critic
-        target_actor, target_critic = self._create_actor_critic(is_target=True, double_Q=self.double_Q)
+        target_actor, target_critic = self._create_actor_critic(is_target=True)
 
         return actor, critic, target_actor, target_critic
         
-    def _create_actor_critic(self, is_target, double_Q):
+    def _create_actor_critic(self, is_target):
         log_tensorboard = False if is_target else self._log_tensorboard
         log_params = False if is_target else self._log_params
 
@@ -198,8 +197,7 @@ class Agent(Model):
                           log_tensorboard=log_tensorboard, 
                           log_params=log_params)
 
-            critic_type = (DoubleCritic if double_Q else Critic)
-            critic = critic_type('critic', 
+            critic = DoubleCritic('critic', 
                                  self._args['critic'],
                                  self._graph,
                                  state,
@@ -216,12 +214,10 @@ class Agent(Model):
     def _loss(self):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
-                Q_with_actor = self.critic.Q1_with_actor if self.double_Q else self.critic.Q_with_actor
-                actor_loss = -tf.reduce_mean(Q_with_actor)
+                actor_loss = -tf.reduce_mean(self.critic.Q1_with_actor * self.data['IS_ratio'])
 
             with tf.name_scope('critic_loss'):
-                critic_loss_func = self._double_critic_loss if self.double_Q else self._plain_critic_loss
-                priority, critic_loss = critic_loss_func()
+                priority, critic_loss = self._double_critic_loss()
 
         return priority, actor_loss, critic_loss
 
@@ -236,30 +232,9 @@ class Agent(Model):
         loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
         TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
 
-        critic_loss = self._average_critic_loss(TD_squared)
+        critic_loss = tf.reduce_mean(self.data['IS_ratio'] * TD_squared)
 
         return priority, critic_loss
-        
-    def _plain_critic_loss(self):
-        target_Q = self._n_step_target(self._target_critic.Q_with_actor)
-        
-        TD_error = tf.abs(target_Q - self.critic.Q, name='TD_error')
-        with tf.name_scope(name='priority'):
-            priority = self._compute_priorities(TD_error)
-
-        loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
-        TD_squared = loss_func(TD_error)
-
-        critic_loss = self._average_critic_loss(TD_squared)
-        
-        return priority, critic_loss
-
-    def _average_critic_loss(self, loss):
-        weighted_loss = self.data['IS_ratio'] * loss
-        
-        critic_loss = tf.reduce_mean(weighted_loss)
-
-        return critic_loss
 
     def _compute_priorities(self, priorities):
         priorities += self.prio_epsilon

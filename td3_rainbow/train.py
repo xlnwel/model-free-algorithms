@@ -1,5 +1,5 @@
 """
-Legacy code for single agent, not supported anymore, only leaving for reference
+Code for training single agent
 """
 
 import os

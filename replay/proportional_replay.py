@@ -34,12 +34,6 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         
         return IS_ratios, exp_ids, self._get_samples(exp_ids)
 
-    def _compute_IS_ratios(self, N, probabilities):
-        IS_ratios = np.power(probabilities * N, -self.beta)
-        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upwards
-
-        return IS_ratios
-
     def _get_samples(self, exp_ids):
         exp_ids = list(exp_ids) # convert tuple to list
 

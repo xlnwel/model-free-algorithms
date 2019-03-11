@@ -15,12 +15,11 @@ agent:
     model_root_dir: ./saved_models            # root path for savinng models
     tensorboard_root_dir: ./tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: 0309-workers10-baseline
+    model_name: 0311-workers10-add_IS_to_actor-alpha4
 
     # options for different improvements on DDPG
     options:
         # noisy layer is used as the default strategy to introduce exploration
-        double_Q: True           # double is implemented based on TD3
         n_steps: &n_steps 3
     
     actor:
@@ -40,7 +39,7 @@ buffer:
     n_steps: *n_steps
     gamma: *gamma
 
-    alpha: 0.
+    alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e6
