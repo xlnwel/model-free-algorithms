@@ -20,10 +20,10 @@ class Base(Module):
 
     def _deterministic_policy_net(self, state, action_dim, noisy_sigma, reuse, name='policy_net'):
         with tf.variable_scope(name, reuse=reuse):
-            x = self._dense(state, 512)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._noisy_norm_activation(x, 256, sigma=noisy_sigma)
-            x = self._noisy(x, action_dim, sigma=noisy_sigma)
+            x = self.dense_norm_activation(state, 512)
+            x = self.noisy_norm_activation(x, 512, sigma=noisy_sigma)
+            x = self.noisy_norm_activation(x, 256, sigma=noisy_sigma)
+            x = self.noisy(x, action_dim, sigma=noisy_sigma)
             x = tf.tanh(x, name='action')
 
         return x
@@ -31,11 +31,11 @@ class Base(Module):
     # TODO: try using noisy layer here
     def _stochastic_policy_net(self, state, action_dim, reuse, discrete=False, name='policy_net'):
         with tf.variable_scope(name, reuse=reuse):
-            x = self._dense_norm_activation(state, 512, activation=None)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._dense_norm_activation(x, 256)
+            x = self.dense_norm_activation(state, 512)
+            x = self.dense_norm_activation(x, 512)
+            x = self.dense_norm_activation(x, 256)
             output_name = ('action_logits' if discrete else 'action_mean')
-            x = self._dense(x, action_dim, name=output_name)
+            x = self.dense(x, action_dim, name=output_name)
 
         if discrete:
             return x
@@ -44,22 +44,22 @@ class Base(Module):
             return x, logstd
 
     def _Q_net(self, state, action, action_dim, reuse, name='Q_net'):
-        self._reset_counter('dense_resnet')
+        self.reset_counter('dense_resnet')
 
         with tf.variable_scope(name, reuse=reuse):
-            x = self._dense_norm_activation(state, 512 - action_dim, activation=None)
+            x = self.dense_norm_activation(state, 512)
             x = tf.concat([x, action], 1)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._dense_norm_activation(x, 256)
-            x = self._dense(x, 1, name='Q')
+            x = self.dense_norm_activation(x, 512)
+            x = self.dense_norm_activation(x, 256)
+            x = self.dense(x, 1, name='Q')
 
         return x
 
     def _V_net(self, state, reuse, name='V_net'):
         with tf.variable_scope(name, reuse=reuse):
-            x = self._dense_norm_activation(state, 512, activation=None)
-            x = self._dense_resnet_norm_activation(x, 512)
-            x = self._dense_norm_activation(x, 256)
-            x = self._dense(x, 1, name='V')
+            x = self.dense_norm_activation(state, 512)
+            x = self.dense_norm_activation(x, 512)
+            x = self.dense_norm_activation(x, 256)
+            x = self.dense(x, 1, name='V')
 
         return x
