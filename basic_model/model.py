@@ -174,7 +174,7 @@ class Model(Module):
                          log_params=log_params, device=device)
             
         if self._log_tensorboard:
-            self.graph_summary, self.writer = self._setup_tensorboard_summary(args['tensorboard_root_dir'])
+            self.graph_summary, self.writer = self._setup_tensorboard_summary()
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if self._log_tensorboard and log_score:
@@ -286,13 +286,14 @@ class Model(Module):
             model_dir.mkdir(parents=True)
 
         model_file = str(model_dir / model_name)
-
         return model_name, str(model_dir), model_file
 
-    def _setup_tensorboard_summary(self, root_dir):
+    def _setup_tensorboard_summary(self):
         with self._graph.as_default():
             graph_summary = tf.summary.merge_all()
-            filename = os.path.join(root_dir, self._args['model_dir'], self._args['model_name'])
+            filename = os.path.join(self._args['tensorboard_root_dir'], 
+                                    self._args['model_dir'], 
+                                    self._args['model_name'])
             writer = tf.summary.FileWriter(filename, self._graph)
             atexit.register(writer.close)
 
