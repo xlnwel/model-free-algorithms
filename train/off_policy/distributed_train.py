@@ -6,8 +6,8 @@ import ray
 
 from utility.yaml_op import load_args
 from replay.proportional_replay import ProportionalPrioritizedReplay
-from td3_rainbow.learner import Learner
-from td3_rainbow.worker import Worker
+from td3.learner import Learner
+from td3.worker import Worker
 
 def parse_cmd_args():
     parser = argparse.ArgumentParser()
@@ -20,10 +20,10 @@ def parse_cmd_args():
 
 def main(cmd_args):
     if cmd_args.algorithm == 'td3':
-        from td3_rainbow.learner import Learner
-        from td3_rainbow.worker import Worker
+        from td3.learner import Learner
+        from td3.worker import Worker
 
-        arg_file = 'td3_rainbow/args.yaml'
+        arg_file = 'td3/args.yaml'
     elif cmd_args.algorithm == 'sac':
         raise NotImplementedError
         arg_file = 'sac/args.yaml'

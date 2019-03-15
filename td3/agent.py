@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from basic_model.off_policy import OffPolicy
-from td3_rainbow.networks import Actor, Critic, DoubleCritic
+from td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
 
 
@@ -54,12 +54,14 @@ class Agent(OffPolicy):
             self.data = self._prepare_data(self.buffer)
             
         self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
+        self.action = self.actor.action
 
         self.priority, self.actor_loss, self.critic_loss = self._loss()
         self.loss = self.actor_loss + self.critic_loss
     
         self.actor_opt_op, self.global_step = self.actor._optimization_op(self.actor_loss, global_step=True)
         self.critic_opt_op, _ = self.critic._optimization_op(self.critic_loss)
+        self.opt_op = tf.group(self.actor_opt_op, self.critic_opt_op)
 
         # target net operations
         self.init_target_op, self.update_target_op = self._target_net_ops()
@@ -117,8 +119,8 @@ class Agent(OffPolicy):
                 
                 TD_error1 = tf.abs(target_Q - self.critic.Q1, name='TD_error1')
                 TD_error2 = tf.abs(target_Q - self.critic.Q2, name='TD_error2')
-                with tf.name_scope(name='priority'):
-                    priority = self._compute_priority((TD_error1 + TD_error2) / 2.)
+                
+                priority = self._compute_priority((TD_error1 + TD_error2) / 2.)
 
                 loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
                 TD_squared = loss_func(TD_error1) + loss_func(TD_error2)

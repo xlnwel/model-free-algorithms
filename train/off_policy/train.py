@@ -122,7 +122,7 @@ def main(algorithm, env_args, agent_args, buffer_args, render=False, print_termi
     
     agent_name = 'Agent'
     if algorithm == 'td3':
-        from td3_rainbow.agent import Agent
+        from td3.agent import Agent
     elif algorithm == 'sac':
         from sac.agent import Agent
     else:
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     algorithm = cmd_args.algorithm
 
     if algorithm == 'td3':
-        arg_file = 'td3_rainbow/args.yaml'
+        arg_file = 'td3/args.yaml'
     elif algorithm == 'sac':
         arg_file = 'sac/args.yaml'
     else:
@@ -165,11 +165,13 @@ if __name__ == '__main__':
     else:
         processes = []
 
-        for alpha in [.1, .4, .6]:
-            for extra_update in [0]:
+        for extra, lr in [(0, 3e-4), (2, 1e-4)]:
+            for units in [1]:
                         for t in [1, 2]:
-                            buffer_args['alpha'] = alpha
-                            agent_args['model_name'] = f'0314-alpha{alpha}-trial{t}'
+                            agent_args['critic']['extra_updates'] = extra
+                            agent_args['critic']['optimizer']['learning_rate'] = lr
+                            
+                            agent_args['model_name'] = f'0315-ECU{extra}-lr{lr}-trial{t}'
                             p = Process(target=main, args=(algorithm, env_args, agent_args, buffer_args, render))
                             p.start()
                             processes.append(p)

@@ -1,10 +1,11 @@
 ---
-n_experiments: 1 # 1 run the following configuration, otherwise, run test code in parallel see train.py
+n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    name: &env_name LunarLanderContinuous-v2
+    name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
     max_episode_steps: 1000
 agent:
     gamma: &gamma 0.99
+    tau: 0.005      # moving average rate
     batch_size: &batch_size 128
     num_workers: 10
 
@@ -18,26 +19,21 @@ agent:
     # options for different improvements on DDPG
     options:
         # noisy layer is used as the default strategy to introduce exploration
-        loss_type: mse            # huber or mse
         n_steps: &n_steps 3
-        extra_critic_updates: 0
-        priority: Q               # Q or V
-        units: &units [500, 500, 300]
+        units: &units [512, 512, 256]
     
-    policy:
+    actor:
+        units: *units
+        noisy_sigma: 0.4    # standard deviation for noisy layers
         optimizer:
             learning_rate: 1e-4
-        noisy_sigma: 0.4    # standard deviation for noisy layers
+        
+    critic:
         units: *units
-    V:
+        loss_type: mse   # huber or mse
+        extra_updates: 0
         optimizer:
             learning_rate: 3e-4
-        tau: 0.005      # moving average rate
-        units: *units
-    Q:
-        optimizer:
-            learning_rate: 3e-4
-        units: *units
 
 # argumennts for prioritized replay
 buffer:
@@ -46,9 +42,9 @@ buffer:
     n_steps: *n_steps
     gamma: *gamma
 
-    alpha: 0.1
+    alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 1e6
+    beta_steps: 5e5
     min_size: 1e4
-    capacity: 1e6
+    capacity: 2e6

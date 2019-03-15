@@ -37,11 +37,11 @@ class Base(Module):
             output_name = ('action_logits' if discrete else 'action_mean')
             x = self.dense(x, action_dim, name=output_name)
 
-        if discrete:
-            return x
-        else:
-            logstd = tf.get_variable('action_logstd', [action_dim], tf.float32)
-            return x, logstd
+            if discrete:
+                return x
+            else:
+                logstd = tf.get_variable('action_logstd', [action_dim], tf.float32)
+                return x, logstd
 
     def _Q_net(self, state, units, action, action_dim, reuse, name='Q_net'):
         x = state

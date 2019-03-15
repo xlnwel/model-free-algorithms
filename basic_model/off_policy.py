@@ -62,7 +62,7 @@ class OffPolicy(Model):
     
     def act(self, state):
         state = state.reshape((-1, self.state_dim))
-        action = self.sess.run(self.actor.action, feed_dict={self.actor.state: state})
+        action = self.sess.run(self.action, feed_dict={self.data['state']: state})
 
         return np.squeeze(action)
 
@@ -85,20 +85,18 @@ class OffPolicy(Model):
             self.buffer.update_priorities(priority, saved_exp_ids)
 
         if self.log_tensorboard:
-            priority, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priority, 
-                                                                                 self.data['saved_exp_ids'],
-                                                                                 self.global_step, 
-                                                                                 self.actor_opt_op, 
-                                                                                 self.critic_opt_op, 
-                                                                                 self.graph_summary])
+            priority, saved_exp_ids, global_step, _, summary = self.sess.run([self.priority, 
+                                                                              self.data['saved_exp_ids'],
+                                                                              self.global_step, 
+                                                                              self.opt_op, 
+                                                                              self.graph_summary])
             if global_step % 100 == 0:
                 self.writer.add_summary(summary, global_step)
                 self.save()
         else:
-            priority, saved_exp_ids, _, _ = self.sess.run([self.priority, 
-                                                           self.data['saved_exp_ids'], 
-                                                           self.actor_opt_op, 
-                                                           self.critic_opt_op])
+            priority, saved_exp_ids, _ = self.sess.run([self.priority, 
+                                                        self.data['saved_exp_ids'], 
+                                                        self.opt_op])
 
         self.buffer.update_priorities(priority, saved_exp_ids)
 
@@ -145,8 +143,9 @@ class OffPolicy(Model):
         return tf.stop_gradient(n_step_target)
 
     def _compute_priority(self, priority):
-        priority += self.prio_epsilon
-        priority **= self.prio_alpha
+        with tf.name_scope('priority'):
+            priority += self.prio_epsilon
+            priority **= self.prio_alpha
         
         return priority
 

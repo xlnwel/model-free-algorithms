@@ -6,8 +6,7 @@ env:
 agent:
     gamma: &gamma 0.99
     tau: 0.005      # moving average rate
-    batch_size: &batch_size 128
-    done: 1
+    batch_size: &batch_size 32
     num_workers: 1
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -17,20 +16,20 @@ agent:
     model_dir: *env_name
     model_name: 0314-500_500_500-buffer2-sigma6
 
-    # options for different improvements on DDPG
-    options:
-        # noisy layer is used as the default strategy to introduce exploration
+    Q:
         n_steps: &n_steps 3
-    
-    actor:
-        optimizer:
-            learning_rate: 1e-4
-        noisy_sigma: 0.4    # standard deviation for noisy layers
-    critic:
-        optimizer:
-            learning_rate: 3e-4
+        distributional: False
+        duel: True
         loss_type: mse   # huber or mse
-        extra_updates: 0
+        units: [500, 500, 300]
+        noisy_sigma: 0.5    # standard deviation for noisy layers
+        n_atoms: 51
+        v_min: -10
+        v_max: 10
+        optimizer:
+            learning_rate: 6.25e-5
+            epsilon: 1.5e-4
+
 
 # argumennts for prioritized replay
 buffer:
@@ -39,9 +38,9 @@ buffer:
     n_steps: *n_steps
     gamma: *gamma
 
-    alpha: 0.1
+    alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 1e6
-    min_size: 1e4
-    capacity: 2e6
+    beta_steps: 5e5
+    min_size: 8e4
+    capacity: 1e6

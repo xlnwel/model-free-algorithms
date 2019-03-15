@@ -4,7 +4,7 @@ import numpy as np
 import ray
 
 from replay.utils import reset_buffer, add_buffer
-from td3_rainbow.agent import Agent
+from td3.agent import Agent
 from utility import tf_utils
 
 

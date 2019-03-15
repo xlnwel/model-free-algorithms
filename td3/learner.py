@@ -5,7 +5,7 @@ import tensorflow as tf
 import ray
 
 
-from td3_rainbow.agent import Agent
+from td3.agent import Agent
 from utility import tf_utils
 
 @ray.remote(num_gpus=.1, num_cpus=2)

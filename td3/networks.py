@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from basic_model.basic_nets import Base
@@ -29,8 +28,7 @@ class Actor(Base):
 
     """ Implementation """
     def _build_graph(self):
-        units = [500, 500, 500]
-        self.action = self._deterministic_policy_net(self.state, units, self.action_dim, 
+        self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_dim, 
                                                     self._noisy_sigma, reuse=self.reuse)
 
 
@@ -67,9 +65,8 @@ class Critic(Base):
 
     def _build_net(self, name):
         with tf.variable_scope(name, reuse=self.reuse):
-            units = [500, 500, 500]
-            Q = self._Q_net(self.state, units, self.action, self.action_dim, self.reuse)
-            Q_with_actor = self._Q_net(self.state, units, self.actor_action, self.action_dim, True)
+            Q = self._Q_net(self.state, self.args['units'], self.action, self.action_dim, self.reuse)
+            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_dim, True)
 
         return Q, Q_with_actor
         
