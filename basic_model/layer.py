@@ -10,7 +10,7 @@ from utility import tf_utils
 class Layer():
     def __init__(self, name, args):
         self.name = name
-        self._args = args
+        self.args = args
 
     @property
     def training(self):
@@ -24,7 +24,7 @@ class Layer():
 
     @property
     def l2_regularizer(self):
-        return tk.regularizers.l2(self._args['weight_decay']) if self.name in self._args and 'weight_decay' in self._args else None
+        return tk.regularizers.l2(self.args['weight_decay']) if self.name in self.args and 'weight_decay' in self.args else None
     
     @property
     def l2_loss(self):

@@ -29,8 +29,9 @@ class Actor(Base):
 
     """ Implementation """
     def _build_graph(self):
-        self.action = self._deterministic_policy_net(self.state, self.action_dim, 
-                                                    self._noisy_sigma, reuse=self._reuse)
+        units = [500, 500, 500]
+        self.action = self._deterministic_policy_net(self.state, units, self.action_dim, 
+                                                    self._noisy_sigma, reuse=self.reuse)
 
 
 class Critic(Base):
@@ -65,12 +66,14 @@ class Critic(Base):
         self.Q, self.Q_with_actor = self._build_net('Qnet')
 
     def _build_net(self, name):
-        with tf.variable_scope(name, reuse=self._reuse):
-            Q = self._Q_net(self.state, self.action, self.action_dim, self._reuse)
-            Q_with_actor = self._Q_net(self.state, self.actor_action, self.action_dim, True)
+        with tf.variable_scope(name, reuse=self.reuse):
+            units = [500, 500, 500]
+            Q = self._Q_net(self.state, units, self.action, self.action_dim, self.reuse)
+            Q_with_actor = self._Q_net(self.state, units, self.actor_action, self.action_dim, True)
 
         return Q, Q_with_actor
         
+
 class DoubleCritic(Critic):
     """ Interface """
     def __init__(self, 

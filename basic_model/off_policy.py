@@ -6,7 +6,7 @@ import tensorflow as tf
 import ray
 
 from basic_model.model import Model
-from gym_env.env import GymEnvironment
+from env.gym_env import GymEnvironment
 from replay.local_buffer import LocalBuffer
 from replay.proportional_replay import ProportionalPrioritizedReplay
 
@@ -57,7 +57,7 @@ class OffPolicy(Model):
 
         self._initialize_target_net()
 
-        with self._graph.as_default():
+        with self.graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
     
     def act(self, state):
@@ -84,7 +84,7 @@ class OffPolicy(Model):
                                                         self.critic_opt_op])
             self.buffer.update_priorities(priority, saved_exp_ids)
 
-        if self._log_tensorboard:
+        if self.log_tensorboard:
             priority, saved_exp_ids, global_step, _, _, summary = self.sess.run([self.priority, 
                                                                                  self.data['saved_exp_ids'],
                                                                                  self.global_step, 

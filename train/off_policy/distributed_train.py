@@ -1,7 +1,7 @@
 import time
+import argparse
 import numpy as np
 import tensorflow as tf
-import gym
 import ray
 
 from utility.yaml_op import load_args
@@ -9,13 +9,34 @@ from replay.proportional_replay import ProportionalPrioritizedReplay
 from td3_rainbow.learner import Learner
 from td3_rainbow.worker import Worker
 
+def parse_cmd_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--algorithm',
+                        type=str,
+                        choices=['td3', 'sac'])
+    args = parser.parse_args()
 
-def main():
-    args = load_args('args.yaml')
+    return args
+
+def main(cmd_args):
+    if cmd_args.algorithm == 'td3':
+        from td3_rainbow.learner import Learner
+        from td3_rainbow.worker import Worker
+
+        arg_file = 'td3_rainbow/args.yaml'
+    elif cmd_args.algorithm == 'sac':
+        raise NotImplementedError
+        arg_file = 'sac/args.yaml'
+    else:
+        raise NotImplementedError
+        
+    args = load_args(arg_file)
     env_args = args['env']
     agent_args = args['agent']
     buffer_args = args['buffer']
 
+    agent_args['model_dir'] = '{}-{}'.format(cmd_args.algorithm, agent_args['model_dir'])
+    
     ray.init(num_cpus=12, num_gpus=1)
 
     agent_name = 'Agent'
@@ -36,5 +57,6 @@ def main():
     
 
 if __name__ == '__main__':
-    main()
+    cmd_args = parse_cmd_args()
+    main(cmd_args)
 

@@ -4,12 +4,12 @@ import tensorflow.keras as tk
 
 
 # kaiming initializer
-def kaiming_initializer(distribution='truncated_normal', seed=None, dtype=tf.dtypes.float32):
-    return tk.initializers.VarianceScaling(scale=2., mode='fan_in', distribution=distribution, seed=seed, dtype=dtype)
+def kaiming_initializer(distribution='truncated_normal', seed=None):
+    return tk.initializers.VarianceScaling(scale=2., mode='fan_in', distribution=distribution, seed=seed)
 
 # xavier initializer
-def xavier_initializer(distribution='truncated_normal', seed=None, dtype=tf.dtypes.float32):
-    return tk.initializers.VarianceScaling(scale=1., mode='fan_avg', distribution=distribution, seed=seed, dtype=dtype)
+def xavier_initializer(distribution='truncated_normal', seed=None):
+    return tk.initializers.VarianceScaling(scale=1., mode='fan_avg', distribution=distribution, seed=seed)
 
 # batch normalization and relu
 def bn_relu(x, training): 
@@ -45,13 +45,13 @@ def norm_activation(x, normalization=None, activation=None, training=False):
 
     return x
 
-def standard_normalization(images):
-    mean, var = tf.nn.moments(images, [0, 1, 2])
+def standard_normalization(x):
+    mean, var = tf.nn.moments(x, [0] if len(x.shape.as_list()) == 2 else [0, 1, 2], keepdims=True)
     std = tf.sqrt(var)
 
-    normalized_images = (images - mean) / std
+    x = (x - mean) / std
     
-    return normalized_images, mean, std
+    return x
 
 def range_normalization(images, normalizing=True):
     if normalizing:

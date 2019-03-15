@@ -34,7 +34,7 @@ class Learner(Agent):
         
         learn_step, _, summary = self.sess.run([self.global_step, self.opt_op, self.graph_summary], feed_dict=feed_dict)
 
-        if self._log_tensorboard and learn_step % 10 == 0:
+        if self.log_tensorboard and learn_step % 10 == 0:
             self.writer.add_summary(summary, learn_step)
             self.save()
 

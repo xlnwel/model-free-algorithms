@@ -8,7 +8,7 @@ import ray
 from td3_rainbow.agent import Agent
 from utility import tf_utils
 
-@ray.remote(num_gpus=.1, num_cpus=1)
+@ray.remote(num_gpus=.1, num_cpus=2)
 class Learner(Agent):
     """ Interface """
     def __init__(self, 
@@ -72,7 +72,7 @@ class Learner(Agent):
         print('Start Learning...')
         while True:
             i += 1
-            if i % 100 == 0:
+            if i % 1000 == 0:
                 print('\rLearning step: {}'.format(i))
             self.net_locker.acquire()
             self.learn()
