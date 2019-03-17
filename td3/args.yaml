@@ -7,23 +7,23 @@ agent:
     gamma: &gamma 0.99
     tau: 0.005      # moving average rate
     batch_size: &batch_size 128
-    num_workers: 10
+    num_workers: 3
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: tensorboard_root_dir/model_dir/model_name
-    model_root_dir: ./data/saved_models            # root path for savinng models
-    tensorboard_root_dir: ./data/tensorboard_logs  # root path for tensorboard logs
+    model_root_dir: data/saved_models            # root path for savinng models
+    tensorboard_root_dir: data/tensorboard_logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: 0315-baseline
+    model_name: 0316-3workers
 
     # options for different improvements on DDPG
     options:
         # noisy layer is used as the default strategy to introduce exploration
         n_steps: &n_steps 3
-        units: &units [512, 512, 256]
-    
+        units: &units [512, 512, 256, 256]
+        
     actor:
-        units: *units
+        units: [512, 512, 256]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         optimizer:
             learning_rate: 1e-4
@@ -45,6 +45,6 @@ buffer:
     alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 5e5
-    min_size: 1e4
-    capacity: 2e6
+    beta_steps: 1e5
+    min_size: 1e3
+    capacity: 1e6

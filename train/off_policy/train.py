@@ -21,6 +21,12 @@ from env.gym_env import GymEnvironment
 from replay.proportional_replay import ProportionalPrioritizedReplay
 
 
+def set_global_seed():
+    os.environ['PYTHONHASHSEED']=str(42)
+    random.seed(42)
+    np.random.seed(42)
+    tf.set_random_seed(42)
+
 def parse_cmd_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--algorithm',
@@ -75,7 +81,8 @@ def run_episodes(agent, n_episodes, scores_deque, hundred_episodes,
             next_state, reward, done, _ = agent.env.step(action)
             # if not (np.any(np.isnan(state) | np.isinf(state)) or np.any(np.isnan(next_state) | np.isinf(next_state))):
             agent.add_data(state, action, reward, next_state, done)
-            
+            # if agent.buffer.good_to_learn:
+            #     agent.learn()
             state = next_state
             score += reward
             if done:
@@ -89,7 +96,7 @@ def run_episodes(agent, n_episodes, scores_deque, hundred_episodes,
         if print_terminal_info:
             print(f'\r{title}:\tEpisode {episode_i}\tAverage Score: {average_score:3.2f}\tScore: {score:3.2f}', end="")
 
-    print(f'Model {agent.model_name} takes {(time() - start)/100: .2} seconds in average to run an episode.')
+    print(f'Model {agent.model_name} takes {(time() - start)/100:3.2f} seconds in average to run an episode.')
     if print_terminal_info:
         print(f'\r{title}:\tEpisode {episode_i}\tAverage Score: {average_score:3.2f}')
 
@@ -110,10 +117,7 @@ def main(algorithm, env_args, agent_args, buffer_args, render=False, print_termi
         print('Buffer Arguments:')
         print_args(buffer_args)
     
-    # os.environ['PYTHONHASHSEED']=str(42)
-    # random.seed(42)
-    # np.random.seed(42)
-    # tf.set_random_seed(42)
+    set_global_seed()
 
     setup_logging(agent_args)
     log_args(env_args)
@@ -129,12 +133,13 @@ def main(algorithm, env_args, agent_args, buffer_args, render=False, print_termi
         raise NotImplementedError
 
     agent = Agent(agent_name, agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
-    lt = threading.Thread(target=agent.background_learning, args=())
+    lt = threading.Thread(target=agent.background_learning, args=(), daemon=True)
     lt.start()
     model = Path(agent_args['model_dir']) / agent_args['model_name']
     print(f'Model {model} starts training')
     
     train(agent, render, print_terminal_info=print_terminal_info)
+
 
 if __name__ == '__main__':
     cmd_args = parse_cmd_args()
@@ -165,15 +170,12 @@ if __name__ == '__main__':
     else:
         processes = []
 
-        for extra, lr in [(0, 3e-4), (2, 1e-4)]:
+        for bs in [128]:
             for units in [1]:
-                        for t in [1, 2]:
-                            agent_args['critic']['extra_updates'] = extra
-                            agent_args['critic']['optimizer']['learning_rate'] = lr
-                            
-                            agent_args['model_name'] = f'0315-ECU{extra}-lr{lr}-trial{t}'
-                            p = Process(target=main, args=(algorithm, env_args, agent_args, buffer_args, render))
-                            p.start()
-                            processes.append(p)
+                for t in [1, 2]:
+                    agent_args['model_name'] = f'0316-34layers-prefetch1-trial{t}'
+                    p = Process(target=main, args=(algorithm, env_args, agent_args, buffer_args, render))
+                    p.start()
+                    processes.append(p)
         
         [p.join() for p in processes]
