@@ -29,18 +29,22 @@ class Base(Module):
         return x
 
     # TODO: try using noisy layer here
-    def _stochastic_policy_net(self, state, units, action_dim, reuse, discrete=False, name='policy_net'):
+    def _stochastic_policy_net(self, state, units, action_dim, reuse, discrete=False, simple_logstd=True, name='policy_net'):
         x = state
         with tf.variable_scope(name, reuse=reuse):
             for u in units:
                 x = self.dense_norm_activation(x, u)
             output_name = ('action_logits' if discrete else 'action_mean')
-            x = self.dense(x, action_dim, name=output_name)
+            y = self.dense(x, action_dim, name=output_name)
 
             if discrete:
-                return x
+                return y
             else:
-                logstd = tf.get_variable('action_logstd', [action_dim], tf.float32)
+                if simple_logstd:
+                    logstd = tf.get_variable('action_logstd', [action_dim], tf.float32)
+                else:
+                    logstd = self.dense_norm_activation(x, action_dim, name='action_logstd', 
+                                                        normalization=None, activation=tf.tanh)
                 return x, logstd
 
     def _Q_net(self, state, units, action, action_dim, reuse, name='Q_net'):
