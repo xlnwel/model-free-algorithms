@@ -3,22 +3,21 @@ Code for training single agent
 """
 
 import os
+from time import time
 import random
 import argparse
 from collections import deque
 import logging
 import threading
-from multiprocessing import Process
+import multiprocessing
 from pathlib import Path
 from IPython import display
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from time import time
 from utility import utils, yaml_op
-from env.gym_env import GymEnvironment
-from replay.proportional_replay import ProportionalPrioritizedReplay
+from run.grid_search import GridSearch
 
 
 def set_global_seed():
@@ -36,6 +35,9 @@ def parse_cmd_args():
                         type=str,
                         choices=['true', 'false'],
                         default='false')
+    parser.add_argument('--trials',
+                        type=int,
+                        default=1)
     args = parser.parse_args()
 
     return args
@@ -110,7 +112,9 @@ def train(agent, render, n_episodes=3000, print_terminal_info=False):
         run_episodes(agent, interval, scores_deque, i, render, 
                      print_terminal_info=print_terminal_info)
 
-def main(algorithm, env_args, agent_args, buffer_args, render=False, print_terminal_info=False):
+def main(env_args, agent_args, buffer_args, render=False):
+    # print terminal information if main is running in the main thread
+    print_terminal_info = multiprocessing.current_process() == 'MainProcess'
     if print_terminal_info:
         print('Agent Arguments:')
         print_args(agent_args)
@@ -123,8 +127,9 @@ def main(algorithm, env_args, agent_args, buffer_args, render=False, print_termi
     log_args(env_args)
     log_args(agent_args)
     log_args(buffer_args)
-    
+
     agent_name = 'Agent'
+    algorithm = agent_args['algorithm']
     if algorithm == 'td3':
         from td3.agent import Agent
     elif algorithm == 'sac':
@@ -133,13 +138,12 @@ def main(algorithm, env_args, agent_args, buffer_args, render=False, print_termi
         raise NotImplementedError
 
     agent = Agent(agent_name, agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
-    lt = threading.Thread(target=agent.background_learning, args=(), daemon=True)
+    lt = threading.Thread(target=agent.background_learning, daemon=True)
     lt.start()
     model = Path(agent_args['model_dir']) / agent_args['model_name']
     print(f'Model {model} starts training')
     
     train(agent, render, print_terminal_info=print_terminal_info)
-
 
 if __name__ == '__main__':
     cmd_args = parse_cmd_args()
@@ -152,30 +156,13 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError
 
-    args = yaml_op.load_args(arg_file)
-    env_args = args['env']
-    agent_args = args['agent']
-    buffer_args = args['buffer']
-
-    if 'num_workers' in agent_args:
-        del agent_args['num_workers']
-    agent_args['model_dir'] = '{}-{}'.format(algorithm, agent_args['model_dir'])
-    
     # disable tensorflow debug information
     logging.getLogger("tensorflow").setLevel(logging.WARNING)
 
     render = True if cmd_args.render == 'true' else False
-    if args['n_experiments'] == 1:
-        main(algorithm, env_args, agent_args, buffer_args, render, print_terminal_info=False)
-    else:
-        processes = []
 
-        for bs in [128]:
-            for units in [1]:
-                for t in [1, 2]:
-                    agent_args['model_name'] = f'0316-34layers-prefetch1-trial{t}'
-                    p = Process(target=main, args=(algorithm, env_args, agent_args, buffer_args, render))
-                    p.start()
-                    processes.append(p)
-        
-        [p.join() for p in processes]
+    gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials)
+
+    # Grid search happens here
+    critic_args = {'learning_rate': [1e-4, 3e-4]}
+    gs(policy_delay=[1, 2], critic=critic_args)
