@@ -88,12 +88,12 @@ class Module(Layer):
 
     def _adam_optimizer(self, global_step=None):
         # params for optimizer
-        learning_rate = float(self.args['optimizer']['learning_rate'])
-        beta1 = float(self.args['optimizer']['beta1']) if 'beta1' in self.args else 0.9
-        beta2 = float(self.args['optimizer']['beta2']) if 'beta2' in self.args else 0.999
-        decay_rate = float(self.args['optimizer']['decay_rate']) if 'decay_rate' in self.args else 1.
-        decay_steps = float(self.args['optimizer']['decay_steps']) if 'decay_steps' in self.args else 1e6
-        epsilon = float(self.args['optimizer']['epsilon']) if 'epsilon' in self.args else 1e-8
+        learning_rate = float(self.args['learning_rate'])
+        beta1 = float(self.args['beta1']) if 'beta1' in self.args else 0.9
+        beta2 = float(self.args['beta2']) if 'beta2' in self.args else 0.999
+        decay_rate = float(self.args['decay_rate']) if 'decay_rate' in self.args else 1.
+        decay_steps = float(self.args['decay_steps']) if 'decay_steps' in self.args else 1e6
+        epsilon = float(self.args['epsilon']) if 'epsilon' in self.args else 1e-8
 
         # setup optimizer
         if global_step or decay_rate != 1.:
@@ -113,7 +113,7 @@ class Module(Layer):
         return optimizer, global_step
 
     def _compute_gradients(self, loss, optimizer, tvars=None):
-        clip_norm = self.args['optimizer']['clip_norm'] if 'clip_norm' in self.args else 5.
+        clip_norm = self.args['clip_norm'] if 'clip_norm' in self.args else 5.
     
         update_ops = self.graph.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.name_scope(self.name + '_gradients'):
@@ -196,7 +196,7 @@ class Model(Module):
             
         if save:
             self.saver = self._setup_saver(save)
-            self.model_name, self._model_dir, self._model_file = self._setup_model_path(
+            self.model_name, self.model_dir, self.model_file = self._setup_model_path(
                 args['model_root_dir'],
                 args['model_dir'],
                 args['model_name']
@@ -216,7 +216,7 @@ class Model(Module):
         To restore a specific version of model, set filename to the model stored in saved_models
         """
         try:
-            self.saver.restore(self.sess, self._model_file)
+            self.saver.restore(self.sess, self.model_file)
         except:
             print(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!')
         else:
@@ -224,8 +224,7 @@ class Model(Module):
 
     def save(self):
         if hasattr(self, 'saver'):
-            self.saver.save(self.sess, self._model_file)
-            yaml_op.save_args(self.args, filename=self._model_dir + '/args.yaml')
+            self.saver.save(self.sess, self.model_file)
 
     def log_score(self, score, avg_score):
         if self.log_tensorboard:
@@ -296,5 +295,5 @@ class Model(Module):
                                     self.args['model_name'])
             writer = tf.summary.FileWriter(filename, self.graph)
             atexit.register(writer.close)
-
+        yaml_op.save_args(self.args, filename=filename + '/args.yaml')
         return graph_summary, writer
