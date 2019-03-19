@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as tk
 
+from utility.logger import Logger
 from utility import yaml_op
 from basic_model.layer import Layer
 """ 
@@ -173,6 +174,8 @@ class Model(Module):
         super().__init__(name, args, self.graph, reuse=reuse, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device)
             
+        self.logger = self._setup_logger()
+
         if self.log_tensorboard:
             self.graph_summary, self.writer = self._setup_tensorboard_summary()
         
@@ -236,6 +239,12 @@ class Model(Module):
             score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
             self.writer.add_summary(summary, score_count)
 
+    def log_tabular(self, key, value):
+        self.logger.log_tabular(key, value)
+
+    def dump_tabular(self, print_terminal_info=False):
+        self.logger.dump_tabular(print_terminal_info=print_terminal_info)
+
     """ Implementation """
     def _setup_score_logs(self, name=None):
         """ score logs for a single agent """
@@ -284,16 +293,25 @@ class Model(Module):
         if not model_dir.is_dir():
             model_dir.mkdir(parents=True)
 
-        model_file = str(model_dir / model_name)
+        model_file = str(model_dir / 'ckpt')
         return model_name, str(model_dir), model_file
 
     def _setup_tensorboard_summary(self):
         with self.graph.as_default():
             graph_summary = tf.summary.merge_all()
-            filename = os.path.join(self.args['tensorboard_root_dir'], 
+            filename = os.path.join(self.args['log_root_dir'], 
                                     self.args['model_dir'], 
                                     self.args['model_name'])
             writer = tf.summary.FileWriter(filename, self.graph)
             atexit.register(writer.close)
         yaml_op.save_args(self.args, filename=filename + '/args.yaml')
         return graph_summary, writer
+
+    def _setup_logger(self):
+        log_dir = os.path.join(self.args['log_root_dir'], 
+                                self.args['model_dir'], 
+                                self.args['model_name'])
+        
+        logger = Logger(log_dir, self.name, self.args['model_name'])
+
+        return logger
