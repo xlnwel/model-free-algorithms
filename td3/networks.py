@@ -16,7 +16,7 @@ class Actor(Base):
                  log_tensorboard=False, 
                  log_params=False):
         self.action_dim = action_dim
-        self._noisy_sigma = args['noisy_sigma']
+        self.noisy_sigma = args['noisy_sigma']
         super().__init__(name, 
                          args, 
                          graph,
@@ -29,7 +29,7 @@ class Actor(Base):
     """ Implementation """
     def _build_graph(self):
         self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_dim, 
-                                                    self._noisy_sigma, reuse=self.reuse)
+                                                    self.noisy_sigma, reuse=self.reuse)
 
 
 class Critic(Base):

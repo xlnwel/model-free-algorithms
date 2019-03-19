@@ -19,11 +19,8 @@ class Agent(OffPolicy):
                  log_params=False, 
                  log_score=False, 
                  device=None):
-        # optional improvements
-        options = args['options']
-        self.n_steps = options['n_steps']
+        self.n_steps = args['n_steps']
         self.critic_loss_type = args['critic']['loss_type']
-        self.extra_critic_updates = args['critic']['extra_updates']
         
         super().__init__(name,
                          args,
@@ -112,7 +109,9 @@ class Agent(OffPolicy):
     def _loss(self):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
+                # importance sampling draw down performance
                 actor_loss = -tf.reduce_mean(self.data['IS_ratio'] * self.critic.Q1_with_actor)
+                # actor_loss = -tf.reduce_mean(self.critic.Q1_with_actor)
 
             with tf.name_scope('critic_loss'):
                 target_Q = self._n_step_target(self._target_critic.Q_with_actor)
