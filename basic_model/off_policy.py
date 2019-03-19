@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 import ray
 
+from utility.logger import Logger
 from basic_model.model import Model
 from env.gym_env import GymEnvironment
 from replay.local_buffer import LocalBuffer
@@ -29,6 +30,9 @@ class OffPolicy(Model):
         self.gamma = args['gamma'] if 'gamma' in args else .99 
         self.tau = args['tau'] if 'tau' in args else 1e-3
 
+        self.policy_delay = args['policy_delay'] if 'policy_delay' in args else 1
+        self.update_step = 0
+
         # environment info
         self.env = GymEnvironment(env_args['name'], args['model_name'], atari=False)
         self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
@@ -40,7 +44,7 @@ class OffPolicy(Model):
         if buffer_args['type'] == 'proportional':
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_dim, self.action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args['store_episodes'] * self.max_path_length)
+            self.buffer = LocalBuffer(buffer_args['max_episodes'] * self.max_path_length)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
@@ -78,30 +82,30 @@ class OffPolicy(Model):
 
     def learn(self):
         # update the main networks
-        for _ in range(self.extra_critic_updates):
+        if self.update_step % self.policy_delay != 0:
             priority, saved_exp_ids, _ = self.sess.run([self.priority,
                                                         self.data['saved_exp_ids'],
                                                         self.critic_opt_op])
-            self.buffer.update_priorities(priority, saved_exp_ids)
-
-        if self.log_tensorboard:
-            priority, saved_exp_ids, global_step, _, summary = self.sess.run([self.priority, 
-                                                                              self.data['saved_exp_ids'],
-                                                                              self.global_step, 
-                                                                              self.opt_op, 
-                                                                              self.graph_summary])
-            if global_step % 100 == 0:
-                self.writer.add_summary(summary, global_step)
-                self.save()
         else:
-            priority, saved_exp_ids, _ = self.sess.run([self.priority, 
-                                                        self.data['saved_exp_ids'], 
-                                                        self.opt_op])
+            if self.log_tensorboard:
+                priority, saved_exp_ids, global_step, _, summary = self.sess.run([self.priority, 
+                                                                                self.data['saved_exp_ids'],
+                                                                                self.global_step, 
+                                                                                self.opt_op, 
+                                                                                self.graph_summary])
+                if global_step % 100 == 0:
+                    self.writer.add_summary(summary, global_step)
+                    self.save()
+            else:
+                priority, saved_exp_ids, _ = self.sess.run([self.priority, 
+                                                            self.data['saved_exp_ids'], 
+                                                            self.opt_op])
 
+            # update the target networks
+            self._update_target_net()
+
+        self.update_step = (self.update_step + 1) % self.policy_delay
         self.buffer.update_priorities(priority, saved_exp_ids)
-
-        # update the target networks
-        self._update_target_net()
     
     """ Implementation """
     def _prepare_data(self, buffer):
@@ -136,11 +140,12 @@ class OffPolicy(Model):
         return data
 
     def _n_step_target(self, nth_value):
-        n_step_target = tf.add(self.data['reward'], self.gamma**self.data['steps']
-                                                    * (1 - self.data['done'])
-                                                    * nth_value, name='n_step_target')
+        n_step_target = tf.stop_gradient(self.data['reward'] 
+                                        + self.gamma**self.data['steps']
+                                        * (1 - self.data['done'])
+                                        * nth_value, name='n_step_target')
 
-        return tf.stop_gradient(n_step_target)
+        return n_step_target
 
     def _compute_priority(self, priority):
         with tf.name_scope('priority'):
