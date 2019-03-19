@@ -1,7 +1,6 @@
 import numpy as np
 import ray
 
-from replay.utils import reset_buffer, add_buffer, copy_buffer
 from replay.ds.sum_tree import SumTree
 from replay.prioritized_replay import PrioritizedReplay
 
@@ -10,13 +9,12 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
     """ Interface """
     def __init__(self, args, state_dim, action_dim):
         super().__init__(args, state_dim, action_dim)
-        reset_buffer(self.memory, self.capacity, state_dim, action_dim, False)     # exp_id    -->     exp
         self.data_structure = SumTree(self.capacity)                               # prio_id   -->     priority, exp_id
 
     """ Implementation """
     def _sample(self):
-        assert self.good_to_learn, 'There are not sufficient transitions in buffer to learn \
-                                -- buffer length: {}\t minimum size: {}'.format(len(self), self.min_size)
+        assert self.good_to_learn, f'There are not sufficient transitions in buffer to learn \
+                                -- buffer length: {len(self)}\t minimum size: {self.min_size}'
         total_priorities = self.data_structure.total_priorities
         
         segment = total_priorities / self.batch_size
@@ -27,7 +25,6 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         priorities = np.squeeze(priorities)
         probabilities = priorities / total_priorities
 
-        self._update_beta()
         # compute importance sampling ratios
         N = len(self)
         IS_ratios = self._compute_IS_ratios(N, probabilities)

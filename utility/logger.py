@@ -1,111 +1,95 @@
 """
+Some simple logging functionality, inspired by rllab's logging
 
-Some simple logging functionality, inspired by rllab's logging.
-Assumes that each diagnostic gets logged each iteration
+The original code is from homework of Berkeley cs294-112: 
+http://rail.eecs.berkeley.edu/deeprlcourse/
 
-Call logz.configure_output_dir() to start logging to a 
-tab-separated-values file (some_folder_name/log.txt)
-
-To load the learning curves, you can do, for example
-
-A = np.genfromtxt('/tmp/expt_1468984536/log.txt',delimiter='\t',dtype=None, names=True)
-A['EpRewMean']
+Adapted by S.C.
 
 """
+import os.path as osp
+import os, time, atexit
 
-import os.path as osp, shutil, time, atexit, os, subprocess
-import pickle
-import tensorflow as tf
+from utility import utils
 
-from utility import yaml_op
 
-color2num = dict(
-    gray=30,
-    red=31,
-    green=32,
-    yellow=33,
-    blue=34,
-    magenta=35,
-    cyan=36,
-    white=37,
-    crimson=38
-)
+class Logger:
+    def __init__(self, log_dir, log_file='log.txt', exp_name=None):
+        """
+        Initialize a Logger.
 
-def colorize(string, color, bold=False, highlight=False):
-    attr = []
-    num = color2num[color]
-    if highlight: num += 10
-    attr.append(str(num))
-    if bold: attr.append('1')
-    return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
+        Args:
+            log_dir (string): A directory for saving results to. If 
+                ``None``, defaults to a temp directory of the form
+                ``/tmp/experiments/somerandomnumber``.
 
-class G:
-    output_dir = None
-    output_file = None
-    first_row = True
-    log_headers = []
-    log_current_row = {}
+            log_file (string): Name for the tab-separated-value file 
+                containing metrics logged throughout a training run. 
+                Defaults to ``progress.txt``. 
 
-def configure_output_dir(d=None):
-    """
-    Set output directory to d, or to /tmp/somerandomnumber if d is None
-    """
-    G.output_dir = d or "/tmp/experiments/%i"%int(time.time())
-    assert not osp.exists(G.output_dir), "Log dir %s already exists! Delete it first or use a different dir"%G.output_dir
-    os.makedirs(G.output_dir)
-    G.output_file = open(osp.join(G.output_dir, "log.txt"), 'w')
-    atexit.register(G.output_file.close)
-    print(colorize("Logging data to %s"%G.output_file.name, 'green', bold=True))
+            exp_name (string): Experiment name. If you run multiple training
+                runs and give them all the same ``exp_name``, the plotter
+                will know to group them. (Use case: if you run the same
+                hyperparameter configuration with multiple random seeds, you
+                should give them all the same ``exp_name``.)
+        """
+        log_file = log_file if log_file.endswith('.txt') else log_file + '.txt'
+        self.log_dir = log_dir or f"/tmp/experiments/{time.time()}"
+        if osp.exists(self.log_dir):
+            print(f"Warning: Log dir {self.log_dir} already exists! Storing info there anyway.")
+        else:
+            os.makedirs(self.log_dir)
+        self.output_file = open(osp.join(self.log_dir, log_file), 'w')
+        atexit.register(self.output_file.close)
+        print(utils.colorize("Logging data to %s"%self.output_file.name, 'green', bold=True))
 
-def log_tabular(key, val):
-    """
-    Log a value of some diagnostic
-    Call this once for each diagnostic quantity, each iteration
-    """
-    if G.first_row:
-        G.log_headers.append(key)
-    else:
-        assert key in G.log_headers, "Trying to introduce a new key %s that you didn't include in the first iteration"%key
-    assert key not in G.log_current_row, "You already set %s this iteration. Maybe you forgot to call dump_tabular()"%key
-    G.log_current_row[key] = val
+        self.first_row=True
+        self.log_headers = []
+        self.log_current_row = {}
+        self.exp_name = exp_name
 
-def save_args(args):
-    yaml_op.save_args(args, filename=os.path.join(G.output_dir, 'args.yaml'))
+    def log(self, msg, color='green'):
+        """Print a colorized message to stdout."""
+        print(utils.colorize(msg, color, bold=True))
 
-def pickle_tf_vars():  
-    """
-    Saves tensorflow variables
-    Requires them to be initialized first, also a default session must exist
-    """
-    _dict = {v.name : v.eval() for v in tf.global_variables()}
-    with open(osp.join(G.output_dir, "vars.pkl"), 'wb') as f:
-        pickle.dump(_dict, f)
+    def log_tabular(self, key, val):
+        """
+        Log a value of some diagnostic.
+
+        Call this only once for each diagnostic quantity, each iteration.
+        After using ``log_tabular`` to store values for each diagnostic,
+        make sure to call ``dump_tabular`` to write them out to file and
+        stdout (otherwise they will not get saved anywhere).
+        """
+        if self.first_row:
+            self.log_headers.append(key)
+        else:
+            assert key in self.log_headers, f"Trying to introduce a new key {key} that you didn't include in the first iteration"
+        assert key not in self.log_current_row, f"You already set {key} this iteration. Maybe you forgot to call dump_tabular()"
+        self.log_current_row[key] = val
     
-
-def dump_tabular():
-    """
-    Write all of the diagnostics from the current iteration
-    """
-    vals = []
-    key_lens = [len(key) for key in G.log_headers]
-    max_key_len = max(15,max(key_lens))
-    keystr = '%'+'%d'%max_key_len
-    fmt = "| " + keystr + "s | %15s |"
-    n_slashes = 22 + max_key_len
-    print("-"*n_slashes)
-    for key in G.log_headers:
-        val = G.log_current_row.get(key, "")
-        if hasattr(val, "__float__"): valstr = "%8.3g"%val
-        else: valstr = val
-        print(fmt%(key, valstr))
-        vals.append(val)
-    print("-"*n_slashes)
-    if G.output_file is not None:
-        if G.first_row:
-            G.output_file.write("\t".join(G.log_headers))
-            G.output_file.write("\n")
-        G.output_file.write("\t".join(map(str,vals)))
-        G.output_file.write("\n")
-        G.output_file.flush()
-    G.log_current_row.clear()
-    G.first_row=False
+    def dump_tabular(self, print_terminal_info=False):
+        """
+        Write all of the diagnostics from the current iteration.
+        """
+        vals = []
+        key_lens = [len(key) for key in self.log_headers]
+        max_key_len = max(15,max(key_lens))
+        n_slashes = 22 + max_key_len
+        if print_terminal_info:
+            print("-"*n_slashes)
+        for key in self.log_headers:
+            val = self.log_current_row.get(key, "")
+            valstr = f"{val:8.3g}" if hasattr(val, "__float__") else val
+            if print_terminal_info:
+                print(f'| {key:>{max_key_len}s} | {valstr:>15s} |')
+            vals.append(val)
+        if print_terminal_info:
+            print("-"*n_slashes)
+        if self.output_file is not None:
+            if self.first_row:
+                self.output_file.write("\t".join(self.log_headers)+"\n")
+            self.output_file.write("\t".join(map(str,vals))+"\n")
+            self.output_file.flush()
+        self.log_current_row.clear()
+        self.first_row=False

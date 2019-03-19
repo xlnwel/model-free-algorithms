@@ -2,7 +2,7 @@ import threading
 import numpy as np
 import ray
 
-from replay.utils import reset_buffer, add_buffer, copy_buffer
+from replay.utils import add_buffer, copy_buffer
 
 
 class PrioritizedReplay():

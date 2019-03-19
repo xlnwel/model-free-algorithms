@@ -1,16 +1,10 @@
 import numpy as np
 
 
-def reset_buffer(buffer, capacity, state_dim, action_dim, has_priority):
-    target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
-    target_buffer.update({
-        'state': np.zeros((capacity, state_dim)),
-        'action': np.zeros((capacity, action_dim)),
-        'reward': np.zeros((capacity, 1)),
-        'next_state': np.zeros((capacity, state_dim)),
-        'done': np.zeros((capacity, 1)),
-        'steps': np.zeros((capacity, 1))
-    })
+def reset_buffer(buffer):
+    target_buffer = {}
+    for k, v in buffer.items():
+        target_buffer[k] = np.zeros_like(v)
 
     buffer.update(target_buffer)
 

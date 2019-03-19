@@ -70,9 +70,9 @@ class DiagGaussian(Distribution):
         self.std = tf.exp(self.logstd)
 
     def _neglogp(self, x):
-        return (.5 * tf.log(2. * np.pi) * tf.to_float(tf.shape(x)[-1])
+        return (.5 * np.log(2. * np.pi) * x.shape.as_list()[-1]
                 + tf.reduce_sum(self.logstd, axis=-1)
-                + tf.reduce_sum(tf.square((x - self.mean) / self.std), axis=-1))
+                + tf.reduce_sum(((x - self.mean) / self.std)**2, axis=-1))
 
     def _sample(self):
         return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
