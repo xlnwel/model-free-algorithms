@@ -20,7 +20,7 @@ class PrioritizedReplay():
         self.alpha = float(args['alpha']) if 'alpha' in args else .5
         self.beta = float(args['beta0']) if 'beta0' in args else .4
         self.epsilon = float(args['epsilon']) if 'epsilon' in args else 1e-4
-        self.beta_grad = (1 - self.beta) / float(args['beta_steps'])
+        self.beta_grad = (1 - self.beta) / float(args['beta_steps']) * 100
 
         self.n_steps = args['n_steps']
         self.gamma = args['gamma']
@@ -28,14 +28,30 @@ class PrioritizedReplay():
 
         self.is_full = False
         self.exp_id = 0
+        self.sample_i = 0   # count how many times self.sample is called
 
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
 
+        def init_buffer(buffer, capacity, state_dim, action_dim, has_priority):
+            target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
+            target_buffer.update({
+                'state': np.zeros((capacity, state_dim)),
+                'action': np.zeros((capacity, action_dim)),
+                'reward': np.zeros((capacity, 1)),
+                'next_state': np.zeros((capacity, state_dim)),
+                'done': np.zeros((capacity, 1)),
+                'steps': np.zeros((capacity, 1))
+            })
+
+            buffer.update(target_buffer)
+
+        init_buffer(self.memory, self.capacity, state_dim, action_dim, False)
+
         # Code for single agent
         if self.n_steps > 1:
             self.temporary_buffer = {}
-            reset_buffer(self.temporary_buffer, self.n_steps, state_dim, action_dim, True)
+            init_buffer(self.temporary_buffer, self.n_steps, state_dim, action_dim, True)
             self.tb_idx = 0
             self.tb_full = False
 
@@ -54,7 +70,9 @@ class PrioritizedReplay():
         self.locker.acquire()
         
         samples = self._sample()
-        
+        if self.sample_i % 100:
+            self._update_beta()
+
         self.locker.release()
 
         return samples
