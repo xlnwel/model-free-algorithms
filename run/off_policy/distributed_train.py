@@ -9,56 +9,32 @@ from replay.proportional_replay import ProportionalPrioritizedReplay
 from td3.learner import Learner
 from td3.worker import Worker
 
-def parse_cmd_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--algorithm',
-                        type=str,
-                        choices=['td3', 'sac'])
-    args = parser.parse_args()
 
-    return args
-
-def main(cmd_args):
-    if cmd_args.algorithm == 'td3':
+def main(env_args, agent_args, buffer_args, render=False):
+    if agent_args['algorithm'] == 'td3':
         from td3.learner import Learner
         from td3.worker import Worker
-
-        arg_file = 'td3/args.yaml'
-    elif cmd_args.algorithm == 'sac':
-        raise NotImplementedError
-        arg_file = 'sac/args.yaml'
+    elif agent_args['algorithm'] == 'sac':
+        from sac.learner import Learner
+        from sac.worker import Worker
     else:
         raise NotImplementedError
-        
-    args = load_args(arg_file)
-    env_args = args['env']
-    agent_args = args['agent']
-    buffer_args = args['buffer']
 
-    agent_args['model_dir'] = '{}-{}'.format(cmd_args.algorithm, agent_args['model_dir'])
-    
-    ray.init(num_cpus=12, num_gpus=1)
+    ray.init(num_cpus=agent_args['num_workers'] + 1, num_gpus=1)
 
     agent_name = 'Agent'
     learner = Learner.remote(agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
-    
 
     workers = []
     buffer_args['type'] = 'local'
     for worker_no in range(agent_args['num_workers']):
-        store_episodes = 3
-        # store_episodes = np.random.randint(1, 10)
-        # agent_args['actor']['noisy_sigma'] = np.random.randint(3, 8) * .1
+        max_episodes = 1
+        # max_episodes = np.random.randint(1, 10)
+        # agent_args['actor']['noisy_sigma'] = np.random.randint(3, 10) * .1
         worker = Worker.remote(agent_name, worker_no, agent_args, env_args, buffer_args, 
-                    store_episodes, device='/cpu: {}'.format(worker_no + 1))
+                                max_episodes, device='/cpu: {}'.format(worker_no + 1))
         workers.append(worker)
 
     pids = [worker.sample_data.remote(learner) for worker in workers]
 
     ray.get(pids)
-    
-
-if __name__ == '__main__':
-    cmd_args = parse_cmd_args()
-    main(cmd_args)
-
