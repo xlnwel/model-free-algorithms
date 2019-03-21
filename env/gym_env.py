@@ -2,6 +2,7 @@ import gym
 import ray
 
 from utility import tf_distributions
+from env import atari_wrappers
 
 
 def action_dist_type(env):
@@ -13,8 +14,13 @@ def action_dist_type(env):
         raise NotImplementedError
 
 class GymEnvironment():
-    def __init__(self, name, seed=0):
+    def __init__(self, name, model_name=None, atari=False, seed=0):
         self.env = gym.make(name)
+        if model_name is None:
+            model_name = name
+        # self.env = gym.wrappers.Monitor(self.env, f'data/gym/{model_name}', force=True)
+        if atari:
+            self.env = atari_wrappers.wrap_deepmind(self.env)
         self.env.seed(seed)
 
         self.state_dim = self.env.observation_space.shape[0]
