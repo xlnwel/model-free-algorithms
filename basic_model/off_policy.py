@@ -37,12 +37,12 @@ class OffPolicy(Model):
         self.env = GymEnvironment(env_args['name'], args['model_name'], atari=False)
         self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
                                  else self.env.max_episode_steps)
-        self.state_dim = self.env.state_dim
-        self.action_dim = self.env.action_dim
+        self.state_space = self.env.state_space
+        self.action_space = self.env.action_space
         
         # replay buffer
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_dim, self.action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_space)
         elif buffer_args['type'] == 'local':
             self.buffer = LocalBuffer(buffer_args['max_episodes'] * self.max_path_length)
 
@@ -64,8 +64,9 @@ class OffPolicy(Model):
         with self.graph.as_default():
             self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
     
-    def act(self, state):
-        state = state.reshape((-1, self.state_dim))
+    def act(self, state, return_q=False):
+        state = state.reshape((-1, *self.state_space))
+        # if return_q
         action = self.sess.run(self.action, feed_dict={self.data['state']: state})
 
         return np.squeeze(action)
@@ -122,10 +123,10 @@ class OffPolicy(Model):
         with tf.name_scope('data'):
             sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
             sample_shapes =((None), (None), (
-                (None, self.state_dim),
-                (None, self.action_dim),
+                (None, *self.state_space),
+                (None, self.action_space),
                 (None, 1),
-                (None, self.state_dim),
+                (None, *self.state_space),
                 (None, 1),
                 (None, 1)
             ))

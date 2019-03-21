@@ -10,12 +10,12 @@ class Actor(Base):
                  args, 
                  graph,
                  state, 
-                 action_dim, 
+                 action_space, 
                  reuse=False, 
                  scope_prefix='', 
                  log_tensorboard=False, 
                  log_params=False):
-        self.action_dim = action_dim
+        self.action_space = action_space
         self.noisy_sigma = args['noisy_sigma']
         super().__init__(name, 
                          args, 
@@ -28,7 +28,7 @@ class Actor(Base):
 
     """ Implementation """
     def _build_graph(self):
-        self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_dim, 
+        self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_space, 
                                                     self.noisy_sigma, reuse=self.reuse)
 
 
@@ -41,14 +41,14 @@ class Critic(Base):
                  state,
                  action,
                  actor_action, 
-                 action_dim, 
+                 action_space, 
                  reuse=False, 
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
         self.action = action
         self.actor_action = actor_action
-        self.action_dim = action_dim
+        self.action_space = action_space
         
         super().__init__(name, 
                          args, 
@@ -65,8 +65,8 @@ class Critic(Base):
 
     def _build_net(self, name):
         with tf.variable_scope(name, reuse=self.reuse):
-            Q = self._Q_net(self.state, self.args['units'], self.action, self.action_dim, self.reuse)
-            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_dim, True)
+            Q = self._Q_net(self.state, self.args['units'], self.action, self.action_space, self.reuse)
+            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_space, True)
 
         return Q, Q_with_actor
         
@@ -80,7 +80,7 @@ class DoubleCritic(Critic):
                  state,
                  action,
                  actor_action, 
-                 action_dim, 
+                 action_space, 
                  reuse=False, 
                  scope_prefix='',
                  log_tensorboard=False,
@@ -91,7 +91,7 @@ class DoubleCritic(Critic):
                          state,
                          action,
                          actor_action,
-                         action_dim, 
+                         action_space, 
                          reuse=reuse, 
                          scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard,

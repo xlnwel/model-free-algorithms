@@ -7,7 +7,7 @@ from replay.utils import add_buffer, copy_buffer
 
 class PrioritizedReplay():
     """ Interface """
-    def __init__(self, args, state_dim, action_dim):
+    def __init__(self, args, state_space, action_space):
         self.memory = {}                        # exp_id    -->     exp
         self.data_structure = None              # prio_id   -->     priority, exp_id
         
@@ -33,25 +33,25 @@ class PrioritizedReplay():
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
 
-        def init_buffer(buffer, capacity, state_dim, action_dim, has_priority):
+        def init_buffer(buffer, capacity, state_space, action_space, has_priority):
             target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
             target_buffer.update({
-                'state': np.zeros((capacity, state_dim)),
-                'action': np.zeros((capacity, action_dim)),
+                'state': np.zeros((capacity, *state_space)),
+                'action': np.zeros((capacity, action_space)),
                 'reward': np.zeros((capacity, 1)),
-                'next_state': np.zeros((capacity, state_dim)),
+                'next_state': np.zeros((capacity, *state_space)),
                 'done': np.zeros((capacity, 1)),
                 'steps': np.zeros((capacity, 1))
             })
 
             buffer.update(target_buffer)
 
-        init_buffer(self.memory, self.capacity, state_dim, action_dim, False)
+        init_buffer(self.memory, self.capacity, state_space, action_space, False)
 
         # Code for single agent
         if self.n_steps > 1:
             self.temporary_buffer = {}
-            init_buffer(self.temporary_buffer, self.n_steps, state_dim, action_dim, True)
+            init_buffer(self.temporary_buffer, self.n_steps, state_space, action_space, True)
             self.tb_idx = 0
             self.tb_full = False
 
@@ -63,17 +63,17 @@ class PrioritizedReplay():
         return self.capacity if self.is_full else self.exp_id
 
     def __call__(self):
-        from utility.debug_tools import timeit
-        i = 0
-        lt = []
+        # from utility.debug_tools import timeit
+        # i = 0
+        # lt = []
         while True:
-            i += 1
-            duration, samples = timeit(self.sample)
-            lt.append(duration)
-            if i % 1000 == 0:
-                print(f'Takes {np.sum(lt):3.2f} to sample 1000 times')
-                i = 0
-                lt = []
+            # i += 1
+            # duration, samples = timeit(self.sample)
+            # lt.append(duration)
+            # if i % 1000 == 0:
+            #     print(f'Takes {np.sum(lt):3.2f} to sample 1000 times')
+            #     i = 0
+            #     lt = []
             yield samples
 
     def sample(self):

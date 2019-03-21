@@ -23,9 +23,9 @@ class GymEnvironment():
             self.env = atari_wrappers.wrap_deepmind(self.env)
         self.env.seed(seed)
 
-        self.state_dim = self.env.observation_space.shape[0]
+        self.state_space = self.env.observation_space.shape
         self.is_action_discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
-        self.action_dim = self.env.action_space.n if self.is_action_discrete else self.env.action_space.shape[0]
+        self.action_space = self.env.action_space.n if self.is_action_discrete else self.env.action_space.shape[0]
         self.action_low = self.env.action_space.low
         self.action_high = self.env.action_space.high
         self.action_dist_type = action_dist_type(self.env)

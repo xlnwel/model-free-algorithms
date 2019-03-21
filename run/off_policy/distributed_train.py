@@ -20,7 +20,7 @@ def main(env_args, agent_args, buffer_args, render=False):
     else:
         raise NotImplementedError
 
-    ray.init(num_cpus=agent_args['num_workers'] + 1, num_gpus=1)
+    ray.init(num_cpus=agent_args['num_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'
     learner = Learner.remote(agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
