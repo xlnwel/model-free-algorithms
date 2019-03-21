@@ -28,8 +28,10 @@ class Worker(Agent):
         self.no = worker_no
         buffer_args['max_episodes'] = max_episodes
 
-        super().__init__(name, args, env_args,
-                         buffer_args=buffer_args,
+        super().__init__(name, 
+                         args, 
+                         env_args,
+                         buffer_args,
                          sess_config=sess_config,
                          reuse=reuse, 
                          save=save,
@@ -42,7 +44,7 @@ class Worker(Agent):
         self.local_buffer_capacity = max_episodes * self.max_path_length
         self.lb_idx = 0
 
-        self.buffer = {
+        self.buffer.update({
             'state': np.zeros((self.local_buffer_capacity, self.state_dim)),
             'action': np.zeros((self.local_buffer_capacity, self.action_dim)),
             'reward': np.zeros((self.local_buffer_capacity, 1)),
@@ -50,7 +52,7 @@ class Worker(Agent):
             'done': np.zeros((self.local_buffer_capacity, 1)),
             'steps': np.zeros((self.local_buffer_capacity, 1)),
             'priority': np.zeros((self.local_buffer_capacity, 1))
-        }
+        })
         
         print('Worker {} has been constructed.'.format(self.no))
 
@@ -96,4 +98,3 @@ class Worker(Agent):
 
                 weights = ray.get(learner.get_weights.remote(self.no))
                 self.variables.set_flat(weights)
-            print('Episode {} takes {} seconds'.format(episode_i, time() - start))

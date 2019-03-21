@@ -1,6 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
+
+eps = 1e-8
+
 class Distribution():
     def neglogp(self, x):
         with tf.name_scope('neg_log_p'):
@@ -70,9 +73,10 @@ class DiagGaussian(Distribution):
         self.std = tf.exp(self.logstd)
 
     def _neglogp(self, x):
-        return (.5 * np.log(2. * np.pi) * x.shape.as_list()[-1]
-                + tf.reduce_sum(self.logstd, axis=-1)
-                + tf.reduce_sum(((x - self.mean) / self.std)**2, axis=-1))
+        return .5 * tf.reduce_sum(np.log(2. * np.pi)
+                                  + 2 * self.logstd
+                                  + ((x - self.mean) / (self.std + epsilon))**2, 
+                                  axis=-1)
 
     def _sample(self):
         return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
@@ -82,4 +86,4 @@ class DiagGaussian(Distribution):
 
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5
-                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / other.std**2, axis=-1)
+                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std**2 + epsilon), axis=-1)

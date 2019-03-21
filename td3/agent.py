@@ -124,7 +124,7 @@ class Agent(OffPolicy):
                 loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
                 TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
 
-                critic_loss = tf.reduce_mean(self.data['IS_ratio'] * TD_squared)
+                critic_loss = tf.reduce_mean(self.data['IS_ratio'] * TD_squared) + self.l2_loss
 
         return priority, actor_loss, critic_loss
 

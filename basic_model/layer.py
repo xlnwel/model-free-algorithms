@@ -24,7 +24,9 @@ class Layer():
 
     @property
     def l2_regularizer(self):
-        return tk.regularizers.l2(self.args['weight_decay']) if self.name in self.args and 'weight_decay' in self.args else None
+        return (tk.regularizers.l2(self.args['weight_decay']) 
+                if 'weight_decay' in self.args and self.args['weight_decay'] > 0
+                else None)
     
     @property
     def l2_loss(self):

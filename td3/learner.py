@@ -8,7 +8,7 @@ import ray
 from td3.agent import Agent
 from utility import tf_utils
 
-@ray.remote(num_gpus=.1, num_cpus=2)
+@ray.remote(num_gpus=.1, num_cpus=1)
 class Learner(Agent):
     """ Interface """
     def __init__(self, 
@@ -23,21 +23,28 @@ class Learner(Agent):
                  log_params=True,
                  log_score=True,
                  device=None):
-        super().__init__(name, args, env_args,
-                         buffer_args, sess_config,
-                         reuse, save,
-                         log_tensorboard,
-                         log_params,
-                         log_score,
-                         device)
-        self.net_locker = threading.Lock()
-        self.learning_thread = threading.Thread(target=self._background_learning, args=())
+        super().__init__(name, 
+                         args, 
+                         env_args,
+                         buffer_args,
+                         sess_config=sess_config,
+                         reuse=reuse, 
+                         save=save,
+                         log_tensorboard=log_tensorboard,
+                         log_params=log_params,
+                         log_score=log_score,
+                         device=device)
+                         
+        # self.net_locker = threading.Lock()
+        self.learning_thread = threading.Thread(target=self.background_learning)
         self.learning_thread.start()
         
+        print('Learner has been constructed.')
+        
     def get_weights(self, no):
-        self.net_locker.acquire()
+        # self.net_locker.acquire()
         weights = self.variables.get_flat()
-        self.net_locker.release()
+        # self.net_locker.release()
 
         return weights
     
@@ -53,27 +60,8 @@ class Learner(Agent):
 
     def merge_buffer(self, local_buffer, length):
         self.buffer.merge(local_buffer, length)
-
-    def demonstrate(self):
-        while True:
-            state = self.env.reset()
-
-            for _ in range(self.max_path_length):
-                self.env.render()
-                action = self.act(state)
-
-                state = self.env.step(action)
         
-    """ Implementation """
-    def _background_learning(self):
-        while not self.buffer.good_to_learn:
-            sleep(1)
-        i = 0
-        print('Start Learning...')
-        while True:
-            i += 1
-            if i % 1000 == 0:
-                print('\rLearning step: {}'.format(i))
-            self.net_locker.acquire()
-            self.learn()
-            self.net_locker.release()
+    def learn(self):
+        # self.net_locker.acquire()
+        super().learn()
+        # self.net_locker.release()

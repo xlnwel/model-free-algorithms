@@ -6,7 +6,7 @@ from utility.utils import normalize
 from dppo.agent import Agent
 
 
-@ray.remote#(num_cpus=0.5, num_gpus=0.04)
+@ray.remote(num_cpus=0.5, num_gpus=0.04)
 class Learner(Agent):
     def __init__(self,
                  name,

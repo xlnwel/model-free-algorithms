@@ -1,5 +1,8 @@
+import os, random
 import multiprocessing
 import numpy as np
+import tensorflow as tf
+
 
 color2num = dict(
     gray=30,
@@ -37,3 +40,9 @@ def schedule(start_value, step, decay_steps, decay_rate):
 
 def is_main_process():
     return multiprocessing.current_process().name == 'MainProcess'
+
+def set_global_seed(seed=42):
+    os.environ['PYTHONHASHSEED']=str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.set_random_seed(seed)

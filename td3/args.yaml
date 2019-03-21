@@ -7,12 +7,13 @@ agent:
     gamma: &gamma 0.99
     tau: 0.005      # moving average rate
     batch_size: &batch_size 128
-    num_workers: 10
+    num_workers: 1
+    prefetches: 3
 
     # model path: model_root_dir/model_dir/model_name
     # tensorboard path: log_root_dir/model_dir/model_name
-    model_root_dir: data/saved_models            # root path for savinng models
-    log_root_dir: data/logs  # root path for tensorboard logs
+    model_root_dir: saved_models            # root path for savinng models
+    log_root_dir: logs  # root path for tensorboard logs
     model_dir: *env_name
     model_name: baseline
 
@@ -20,13 +21,13 @@ agent:
     policy_delay: 1     # policy will be updated once every policy_delay steps
 
     actor:
-        units: [512, 512, 256, 256]
+        units: [500, 300]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         # args for optimizer
         learning_rate: 1e-4
         
     critic:
-        units: [512, 512, 256, 256]
+        units: [500, 500, 300]
         loss_type: mse   # huber or mse
         # args for optimizer
         learning_rate: 3e-4

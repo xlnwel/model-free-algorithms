@@ -173,14 +173,14 @@ class Model(Module):
 
         super().__init__(name, args, self.graph, reuse=reuse, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device)
-            
-        self.logger = self._setup_logger()
 
         if self.log_tensorboard:
+            self.logger = self._setup_logger()
             self.graph_summary, self.writer = self._setup_tensorboard_summary()
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
-        if self.log_tensorboard and log_score:
+        if log_score:
+            assert self.log_tensorboard, 'Must set up tensorboard writer beforehand'
             if 'num_workers' in self.args:
                 self.scores, self.avg_scores, self.score_counters, self.score_log_ops = self._setup_multiple_score_logs()
             else:
@@ -230,14 +230,13 @@ class Model(Module):
             self.saver.save(self.sess, self.model_file)
 
     def log_score(self, score, avg_score):
-        if self.log_tensorboard:
-            feed_dict = {
-                self.score: score,
-                self.avg_score: avg_score
-            }
+        feed_dict = {
+            self.score: score,
+            self.avg_score: avg_score
+        }
 
-            score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
-            self.writer.add_summary(summary, score_count)
+        score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
+        self.writer.add_summary(summary, score_count)
 
     def log_tabular(self, key, value):
         self.logger.log_tabular(key, value)

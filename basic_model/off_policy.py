@@ -29,8 +29,8 @@ class OffPolicy(Model):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99 
         self.tau = args['tau'] if 'tau' in args else 1e-3
-
         self.policy_delay = args['policy_delay'] if 'policy_delay' in args else 1
+        self.prefetches = args['prefetches']
         self.update_step = 0
 
         # environment info
@@ -74,11 +74,21 @@ class OffPolicy(Model):
         self.buffer.add(state, action, reward, next_state, done)
 
     def background_learning(self):
+        from utility.debug_tools import timeit
         while not self.buffer.good_to_learn:
             time.sleep(1)
         print('Start Learning...')
+        
+        i = 0
+        lt = []
         while True:
-            self.learn()
+            i += 1
+            duration, _ = timeit(self.learn)
+            lt.append(duration)
+            if i % 1000 == 0:
+                print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f} to learn 1000 times')
+                i = 0
+                lt = []
 
     def learn(self):
         # update the main networks
@@ -120,7 +130,8 @@ class OffPolicy(Model):
                 (None, 1)
             ))
             ds = tf.data.Dataset.from_generator(buffer, sample_types, sample_shapes)
-            ds = ds.prefetch(1)
+            if self.prefetches > 0:
+                ds = ds.prefetch(self.prefetches)
             iterator = ds.make_one_shot_iterator()
             samples = iterator.get_next(name='samples')
         
