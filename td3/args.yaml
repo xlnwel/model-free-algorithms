@@ -7,7 +7,7 @@ agent:
     gamma: &gamma 0.99
     tau: 0.005      # moving average rate
     batch_size: &batch_size 128
-    num_workers: 1
+    num_workers: 10
     prefetches: 3
 
     # model path: model_root_dir/model_dir/model_name

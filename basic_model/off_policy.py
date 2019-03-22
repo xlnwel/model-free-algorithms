@@ -66,8 +66,13 @@ class OffPolicy(Model):
     
     def act(self, state, return_q=False):
         state = state.reshape((-1, *self.state_space))
-        # if return_q
-        action = self.sess.run(self.action, feed_dict={self.data['state']: state})
+        if return_q:
+            action, q = self.sess.run([self.action, self.critic.Q_with_action], 
+                                            feed_dict={self.data['state']: state})
+            return np.squeeze(action), q
+        else:
+            action = self.sess.run(self.action, feed_dict={self.data['state']: state})
+        
 
         return np.squeeze(action)
 

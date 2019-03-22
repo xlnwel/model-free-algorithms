@@ -63,18 +63,8 @@ class PrioritizedReplay():
         return self.capacity if self.is_full else self.exp_id
 
     def __call__(self):
-        # from utility.debug_tools import timeit
-        # i = 0
-        # lt = []
         while True:
-            # i += 1
-            # duration, samples = timeit(self.sample)
-            # lt.append(duration)
-            # if i % 1000 == 0:
-            #     print(f'Takes {np.sum(lt):3.2f} to sample 1000 times')
-            #     i = 0
-            #     lt = []
-            yield samples
+            yield self.sample()
 
     def sample(self):
         self.locker.acquire()

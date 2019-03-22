@@ -47,4 +47,4 @@ if __name__ == '__main__':
     gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials)
 
     # Grid search happens here
-    gs(num_workers=[1])
+    gs(num_workers=[10], actor={'units':[[500, 300]]})

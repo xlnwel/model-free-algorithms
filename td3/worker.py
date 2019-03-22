@@ -44,14 +44,17 @@ class Worker(Agent):
         self.local_buffer_capacity = max_episodes * self.max_path_length
         self.lb_idx = 0
 
+        basic_shape = (self.local_buffer_capacity, 1)
         self.buffer.update({
             'state': np.zeros((self.local_buffer_capacity, *self.state_space)),
             'action': np.zeros((self.local_buffer_capacity, self.action_space)),
-            'reward': np.zeros((self.local_buffer_capacity, 1)),
+            'reward': np.zeros(basic_shape),
             'next_state': np.zeros((self.local_buffer_capacity, *self.state_space)),
-            'done': np.zeros((self.local_buffer_capacity, 1)),
-            'steps': np.zeros((self.local_buffer_capacity, 1)),
-            'priority': np.zeros((self.local_buffer_capacity, 1))
+            'done': np.zeros(basic_shape),
+            'steps': np.zeros(basic_shape),
+            'priority': np.zeros(basic_shape),
+            # 'q': np.zeros(basic_shape),
+            # 'q_n': np.zeros(basic_shape)
         })
         
         print('Worker {} has been constructed.'.format(self.no))

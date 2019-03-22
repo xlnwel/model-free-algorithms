@@ -15,6 +15,7 @@ def add_buffer(buffer, idx, state, action, reward, next_state, done, n_steps, ga
     buffer['next_state'][idx] = next_state
     buffer['done'][idx] = done
     buffer['steps'][idx] = 1
+    # buffer['q'][idx] = q
     for i in range(1, n_steps):
         k = idx - i
         if buffer['done'][k] == True:
@@ -23,6 +24,7 @@ def add_buffer(buffer, idx, state, action, reward, next_state, done, n_steps, ga
         buffer['next_state'][k] = next_state
         buffer['done'][k] = done
         buffer['steps'][k] += 1
+        # buffer['q_n'][k] = q
 
 def copy_buffer(dest_buffer, dest_start, dest_end, orig_buffer, orig_start, orig_end):
     assert dest_end - dest_start == orig_end - orig_start, 'Inconsistent lengths of dest_buffer and orig_buffer.'
