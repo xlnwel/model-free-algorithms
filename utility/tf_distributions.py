@@ -2,9 +2,12 @@ import numpy as np
 import tensorflow as tf
 
 
-eps = 1e-8
+EPSILON = 1e-8
 
 class Distribution():
+    def logp(self, x):
+        with tf.name_scope('log_p'):
+            return self._logp
     def neglogp(self, x):
         with tf.name_scope('neg_log_p'):
             return self._neglogp(x)
@@ -21,6 +24,9 @@ class Distribution():
         assert isinstance(other, type(self))
         with tf.name_scope('KL'):
             return self._kl(other)
+
+    def _logp(self, x):
+        return -self._neglogp(x)
 
     def _neglogp(self, x):
         raise NotImplementedError
@@ -75,7 +81,7 @@ class DiagGaussian(Distribution):
     def _neglogp(self, x):
         return .5 * tf.reduce_sum(np.log(2. * np.pi)
                                   + 2 * self.logstd
-                                  + ((x - self.mean) / (self.std + epsilon))**2, 
+                                  + ((x - self.mean) / (self.std + EPSILON))**2, 
                                   axis=-1)
 
     def _sample(self):
@@ -86,4 +92,4 @@ class DiagGaussian(Distribution):
 
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5
-                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std**2 + epsilon), axis=-1)
+                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std**2 + EPSILON), axis=-1)
