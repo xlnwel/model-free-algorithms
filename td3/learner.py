@@ -34,16 +34,13 @@ class Learner(Agent):
                          log_params=log_params,
                          log_score=log_score,
                          device=device)
-        self.net_locker = threading.Lock()
         self.learning_thread = threading.Thread(target=self.background_learning)
         self.learning_thread.start()
         
         print('Learner has been constructed.')
         
     def get_weights(self, no):
-        self.net_locker.acquire()
         weights = self.variables.get_flat()
-        self.net_locker.release()
 
         return weights
     
@@ -61,6 +58,4 @@ class Learner(Agent):
         self.buffer.merge(local_buffer, length)
         
     def learn(self):
-        self.net_locker.acquire()
         super().learn()
-        self.net_locker.release()
