@@ -44,8 +44,8 @@ def main(env_args, agent_args, buffer_args, render=False):
     utils.set_global_seed()
 
     agent_name = 'Agent'
-    if 'num_workers' in agent_args:
-        del agent_args['num_workers']
+    if 'n_workers' in agent_args:
+        del agent_args['n_workers']
 
     algorithm = agent_args['algorithm']
     if algorithm == 'td3':

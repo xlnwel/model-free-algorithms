@@ -1,5 +1,6 @@
 import time
 import argparse
+from multiprocessing import cpu_count
 import numpy as np
 import tensorflow as tf
 import ray
@@ -20,14 +21,16 @@ def main(env_args, agent_args, buffer_args, render=False):
     else:
         raise NotImplementedError
 
-    ray.init(num_cpus=agent_args['num_workers'] + 2, num_gpus=1)
+    if 'n_workers' not in agent_args:
+        agent_args['n_workers'] = cpu_count() - 2
+    ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'
     learner = Learner.remote(agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
 
     workers = []
     buffer_args['type'] = 'local'
-    for worker_no in range(agent_args['num_workers']):
+    for worker_no in range(agent_args['n_workers']):
         max_episodes = 1# np.random.randint(1, 10)
         if worker_no == 0:
             agent_args['actor']['noisy_sigma'] = .4

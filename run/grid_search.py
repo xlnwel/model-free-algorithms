@@ -11,7 +11,7 @@ class GridSearch:
         args = yaml_op.load_args(args_file)
         self.env_args = args['env']
         self.agent_args = args['agent']
-        self.buffer_args = args['buffer']
+        self.buffer_args = args['buffer'] if 'buffer' in args else {}
         self.train_func = train_func
         self.render = render
         self.n_trials = n_trials
@@ -19,7 +19,8 @@ class GridSearch:
         # add date to root directory
         now = datetime.now()
         for root_dir in ['model_root_dir', 'log_root_dir']:
-            self.agent_args[root_dir] = f'data/{now.month:02d}{now.day:02d}/' + self.agent_args[root_dir]
+            self.agent_args[root_dir] = (f'data/{now.month:02d}{now.day:02d}-{now.hour:02d}{now.minute:02d}/' 
+                                        + self.agent_args[root_dir])
 
         self.agent_args['model_dir'] = f"{self.agent_args['algorithm']}-{self.agent_args['model_dir']}"
 
@@ -32,7 +33,7 @@ class GridSearch:
             
         # do grid search
         now = datetime.now()
-        self.agent_args['model_name'] = f'{now.month:02d}{now.day:02d}'
+        self.agent_args['model_name'] = 'GS'
         self._change_args(**kwargs)
         [p.join() for p in self.processes]
 
@@ -81,7 +82,8 @@ class GridSearch:
         assert isinstance(kwargs, dict)
         while len(kwargs) != 0:
             k, v = kwargs.popitem()
-            assert isinstance(v, dict) or isinstance(v, list)
+            if not isinstance(v, list) and not isinstance(v, dict):
+                v = [v]
             if len(v) != 0:
                 break
         return k, v
