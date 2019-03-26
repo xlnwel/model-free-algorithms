@@ -7,7 +7,7 @@ EPSILON = 1e-8
 class Distribution():
     def logp(self, x):
         with tf.name_scope('log_p'):
-            return self._logp
+            return self._logp(x)
     def neglogp(self, x):
         with tf.name_scope('neg_log_p'):
             return self._neglogp(x)
