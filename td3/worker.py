@@ -3,9 +3,10 @@ from collections import deque
 import numpy as np
 import ray
 
+from utility import tf_utils
+from utility.utils import colorize
 from replay.utils import reset_buffer, add_buffer
 from td3.agent import Agent
-from utility import tf_utils
 
 
 @ray.remote(num_cpus=1)
@@ -53,11 +54,9 @@ class Worker(Agent):
             'done': np.zeros(basic_shape),
             'steps': np.zeros(basic_shape),
             'priority': np.zeros(basic_shape),
-            # 'q': np.zeros(basic_shape),
-            # 'q_n': np.zeros(basic_shape)
         })
         
-        print('Worker {} has been constructed.'.format(self.no))
+        print(colorize('Worker {} has been constructed.'.format(self.no), 'cyan'))
 
     def sample_data(self, learner):
         # I intend not to synchronize the worker's weights at the beginning for initial exploration 
@@ -66,8 +65,6 @@ class Worker(Agent):
         
         while True:
             state = self.env.reset()
-            score = 0
-            start = time()
             
             for _ in range(self.max_path_length):
                 action = self.act(state)
@@ -76,7 +73,6 @@ class Worker(Agent):
                 add_buffer(self.buffer, self.lb_idx, state, action, reward, 
                             next_state, done, self.n_steps, self.gamma)
 
-                score += reward
                 state = next_state
 
                 self.lb_idx += 1
@@ -84,6 +80,7 @@ class Worker(Agent):
                 if done:
                     break
             
+            score = self.env.get_score()
             episode_i += 1
             score_deque.append(score)
             learner.log_score.remote(self.no, score, np.mean(score_deque))

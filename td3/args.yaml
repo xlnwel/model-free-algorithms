@@ -7,7 +7,7 @@ agent:
     gamma: &gamma 0.99
     tau: 0.005      # moving average rate
     batch_size: &batch_size 128
-    num_workers: 10
+    n_workers: 10
     prefetches: 3
 
     # model path: model_root_dir/model_dir/model_name
@@ -21,6 +21,7 @@ agent:
     policy_delay: 1     # policy will be updated once every policy_delay steps
 
     actor:
+        n_fc: 1
         units: [500, 300]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         # args for optimizer

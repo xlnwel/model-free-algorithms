@@ -11,18 +11,18 @@ class Actor(Base):
                  graph,
                  state, 
                  action_space, 
-                 reuse=False, 
-                 scope_prefix='', 
+                 scope_prefix='',
+                 reuse=False,  
                  log_tensorboard=False, 
                  log_params=False):
+        self.state = state
         self.action_space = action_space
         self.noisy_sigma = args['noisy_sigma']
         super().__init__(name, 
                          args, 
                          graph,
-                         state, 
-                         reuse=reuse, 
                          scope_prefix=scope_prefix,
+                         reuse=reuse, 
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
 
@@ -30,6 +30,17 @@ class Actor(Base):
     def _build_graph(self):
         self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_space, 
                                                     self.noisy_sigma, reuse=self.reuse)
+
+    def _deterministic_policy_net(self, state, units, action_space, noisy_sigma, reuse, name='policy_net'):
+        x = state
+        with tf.variable_scope(name, reuse=reuse):
+            for i, u in enumerate(units):
+                layer = self.dense_norm_activation if i < self.args['n_fc'] else self.noisy_norm_activation
+                x = layer(x, u)
+            x = self.noisy(x, action_space, sigma=noisy_sigma)
+            x = tf.tanh(x, name='action')
+
+        return x
 
 
 class Critic(Base):
@@ -41,11 +52,12 @@ class Critic(Base):
                  state,
                  action,
                  actor_action, 
-                 action_space, 
+                 action_space,
+                 scope_prefix='', 
                  reuse=False, 
-                 scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
+        self.state = state
         self.action = action
         self.actor_action = actor_action
         self.action_space = action_space
@@ -53,9 +65,8 @@ class Critic(Base):
         super().__init__(name, 
                          args, 
                          graph, 
-                         state,
+                         scope_prefix=scope_prefix,
                          reuse=reuse, 
-                         scope_prefix=scope_prefix, 
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params)
 
@@ -80,9 +91,9 @@ class DoubleCritic(Critic):
                  state,
                  action,
                  actor_action, 
-                 action_space, 
+                 action_space,
+                 scope_prefix='', 
                  reuse=False, 
-                 scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
         super().__init__(name, 
@@ -91,9 +102,9 @@ class DoubleCritic(Critic):
                          state,
                          action,
                          actor_action,
-                         action_space, 
+                         action_space,
+                         scope_prefix=scope_prefix, 
                          reuse=reuse, 
-                         scope_prefix=scope_prefix,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
 
