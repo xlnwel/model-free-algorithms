@@ -34,7 +34,7 @@ class OffPolicy(Model):
         self.update_step = 0
 
         # environment info
-        self.env = GymEnvironment(env_args['name'], args['model_name'], atari=False)
+        self.env = GymEnvironment(env_args['name'])
         self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
                                  else self.env.max_episode_steps)
         self.state_space = self.env.state_space

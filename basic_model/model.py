@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow.keras as tk
 
 from utility.logger import Logger
-from utility import yaml_op
+from utility import yaml_op, utils
 from basic_model.layer import Layer
 """ 
 Module defines the basic functions to build a tesorflow graph
@@ -148,7 +148,7 @@ class Model(Module):
                  sess_config=None, 
                  reuse=None, 
                  save=True,
-                 log_tensorboard=False,  
+                 log_tensorboard=False,
                  log_params=False,
                  log_score=False,
                  device=None):
@@ -181,7 +181,7 @@ class Model(Module):
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_score:
             assert self.log_tensorboard, 'Must set up tensorboard writer beforehand'
-            if 'num_workers' in self.args:
+            if 'n_workers' in self.args:
                 self.scores, self.avg_scores, self.score_counters, self.score_log_ops = self._setup_multiple_score_logs()
             else:
                 self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
@@ -223,9 +223,13 @@ class Model(Module):
         try:
             self.saver.restore(self.sess, self.model_file)
         except:
-            print(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!')
+            print(utils.colorize(
+                f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',
+                'magenta'))
         else:
-            print(f"Model {self.model_name}: Params for {self.name} are restored.")
+            print(utils.colorize(
+                f"Model {self.model_name}: Params for {self.name} are restored.",
+                'magenta'))
 
     def save(self):
         if hasattr(self, 'saver'):
@@ -275,7 +279,7 @@ class Model(Module):
             score_log_ops = []
 
             with tf.variable_scope('scores', reuse=self.reuse):
-                for i in range(1, self.args['num_workers']+1):
+                for i in range(1, self.args['n_workers']+1):
                     score, avg_score, score_counter, score_log_op = self._setup_score_logs(name='worker_{}'.format(i))
 
                     scores.append(score)

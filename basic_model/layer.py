@@ -186,35 +186,6 @@ class Layer():
 
         return x
 
-    # def noisy(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), 
-    #            name=None, sigma=.4):
-    #     name = self.get_name(name, 'noisy')
-        
-    #     with tf.variable_scope(name):
-    #         y = self.dense(x, units, kernel_initializer=kernel_initializer)
-            
-    #         with tf.variable_scope('noisy'):
-    #             # params for the noisy layer
-    #             features = x.shape.as_list()[-1]
-    #             w_shape = [features, units]
-    #             b_shape = [units]
-
-    #             epsilon_w = tf.random.truncated_normal(w_shape, stddev=sigma, name='epsilon_w')
-    #             epsilon_b = tf.random.truncated_normal(b_shape, stddev=sigma, name='epsilon_b')
-
-    #             noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
-    #                                       initializer=kernel_initializer,
-    #                                       regularizer=self.l2_regularizer)
-    #             noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
-    #                                       initializer=tf.constant_initializer(sigma / np.sqrt(units)))
-                
-    #             # output of the noisy layer
-    #             x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
-
-    #         x = x + y
-
-    #     return x
-
     def noisy(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), 
                name=None, sigma=.4):
         name = self.get_name(name, 'noisy')
@@ -237,6 +208,35 @@ class Layer():
                 epsilon_w = tf.matmul(epsilon_w_in, epsilon_w_out, name='epsilon_w')
                 epsilon_b = tf.reshape(epsilon_w_out, b_shape)
                 
+                noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
+                                          initializer=kernel_initializer,
+                                          regularizer=self.l2_regularizer)
+                noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
+                                          initializer=tf.constant_initializer(sigma / np.sqrt(units)))
+                
+                # output of the noisy layer
+                x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
+
+            x = x + y
+
+        return x
+
+    def noisy2(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), 
+               name=None, sigma=.4):
+        name = self.get_name(name, 'noisy')
+        
+        with tf.variable_scope(name):
+            y = self.dense(x, units, kernel_initializer=kernel_initializer)
+            
+            with tf.variable_scope('noisy'):
+                # params for the noisy layer
+                features = x.shape.as_list()[-1]
+                w_shape = [features, units]
+                b_shape = [units]
+
+                epsilon_w = tf.random.truncated_normal(w_shape, stddev=sigma, name='epsilon_w')
+                epsilon_b = tf.random.truncated_normal(b_shape, stddev=sigma, name='epsilon_b')
+
                 noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
                                           initializer=kernel_initializer,
                                           regularizer=self.l2_regularizer)
@@ -306,7 +306,7 @@ class Layer():
 
         return x
 
-    def lstm(self, x, units, initial_state=None, return_layer=False):
+    def lstm(self, x, units, return_sequences=False):
         if isinstance(units, int):
             num_layers = 1
             units = [units]
@@ -314,14 +314,15 @@ class Layer():
             num_layers = len(units)
         
         if num_layers == 1:
-            lstm = tk.layers.CuDNNLSTM(units[0])
+            lstm_cell = tk.layers.CuDNNLSTM(units[0], return_sequences=return_sequences, return_state=True)
         else:
-            cells = [tk.layers.CuDNNLSTM(n) for n in units]
-            lstm = tk.layers.StackedRNNCells(cells)
+            cells = [tk.layers.CuDNNLSTM(n, return_sequences=return_sequences, return_state=True) for n in units]
+            lstm_cell = tk.layers.StackedRNNCells(cells)
+        initial_state = lstm_cell.get_initial_state(x)
+        x, h, c = lstm_cell(x, initial_state=initial_state)
+        final_state = (h, c)
 
-        x = lstm(x, initial_state=initial_state)
-
-        return x
+        return x, (initial_state, final_state)
 
     """ Auxiliary functions """
     def reset_counter(self, name):
