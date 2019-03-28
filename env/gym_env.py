@@ -14,7 +14,43 @@ def action_dist_type(env):
     else:
         raise NotImplementedError
 
-class GymEnvironment:
+class envstats:
+    def __init__(self, env):
+        self.env = env
+        self.score = 0
+        self.eps_len = 0
+        self.early_done = 0
+        
+        self.env_reset = env.reset
+        self.env.reset = self.reset
+        self.env_step = env.step
+        self.env.step = self.step
+
+        self.env.get_episodic_score = lambda _: self.score
+        self.env.get_episodic_length = lambda _: self.eps_len
+
+    def __call__(self, *args, **kwargs):
+        self.env = self.env(*args, **kwargs)
+
+        return self.env
+
+    def reset(self):
+        self.score = 0
+        self.eps_len = 0
+        self.early_done = 0
+        
+        return self.env_reset(self.env)
+
+    def step(self, action):
+        next_state, reward, done, info = self.env_step(self.env, action)
+        self.score += np.where(self.early_done, 0, reward)
+        self.eps_len += np.where(self.early_done, 0, 1)
+        self.early_done = np.array(done)
+
+        return next_state, reward, done, info
+
+@envstats
+class GymEnv:
     def __init__(self, name, max_episode_steps=None, atari=False, seed=0):
         self.env = gym.make(name)
         # if model_name:
@@ -32,38 +68,25 @@ class GymEnvironment:
         
         self.max_episode_steps = self.env.spec.max_episode_steps if max_episode_steps is None else max_episode_steps
 
-        self.score = 0
-        self.early_done = False
-
     def reset(self):
-        print('reset')
-        self.score = 0
-        self.early_done = False
-
         return self.env.reset()
 
     def step(self, action):
-        next_state, reward, done, info = self.env.step(action)
-        self.score += 0 if self.early_done else reward
-        self.early_done = done
-        return (next_state, reward, done, info)
-
+        return self.env.step(action)
+        
     def render(self):
         return self.env.render()
 
     def is_inrange(self, action):
         return action > self.action_low and action < self.action_high
 
-    def get_score(self):
-        return self.score
-
-RayGymEnv = ray.remote(GymEnvironment)
-
+@envstats
 class GymEnvVec:
     def __init__(self, name, n_envs=1, max_episode_steps=None, atari=False, seed=0):
-        self.envs = [RayGymEnv.remote(name, max_episode_steps, atari, seed + 10 * i) for i in range(n_envs)]
+        self.envs = [gym.make(name) for i in range(n_envs)]
+        [env.seed(seed + 10 * i) for i, env in enumerate(self.envs)]
 
-        env = gym.make(name)
+        env = self.envs[0]
         self.state_space = env.observation_space.shape
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_space = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
@@ -74,12 +97,14 @@ class GymEnvVec:
         self.n_envs = n_envs
         self.max_episode_steps = env.spec.max_episode_steps if max_episode_steps is None else max_episode_steps
 
+        self.score = np.zeros(n_envs)
+        self.eps_len = np.zeros(n_envs)
+        self.early_done = np.zeros(n_envs)
+        self.zeros = np.zeros(n_envs)
+
     def reset(self):
-        return ray.get([env.reset.remote() for env in self.envs])
+        return [env.reset() for env in self.envs]
     
     def step(self, actions):
-        step_info = list(zip(*ray.get([env.step.remote(a) for env, a in zip(self.envs, actions)])))
-        return step_info
+        return list(zip(*[env.step(a) for env, a in zip(self.envs, actions)]))
 
-    def get_score(self):
-        return ray.get([env.get_score.remote() for env in self.envs])

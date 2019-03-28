@@ -7,7 +7,7 @@ import ray
 
 from utility.logger import Logger
 from basic_model.model import Model
-from env.gym_env import GymEnvironment
+from env.gym_env import GymEnv
 from replay.local_buffer import LocalBuffer
 from replay.proportional_replay import ProportionalPrioritizedReplay
 
@@ -20,7 +20,6 @@ class OffPolicy(Model):
                  env_args, 
                  buffer_args, 
                  sess_config=None, 
-                 reuse=None, 
                  save=True, 
                  log_tensorboard=True, 
                  log_params=False, 
@@ -34,7 +33,7 @@ class OffPolicy(Model):
         self.update_step = 0
 
         # environment info
-        self.env = GymEnvironment(env_args['name'])
+        self.env = GymEnv(env_args['name'])
         self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
                                  else self.env.max_episode_steps)
         self.state_space = self.env.state_space
@@ -52,7 +51,6 @@ class OffPolicy(Model):
 
         super().__init__(name, args, 
                          sess_config=sess_config, 
-                         reuse=reuse,
                          save=save, 
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params, 
@@ -104,13 +102,13 @@ class OffPolicy(Model):
                                                         self.critic_opt_op])
         else:
             if self.log_tensorboard:
-                priority, saved_exp_ids, global_step, _, summary = self.sess.run([self.priority, 
+                priority, saved_exp_ids, opt_step, _, summary = self.sess.run([self.priority, 
                                                                                 self.data['saved_exp_ids'],
-                                                                                self.global_step, 
+                                                                                self.opt_step, 
                                                                                 self.opt_op, 
                                                                                 self.graph_summary])
-                if global_step % 100 == 0:
-                    self.writer.add_summary(summary, global_step)
+                if opt_step % 100 == 0:
+                    self.writer.add_summary(summary, opt_step)
                     self.save()
             else:
                 priority, saved_exp_ids, _ = self.sess.run([self.priority, 

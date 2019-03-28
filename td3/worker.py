@@ -20,7 +20,6 @@ class Worker(Agent):
                  buffer_args,
                  max_episodes,
                  sess_config=None, 
-                 reuse=None, 
                  save=False, 
                  log_tensorboard=False, 
                  log_params=False,
@@ -34,7 +33,6 @@ class Worker(Agent):
                          env_args,
                          buffer_args,
                          sess_config=sess_config,
-                         reuse=reuse, 
                          save=save,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params,
@@ -80,10 +78,10 @@ class Worker(Agent):
                 if done:
                     break
             
-            score = self.env.get_score()
+            score = self.env.get_episodic_score()
             episode_i += 1
             score_deque.append(score)
-            learner.log_score.remote(self.no, score, np.mean(score_deque))
+            learner.log_score.remote(score=score, avg_score=np.mean(score_deque), worker_no=self.no)
             
             if episode_i >= self.max_episodes:
                 priority = self.sess.run(self.priority)

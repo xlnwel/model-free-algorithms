@@ -20,7 +20,6 @@ class Module(Layer):
                  name, 
                  args, 
                  graph=tf.get_default_graph(),
-                 reuse=None,
                  log_tensorboard=False, 
                  log_params=False,
                  device=None):
@@ -35,13 +34,11 @@ class Module(Layer):
                                 does not have authorized to change the difault graph. Graph specified here
                                 is only used to acquire tensorflow variables. See @property for examples
                                 (default: {tf.get_default_graph()})
-            reuse {[bool or None]} -- Option for resuing variables (default: {None})
             log_tensorboard {bool} -- Option for tensorboard setup (default: {False})
             log_params {bool} -- Option for logging network parameters to tensorboard (default: {False})
             device {[str or None]} -- Device where graph build upon {default: {None}}
         """
         self.graph = graph
-        self.reuse = reuse
         self.log_tensorboard = log_tensorboard
         self.log_params = log_params
         self.device = device
@@ -53,10 +50,10 @@ class Module(Layer):
     def build_graph(self):
         if self.device:
             with tf.device(self.device):
-                with tf.variable_scope(self.name, reuse=self.reuse):
+                with tf.variable_scope(self.name):
                     self._build_graph()
         else:
-            with tf.variable_scope(self.name, reuse=self.reuse):
+            with tf.variable_scope(self.name):
                 self._build_graph()
 
     @property
@@ -79,15 +76,15 @@ class Module(Layer):
     def _build_graph(self):
         raise NotImplementedError
         
-    def _optimization_op(self, loss, tvars=None, global_step=None):
-        with tf.variable_scope(self.name + '_optimizer', reuse=self.reuse):
-            optimizer, global_step = self._adam_optimizer(global_step=global_step)
+    def _optimization_op(self, loss, tvars=None, opt_step=None):
+        with tf.variable_scope(self.name + '_optimizer'):
+            optimizer, opt_step = self._adam_optimizer(opt_step=opt_step)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
-            opt = self._apply_gradients(optimizer, grads_and_vars, global_step)
+            opt = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
-        return opt, global_step
+        return opt, opt_step
 
-    def _adam_optimizer(self, global_step=None):
+    def _adam_optimizer(self, opt_step=None):
         # params for optimizer
         learning_rate = float(self.args['learning_rate'])
         beta1 = float(self.args['beta1']) if 'beta1' in self.args else 0.9
@@ -97,21 +94,21 @@ class Module(Layer):
         epsilon = float(self.args['epsilon']) if 'epsilon' in self.args else 1e-8
 
         # setup optimizer
-        if global_step or decay_rate != 1.:
-            global_step = tf.Variable(0, trainable=False, name='global_step')
+        if opt_step or decay_rate != 1.:
+            opt_step = tf.Variable(0, trainable=False, name='opt_step')
         else:
-            global_step = None
+            opt_step = None
 
         if decay_rate == 1.:
             optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2)
         else:
-            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps, decay_rate, staircase=True)
+            learning_rate = tf.train.exponential_decay(learning_rate, opt_step, decay_steps, decay_rate, staircase=True)
             optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
 
             if self.log_tensorboard:
                 tf.summary.scalar('learning_rate_', learning_rate)
 
-        return optimizer, global_step
+        return optimizer, opt_step
 
     def _compute_gradients(self, loss, optimizer, tvars=None):
         clip_norm = self.args['clip_norm'] if 'clip_norm' in self.args else 5.
@@ -125,8 +122,8 @@ class Module(Layer):
         
         return list(zip(grads, tvars))
 
-    def _apply_gradients(self, optimizer, grads_and_vars, global_step=None):
-        opt_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step, name=self.name + '_apply_gradients')
+    def _apply_gradients(self, optimizer, grads_and_vars, opt_step=None):
+        opt_op = optimizer.apply_gradients(grads_and_vars, global_step=opt_step, name=self.name + '_apply_gradients')
         
         if self.log_params:
             with tf.name_scope('grads'):
@@ -146,7 +143,6 @@ class Model(Module):
                  name, 
                  args,
                  sess_config=None, 
-                 reuse=None, 
                  save=True,
                  log_tensorboard=False,
                  log_params=False,
@@ -161,7 +157,6 @@ class Model(Module):
         
         Keyword Arguments:
             sess_config {tf.ConfigProto} -- session configuration (default: {None})
-            reuse {[bool or None]} -- Option for resuing variables (default: {None})
             save {bool} -- Option for saving model (default: {True})
             log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
             log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
@@ -171,7 +166,7 @@ class Model(Module):
 
         self.graph = tf.Graph()
 
-        super().__init__(name, args, self.graph, reuse=reuse, log_tensorboard=log_tensorboard, 
+        super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device)
 
         if self.log_tensorboard:
@@ -196,8 +191,7 @@ class Model(Module):
         self.sess = tf.Session(graph=self.graph, config=sess_config)
         atexit.register(self.sess.close)
     
-        if not self.reuse:
-            self.sess.run(tf.variables_initializer(self.global_variables))
+        self.sess.run(tf.variables_initializer(self.global_variables))
             
         if save:
             self.saver = self._setup_saver(save)
@@ -235,13 +229,23 @@ class Model(Module):
         if hasattr(self, 'saver'):
             self.saver.save(self.sess, self.model_file)
 
-    def log_score(self, score, avg_score):
-        feed_dict = {
-            self.score: score,
-            self.avg_score: avg_score
-        }
+    def log_score(self, score, avg_score, worker_no=None):
+        if worker_no is not None:
+            feed_dict = {
+                self.scores[worker_no]: score,
+                self.avg_scores[worker_no]: avg_score
+            }
 
-        score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
+            score_count, summary = self.sess.run([self.score_counters[worker_no], self.score_log_ops[worker_no]], 
+                                                feed_dict=feed_dict)
+        else:
+            feed_dict = {
+                self.score: score,
+                self.avg_score: avg_score
+            }
+
+            score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
+        
         self.writer.add_summary(summary, score_count)
 
     def log_tabular(self, key, value):
@@ -256,7 +260,7 @@ class Model(Module):
         with self.graph.as_default():
             if name is None:
                 name = 'scores'
-            with tf.variable_scope(name, reuse=self.reuse):
+            with tf.variable_scope(name):
                 score = tf.placeholder(tf.float32, shape=None, name='score')
                 avg_score = tf.placeholder(tf.float32, shape=None, name='average_score')
 
@@ -278,7 +282,7 @@ class Model(Module):
             score_counters = []
             score_log_ops = []
 
-            with tf.variable_scope('scores', reuse=self.reuse):
+            with tf.variable_scope('scores'):
                 for i in range(1, self.args['n_workers']+1):
                     score, avg_score, score_counter, score_log_op = self._setup_score_logs(name='worker_{}'.format(i))
 

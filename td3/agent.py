@@ -12,8 +12,7 @@ class Agent(OffPolicy):
                  args, 
                  env_args, 
                  buffer_args, 
-                 sess_config=None, 
-                 reuse=None, 
+                 sess_config=None,
                  save=True, 
                  log_tensorboard=False, 
                  log_params=False, 
@@ -27,7 +26,6 @@ class Agent(OffPolicy):
                          env_args,
                          buffer_args,
                          sess_config=sess_config,
-                         reuse=reuse,
                          save=save,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params,
@@ -56,7 +54,7 @@ class Agent(OffPolicy):
         self.priority, self.actor_loss, self.critic_loss = self._loss()
         self.loss = self.actor_loss + self.critic_loss
     
-        self.actor_opt_op, self.global_step = self.actor._optimization_op(self.actor_loss, global_step=True)
+        self.actor_opt_op, self.opt_step = self.actor._optimization_op(self.actor_loss, opt_step=True)
         self.critic_opt_op, _ = self.critic._optimization_op(self.critic_loss)
         self.opt_op = tf.group(self.actor_opt_op, self.critic_opt_op)
 
@@ -81,13 +79,12 @@ class Agent(OffPolicy):
         state = self.data['next_state'] if is_target else self.data['state']
         scope_prefix = self.name + '/' + scope_name
         
-        with tf.variable_scope(scope_name, reuse=self.reuse):
+        with tf.variable_scope(scope_name):
             actor = Actor('actor', 
                           self.args['actor'], 
                           self.graph,
                           state, 
                           self.action_space, 
-                          reuse=self.reuse, 
                           scope_prefix=scope_prefix, 
                           log_tensorboard=log_tensorboard, 
                           log_params=log_params)
@@ -99,7 +96,6 @@ class Agent(OffPolicy):
                                  self.data['action'], 
                                  actor.action,
                                  self.action_space,
-                                 reuse=self.reuse, 
                                  scope_prefix=scope_prefix, 
                                  log_tensorboard=log_tensorboard,
                                  log_params=log_params)
@@ -144,7 +140,7 @@ class Agent(OffPolicy):
 
     def _log_loss(self):
         if self.log_tensorboard:
-            with tf.variable_scope('loss', reuse=self.reuse):
+            with tf.name_scope('loss'):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
                 tf.summary.scalar('critic_loss_', self.critic_loss)
             

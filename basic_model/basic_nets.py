@@ -9,12 +9,11 @@ class Base(Module):
                  args, 
                  graph,
                  scope_prefix='',
-                 reuse=False, 
                  log_tensorboard=False,
                  log_params=False):
         self.variable_scope = scope_prefix + '/' + name
         
-        super().__init__(name, args, graph, reuse=reuse, log_tensorboard=log_tensorboard, log_params=log_params)
+        super().__init__(name, args, graph, log_tensorboard=log_tensorboard, log_params=log_params)
 
     def _Q_net(self, state, units, action, action_space, reuse, name='Q_net'):
         x = state
@@ -28,11 +27,11 @@ class Base(Module):
 
         return x
 
-    def _V_net(self, state, units, reuse, name='V_net'):
+    def _V_net(self, state, units, name='V_net'):
         x = state
-        with tf.variable_scope(name, reuse=reuse):
+        with tf.variable_scope(name):
             for u in units:
-                x = self.dense_norm_activation(x, u)
+                x = self.dense_norm_activation(x, u, normalization=None)
             x = self.dense(x, 1, name='V')
 
         return x
