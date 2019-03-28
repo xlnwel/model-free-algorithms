@@ -4,8 +4,9 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as tk
 
+from utility.utils import pwc
 from utility.logger import Logger
-from utility import yaml_op, utils
+from utility.yaml_op import save_args
 from basic_model.layer import Layer
 """ 
 Module defines the basic functions to build a tesorflow graph
@@ -176,10 +177,7 @@ class Model(Module):
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_score:
             assert self.log_tensorboard, 'Must set up tensorboard writer beforehand'
-            if 'n_workers' in self.args:
-                self.scores, self.avg_scores, self.score_counters, self.score_log_ops = self._setup_multiple_score_logs()
-            else:
-                self.score, self.avg_score, self.score_counter, self.score_log_op = self._setup_score_logs()
+            self.stats = self._setup_stats_logs(args['env_stats']['times'], args['env_stats']['stats'])
 
         # initialize session and global variables
         if sess_config is None:
@@ -204,7 +202,7 @@ class Model(Module):
     
     @property
     def global_variables(self):
-        return super().global_variables + self.graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope='scores')
+        return super().global_variables + self.graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope='stats')
         
     def build_graph(self):
         with self.graph.as_default():
@@ -217,35 +215,31 @@ class Model(Module):
         try:
             self.saver.restore(self.sess, self.model_file)
         except:
-            print(utils.colorize(
-                f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',
-                'magenta'))
+            pwc(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',
+                'magenta')
         else:
-            print(utils.colorize(
-                f"Model {self.model_name}: Params for {self.name} are restored.",
-                'magenta'))
+            pwc(f"Model {self.model_name}: Params for {self.name} are restored.", 'magenta')
 
     def save(self):
         if hasattr(self, 'saver'):
             self.saver.save(self.sess, self.model_file)
 
-    def log_score(self, score, avg_score, worker_no=None):
-        if worker_no is not None:
-            feed_dict = {
-                self.scores[worker_no]: score,
-                self.avg_scores[worker_no]: avg_score
-            }
-
-            score_count, summary = self.sess.run([self.score_counters[worker_no], self.score_log_ops[worker_no]], 
-                                                feed_dict=feed_dict)
+    def log_stats(self, **kwargs):
+        if 'worker_no' not in kwargs:
+            assert len(self.stats) == 1, 'Specify worker_no for multi-worker logs'
+            no = 0
         else:
-            feed_dict = {
-                self.score: score,
-                self.avg_score: avg_score
-            }
-
-            score_count, summary = self.sess.run([self.score_counter, self.score_log_op], feed_dict=feed_dict)
+            no = kwargs['worker_no']
+            del kwargs['worker_no']
         
+        feed_dict = {}
+        for k, v in kwargs.items():
+            assert k in self.stats[no], f'{k} is not a valid stats type'
+            feed_dict.update({self.stats[no][k]: v})
+
+        score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
+                                            feed_dict=feed_dict)
+
         self.writer.add_summary(summary, score_count)
 
     def log_tabular(self, key, value):
@@ -255,43 +249,27 @@ class Model(Module):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
     """ Implementation """
-    def _setup_score_logs(self, name=None):
-        """ score logs for a single agent """
+    def _setup_stats_logs(self, times, stats_info):
+        stats = [{}] * times
+
         with self.graph.as_default():
-            if name is None:
-                name = 'scores'
-            with tf.variable_scope(name):
-                score = tf.placeholder(tf.float32, shape=None, name='score')
-                avg_score = tf.placeholder(tf.float32, shape=None, name='average_score')
-
-                score_counter = tf.Variable(0, trainable=False, name='score_counter')
-                step_op = tf.assign(score_counter, score_counter + 1, name='update_score_counter')
-                
-                score_log = tf.summary.scalar('score_', score)
-                avg_score_log = tf.summary.scalar('average_score_', avg_score)
-
-                with tf.control_dependencies([step_op]):
-                    score_log_op = tf.summary.merge([score_log, avg_score_log], name='score_log_op')
-
-        return score, avg_score, score_counter, score_log_op
-
-    def _setup_multiple_score_logs(self):
-        with self.graph.as_default():
-            scores = []
-            avg_scores = []
-            score_counters = []
-            score_log_ops = []
-
-            with tf.variable_scope('scores'):
-                for i in range(1, self.args['n_workers']+1):
-                    score, avg_score, score_counter, score_log_op = self._setup_score_logs(name='worker_{}'.format(i))
-
-                    scores.append(score)
-                    avg_scores.append(avg_score)
-                    score_counters.append(score_counter)
-                    score_log_ops.append(score_log_op)
-
-        return scores, avg_scores, score_counters, score_log_ops
+            with tf.variable_scope('stats'):
+                for i in range(times):
+                    # stats logs for each worker
+                    with tf.variable_scope(f'worker_{i}'):
+                        stats[i]['counter'] = counter = tf.Variable(0, trainable=False, name='counter')
+                        stats[i]['step_op'] = step_op = tf.assign(counter, counter + 1, name='counter_update')
+                        
+                        merge_inputs = []
+                        for info in stats_info:
+                            stats[i][info] = info_ph = tf.placeholder(tf.float32, name=info)
+                            stats[i][f'{info}_log'] = log = tf.summary.scalar(f'{info}_', info_ph)
+                            merge_inputs.append(log)
+                        
+                        with tf.control_dependencies([step_op]):
+                            stats[i]['log_op'] = tf.summary.merge(merge_inputs, name='log_op')
+        
+        return stats
 
     def _setup_saver(self, save):
         return tf.train.Saver(self.global_variables) if save else None
@@ -313,7 +291,7 @@ class Model(Module):
                                     self.args['model_name'])
             writer = tf.summary.FileWriter(filename, self.graph)
             atexit.register(writer.close)
-        yaml_op.save_args(self.args, filename=filename + '/args.yaml')
+        save_args(self.args, filename=filename + '/args.yaml')
         return graph_summary, writer
 
     def _setup_logger(self):

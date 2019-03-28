@@ -4,40 +4,40 @@ env:
     name: &env_name LunarLanderContinuous-v2
     max_episode_steps: 1000
 agent:
+    temperature: 0.01
     gamma: &gamma 0.99
     batch_size: &batch_size 128
-    num_workers: 10
+    n_workers: 10
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
-    # tensorboard path: tensorboard_root_dir/model_dir/model_name
+    # tensorboard path: log_root_dir/model_dir/model_name
     model_root_dir: ./data/saved_models            # root path for savinng models
-    tensorboard_root_dir: ./data/tensorboard_logs  # root path for tensorboard logs
+    log_root_dir: ./data/logs  # root path for tensorboard logs
     model_dir: *env_name
     model_name: 0315-baseline
 
-    # options for different improvements on DDPG
-    options:
-        # noisy layer is used as the default strategy to introduce exploration
-        loss_type: mse            # huber or mse
-        n_steps: &n_steps 3
-        extra_critic_updates: 0
-        priority: Q               # Q or V
-        units: &units [500, 500, 300]
+    loss_type: mse            # huber or mse
+    n_steps: &n_steps 3
+    extra_critic_updates: 0
+    priority: Q               # Q or V
+    reparameterize: True
+    units: &units [500, 500, 300]
+    policy_delay: 2
     
     policy:
-        optimizer:
-            learning_rate: 1e-4
         noisy_sigma: 0.4    # standard deviation for noisy layers
         units: *units
+        # args for optimizer
+        learning_rate: 1e-4
     V:
-        optimizer:
-            learning_rate: 3e-4
         tau: 0.005      # moving average rate
         units: *units
+        # args for optimizer
+        learning_rate: 3e-4
     Q:
-        optimizer:
-            learning_rate: 3e-4
         units: *units
+        # args for optimizer
+        learning_rate: 3e-4
 
 # argumennts for prioritized replay
 buffer:

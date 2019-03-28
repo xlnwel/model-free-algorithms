@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from basic_model.off_policy import OffPolicy
-from td3.networks import Actor, Critic, DoubleCritic
+from algo.off_policy.td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
 
 

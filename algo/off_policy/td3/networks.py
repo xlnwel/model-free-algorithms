@@ -27,7 +27,7 @@ class Actor(Base):
     """ Implementation """
     def _build_graph(self):
         self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_space, 
-                                                    self.noisy_sigma)
+                                                     self.noisy_sigma)
 
     def _deterministic_policy_net(self, state, units, action_space, noisy_sigma, name='policy_net'):
         x = state

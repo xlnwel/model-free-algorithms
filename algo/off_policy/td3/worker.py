@@ -3,13 +3,12 @@ from collections import deque
 import numpy as np
 import ray
 
-from utility import tf_utils
-from utility.utils import colorize
+from utility.utils import pwc
 from replay.utils import reset_buffer, add_buffer
-from td3.agent import Agent
+from algo.off_policy.td3.agent import Agent
 
 
-@ray.remote(num_cpus=1)
+@ray.remote(num_cpus=.5)
 class Worker(Agent):
     """ Interface """
     def __init__(self, 
@@ -54,11 +53,12 @@ class Worker(Agent):
             'priority': np.zeros(basic_shape),
         })
         
-        print(colorize('Worker {} has been constructed.'.format(self.no), 'cyan'))
+        pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
     def sample_data(self, learner):
         # I intend not to synchronize the worker's weights at the beginning for initial exploration 
         score_deque = deque(maxlen=100)
+        eps_len_deque = deque(maxlen=100)
         episode_i = 0
         
         while True:
@@ -78,10 +78,14 @@ class Worker(Agent):
                 if done:
                     break
             
-            score = self.env.get_episodic_score()
+            score = self.env.get_episode_score()
+            eps_len = self.env.get_episode_length()
             episode_i += 1
             score_deque.append(score)
-            learner.log_score.remote(score=score, avg_score=np.mean(score_deque), worker_no=self.no)
+            eps_len_deque.append(eps_len)
+            learner.log_stats.remote(score=score, avg_score=np.mean(score_deque), 
+                                     eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque), 
+                                     worker_no=self.no)
             
             if episode_i >= self.max_episodes:
                 priority = self.sess.run(self.priority)

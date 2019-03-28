@@ -4,10 +4,10 @@ import threading
 import tensorflow as tf
 import ray
 
-from td3.agent import Agent
+from algo.off_policy.td3.agent import Agent
 from utility import tf_utils
 
-@ray.remote(num_gpus=.1, num_cpus=2)
+@ray.remote(num_gpus=1, num_cpus=2)
 class Learner(Agent):
     """ Interface """
     def __init__(self, 

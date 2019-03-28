@@ -7,8 +7,8 @@ agent:
     gamma: &gamma 0.99
     tau: 0.005      # moving average rate
     batch_size: &batch_size 128
-    n_workers: 10
-    prefetches: 3
+    n_workers: &n_workers 20
+    prefetches: 5
 
     # model path: model_root_dir/model_dir/model_name
     # tensorboard path: log_root_dir/model_dir/model_name
@@ -33,6 +33,10 @@ agent:
         # args for optimizer
         learning_rate: 3e-4
 
+    env_stats:
+        times: *n_workers
+        stats: [score, avg_score, eps_len, avg_eps_len]
+
 # argumennts for prioritized replay
 buffer:
     type: proportional # local or proportional
@@ -43,6 +47,6 @@ buffer:
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 5e5
+    beta_steps: 1e5
     min_size: 1e3
     capacity: 1e6

@@ -7,17 +7,15 @@ import ray
 
 from utility.yaml_op import load_args
 from replay.proportional_replay import ProportionalPrioritizedReplay
-from td3.learner import Learner
-from td3.worker import Worker
 
 
 def main(env_args, agent_args, buffer_args, render=False):
     if agent_args['algorithm'] == 'td3':
-        from td3.learner import Learner
-        from td3.worker import Worker
+        from algo.off_policy.td3.learner import Learner
+        from algo.off_policy.td3.worker import Worker
     elif agent_args['algorithm'] == 'sac':
-        from sac.learner import Learner
-        from sac.worker import Worker
+        from algo.off_policy.sac.learner import Learner
+        from algo.off_policy.sac.worker import Worker
     else:
         raise NotImplementedError
 

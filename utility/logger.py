@@ -10,7 +10,7 @@ Adapted by S.C.
 import os.path as osp
 import os, time, atexit
 
-from utility import utils
+from utility.utils import pwc
 
 
 class Logger:
@@ -41,7 +41,7 @@ class Logger:
             os.makedirs(self.log_dir)
         self.output_file = open(osp.join(self.log_dir, log_file), 'w')
         atexit.register(self.output_file.close)
-        print(utils.colorize("Logging data to %s"%self.output_file.name, 'green', bold=True))
+        pwc("Logging data to %s"%self.output_file.name, 'green', bold=True)
 
         self.first_row=True
         self.log_headers = []
@@ -50,7 +50,7 @@ class Logger:
 
     def log(self, msg, color='green'):
         """Print a colorized message to stdout."""
-        print(utils.colorize(msg, color, bold=True))
+        pwc(msg, color, bold=True)
 
     def log_tabular(self, key, val):
         """

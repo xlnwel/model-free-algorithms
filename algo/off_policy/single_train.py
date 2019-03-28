@@ -9,34 +9,39 @@ import numpy as np
 
 from utility import utils
 
+
 def train(agent, render, n_episodes=3000, print_terminal_info=False):
     interval = 100
     scores_deque = deque(maxlen=interval)
+    eps_len_deque = deque(maxlen=interval)
     
     for _ in range(1, n_episodes+1):
         state = agent.env.reset()
-        score = 0
 
         for _ in range(1000):
             if render:
                 agent.env.render()
             action = agent.act(state)
             next_state, reward, done, _ = agent.env.step(action)
-            # if not (np.any(np.isnan(state) | np.isinf(state)) or np.any(np.isnan(next_state) | np.isinf(next_state))):
+
             agent.add_data(state, action, reward, next_state, done)
-            # if agent.buffer.good_to_learn:
-            #     agent.learn()
+
             state = next_state
-            score += reward
             if done:
                 break
 
+        score = agent.env.get_episode_score()
+        eps_len = agent.env.get_episode_length()
         scores_deque.append(score)
-        average_score = np.mean(scores_deque)
-        agent.log_score(score, average_score)
+        eps_len_deque.append(eps_len)
+        avg_score = np.mean(scores_deque)
+        avg_eps_len = np.mean(eps_len_deque)
+        agent.log_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
 
         agent.log_tabular('score', score)
-        agent.log_tabular('avg_score', average_score)
+        agent.log_tabular('avg_score', avg_score)
+        agent.log_tabular('eps_len', eps_len)
+        agent.log_tabular('avg_eps_len', avg_eps_len)
         agent.dump_tabular()
 
 def main(env_args, agent_args, buffer_args, render=False):
@@ -49,12 +54,13 @@ def main(env_args, agent_args, buffer_args, render=False):
 
     algorithm = agent_args['algorithm']
     if algorithm == 'td3':
-        from td3.agent import Agent
+        from algo.off_policy.td3.agent import Agent
     elif algorithm == 'sac':
-        from sac.agent import Agent
+        from algo.off_policy.sac.agent import Agent
     else:
         raise NotImplementedError
 
+    agent_args['env_stats']['times'] = 1
     agent = Agent(agent_name, agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
     lt = threading.Thread(target=agent.background_learning, daemon=True)
     lt.start()
