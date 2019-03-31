@@ -84,7 +84,7 @@ class Agent(OffPolicy):
                           self.args['actor'], 
                           self.graph,
                           state, 
-                          self.action_space, 
+                          self.action_dim, 
                           scope_prefix=scope_prefix, 
                           log_tensorboard=log_tensorboard, 
                           log_params=log_params)
@@ -95,7 +95,7 @@ class Agent(OffPolicy):
                                  state,
                                  self.data['action'], 
                                  actor.action,
-                                 self.action_space,
+                                 self.action_dim,
                                  scope_prefix=scope_prefix, 
                                  log_tensorboard=log_tensorboard,
                                  log_params=log_params)

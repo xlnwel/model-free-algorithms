@@ -45,7 +45,7 @@ class Worker(Agent):
         basic_shape = (self.local_buffer_capacity, 1)
         self.buffer.update({
             'state': np.zeros((self.local_buffer_capacity, *self.state_space)),
-            'action': np.zeros((self.local_buffer_capacity, self.action_space)),
+            'action': np.zeros((self.local_buffer_capacity, self.action_dim)),
             'reward': np.zeros(basic_shape),
             'next_state': np.zeros((self.local_buffer_capacity, *self.state_space)),
             'done': np.zeros(basic_shape),

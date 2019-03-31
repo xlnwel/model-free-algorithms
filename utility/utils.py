@@ -29,6 +29,12 @@ def colorize(string, color, bold=False, highlight=False):
     if bold: attr.append('1')
     return f'\x1b[{";".join(attr)}m{string}\x1b[0m'
 
+def pwc(string, color='red', bold=False, highlight=False):
+    """
+    Print with color
+    """
+    print(colorize(string, color, bold, highlight))
+
 def normalize(x, mean=0., std=1., epsilon=1e-8):
     x = (x - np.mean(x)) / (np.std(x) + epsilon)
     x = x * std + mean

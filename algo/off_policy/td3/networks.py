@@ -10,12 +10,12 @@ class Actor(Base):
                  args, 
                  graph,
                  state, 
-                 action_space, 
+                 action_dim, 
                  scope_prefix='',
                  log_tensorboard=False, 
                  log_params=False):
         self.state = state
-        self.action_space = action_space
+        self.action_dim = action_dim
         self.noisy_sigma = args['noisy_sigma']
         super().__init__(name, 
                          args, 
@@ -26,16 +26,16 @@ class Actor(Base):
 
     """ Implementation """
     def _build_graph(self):
-        self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_space, 
+        self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_dim, 
                                                      self.noisy_sigma)
 
-    def _deterministic_policy_net(self, state, units, action_space, noisy_sigma, name='policy_net'):
+    def _deterministic_policy_net(self, state, units, action_dim, noisy_sigma, name='policy_net'):
         x = state
         with tf.variable_scope(name):
             for i, u in enumerate(units):
                 layer = self.dense_norm_activation if i < self.args['n_fc'] else self.noisy_norm_activation
                 x = layer(x, u)
-            x = self.noisy(x, action_space, sigma=noisy_sigma)
+            x = self.noisy(x, action_dim, sigma=noisy_sigma)
             x = tf.tanh(x, name='action')
 
         return x
@@ -50,14 +50,14 @@ class Critic(Base):
                  state,
                  action,
                  actor_action, 
-                 action_space,
+                 action_dim,
                  scope_prefix='', 
                  log_tensorboard=False,
                  log_params=False):
         self.state = state
         self.action = action
         self.actor_action = actor_action
-        self.action_space = action_space
+        self.action_dim = action_dim
         
         super().__init__(name, 
                          args, 
@@ -72,8 +72,8 @@ class Critic(Base):
 
     def _build_net(self, name):
         with tf.variable_scope(name):
-            Q = self._Q_net(self.state, self.args['units'], self.action, self.action_space, False)
-            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_space, True)
+            Q = self._Q_net(self.state, self.args['units'], self.action, self.action_dim, False)
+            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_dim, True)
 
         return Q, Q_with_actor
         
@@ -87,7 +87,7 @@ class DoubleCritic(Critic):
                  state,
                  action,
                  actor_action, 
-                 action_space,
+                 action_dim,
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
@@ -97,7 +97,7 @@ class DoubleCritic(Critic):
                          state,
                          action,
                          actor_action,
-                         action_space,
+                         action_dim,
                          scope_prefix=scope_prefix, 
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
