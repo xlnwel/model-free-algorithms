@@ -26,8 +26,8 @@ class envstats:
         self.env_step = env.step
         self.env.step = self.step
 
-        self.env.get_episodic_score = lambda _: self.score
-        self.env.get_episodic_length = lambda _: self.eps_len
+        self.env.get_episode_score = lambda _: self.score
+        self.env.get_episode_length = lambda _: self.eps_len
 
     def __call__(self, *args, **kwargs):
         self.env = self.env(*args, **kwargs)
@@ -49,24 +49,37 @@ class envstats:
 
         return next_state, reward, done, info
 
+@ray.remote
+class RayGymEnv:
+    def __init__(self, name):
+        self.env = gym.make(name)
+        self.__dict__ = self.env.__dict__
+
+    def reset(self):
+        return self.env.reset()
+
+    def step(self, action):
+        return self.env.step(action)
+
+
 @envstats
 class GymEnv:
     def __init__(self, name, max_episode_steps=None, atari=False, seed=0):
-        self.env = gym.make(name)
+        self.env = env = gym.make(name)
         # if model_name:
         #     self.env = gym.wrappers.Monitor(self.env, f'data/gym/{model_name}', force=True)
         if atari:
-            self.env = atari_wrappers.wrap_deepmind(self.env)
-        self.env.seed(seed)
+            env = atari_wrappers.wrap_deepmind(env)
+        env.seed(seed)
 
-        self.state_space = self.env.observation_space.shape
-        self.is_action_discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
-        self.action_space = self.env.action_space.n if self.is_action_discrete else self.env.action_space.shape[0]
-        self.action_low = self.env.action_space.low
-        self.action_high = self.env.action_space.high
-        self.action_dist_type = action_dist_type(self.env)
+        self.state_space = env.observation_space.shape
+        self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
+        self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
+        self.action_low = env.action_space.low
+        self.action_high = env.action_space.high
+        self.action_dist_type = action_dist_type(env)
         
-        self.max_episode_steps = self.env.spec.max_episode_steps if max_episode_steps is None else max_episode_steps
+        self.max_episode_steps = env.spec.max_episode_steps if max_episode_steps is None else max_episode_steps
 
     def reset(self):
         return self.env.reset()
@@ -89,7 +102,7 @@ class GymEnvVec:
         env = self.envs[0]
         self.state_space = env.observation_space.shape
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
-        self.action_space = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
+        self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
         self.action_low = env.action_space.low
         self.action_high = env.action_space.high
         self.action_dist_type = action_dist_type(env)
