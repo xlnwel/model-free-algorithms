@@ -1,17 +1,19 @@
 import numpy as np
 import ray
 
+from utility.decorators import override
 from replay.ds.sum_tree import SumTree
 from replay.prioritized_replay import PrioritizedReplay
 
 
 class ProportionalPrioritizedReplay(PrioritizedReplay):
     """ Interface """
-    def __init__(self, args, state_space, action_space):
-        super().__init__(args, state_space, action_space)
+    def __init__(self, args, state_space, action_dim):
+        super().__init__(args, state_space, action_dim)
         self.data_structure = SumTree(self.capacity)                               # prio_id   -->     priority, exp_id
 
     """ Implementation """
+    @override(PrioritizedReplay)
     def _sample(self):
         assert self.good_to_learn, f'There are not sufficient transitions in buffer to learn \
                                 -- buffer length: {len(self)}\t minimum size: {self.min_size}'

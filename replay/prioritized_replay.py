@@ -2,12 +2,14 @@ import threading
 import numpy as np
 import ray
 
+from utility.decorators import override
+from replay.replay import Replay
 from replay.utils import add_buffer, copy_buffer
 
 
-class PrioritizedReplay():
+class PrioritizedReplay(Replay):
     """ Interface """
-    def __init__(self, args, state_space, action_space):
+    def __init__(self, args, state_space, action_dim):
         self.memory = {}                        # exp_id    -->     exp
         self.data_structure = None              # prio_id   -->     priority, exp_id
         
@@ -33,11 +35,11 @@ class PrioritizedReplay():
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
 
-        def init_buffer(buffer, capacity, state_space, action_space, has_priority):
+        def init_buffer(buffer, capacity, state_space, action_dim, has_priority):
             target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
             target_buffer.update({
                 'state': np.zeros((capacity, *state_space)),
-                'action': np.zeros((capacity, action_space)),
+                'action': np.zeros((capacity, action_dim)),
                 'reward': np.zeros((capacity, 1)),
                 'next_state': np.zeros((capacity, *state_space)),
                 'done': np.zeros((capacity, 1)),
@@ -46,12 +48,12 @@ class PrioritizedReplay():
 
             buffer.update(target_buffer)
 
-        init_buffer(self.memory, self.capacity, state_space, action_space, False)
+        init_buffer(self.memory, self.capacity, state_space, action_dim, False)
 
         # Code for single agent
         if self.n_steps > 1:
             self.temporary_buffer = {}
-            init_buffer(self.temporary_buffer, self.n_steps, state_space, action_space, True)
+            init_buffer(self.temporary_buffer, self.n_steps, state_space, action_dim, True)
             self.tb_idx = 0
             self.tb_full = False
 
@@ -59,6 +61,7 @@ class PrioritizedReplay():
     def good_to_learn(self):
         return len(self) >= self.min_size
 
+    @override(Replay)
     def __len__(self):
         return self.capacity if self.is_full else self.exp_id
 
@@ -66,6 +69,7 @@ class PrioritizedReplay():
         while True:
             yield self.sample()
 
+    @override(Replay)
     def sample(self):
         self.locker.acquire()
         
@@ -114,14 +118,7 @@ class PrioritizedReplay():
         IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upwards
 
         return IS_ratios
-        
-    """ Implementation """
-    def _sample(self):
-        raise NotImplementedError
-
-    def _update_beta(self):
-        self.beta = min(self.beta + self.beta_grad, 1)
-
+    
     # Code for single agent
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
@@ -145,3 +142,10 @@ class PrioritizedReplay():
             add_buffer(self.memory, self.exp_id, state, action, reward,
                         next_state, done, self.n_steps, self.gamma)
             self.exp_id += 1
+
+    """ Implementation """
+    def _sample(self):
+        raise NotImplementedError
+
+    def _update_beta(self):
+        self.beta = min(self.beta + self.beta_grad, 1)
