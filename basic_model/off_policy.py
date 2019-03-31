@@ -37,11 +37,11 @@ class OffPolicy(Model):
         self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
                                  else self.env.max_episode_steps)
         self.state_space = self.env.state_space
-        self.action_space = self.env.action_space
+        self.action_dim = self.env.action_dim
         
         # replay buffer
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_space)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
         elif buffer_args['type'] == 'local':
             self.buffer = LocalBuffer(buffer_args['max_episodes'] * self.max_path_length)
 
@@ -127,7 +127,7 @@ class OffPolicy(Model):
             sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
             sample_shapes =((None), (None), (
                 (None, *self.state_space),
-                (None, self.action_space),
+                (None, self.action_dim),
                 (None, 1),
                 (None, *self.state_space),
                 (None, 1),

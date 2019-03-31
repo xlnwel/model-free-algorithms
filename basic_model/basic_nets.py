@@ -15,7 +15,7 @@ class Base(Module):
         
         super().__init__(name, args, graph, log_tensorboard=log_tensorboard, log_params=log_params)
 
-    def _Q_net(self, state, units, action, action_space, reuse, name='Q_net'):
+    def _Q_net(self, state, units, action, action_dim, reuse, name='Q_net'):
         x = state
         with tf.variable_scope(name, reuse=reuse):
             for i, u in enumerate(units):
