@@ -1,32 +1,36 @@
 import numpy as np
 import tensorflow as tf
 
-
+from utility.utils import pwc
 EPSILON = 1e-8
 
+def tf_scope(func):
+    def name_scope(*args):
+        with tf.name_scope(func.__name__):
+            return func(*args)
+    return name_scope
+
 class Distribution():
+    @tf_scope
     def logp(self, x):
-        with tf.name_scope('log_p'):
-            return self._logp(x)
+        return -self._neglogp(x)
+
+    @tf_scope
     def neglogp(self, x):
-        with tf.name_scope('neg_log_p'):
-            return self._neglogp(x)
+        return self._neglogp(x)
 
+    @tf_scope
     def sample(self):
-        with tf.name_scope('sample'):
-            return self._sample()
+        return self._sample()
         
+    @tf_scope
     def entropy(self):
-        with tf.name_scope('entropy'):
-            return self._entropy()
+        return self._entropy()
 
+    @tf_scope
     def kl(self, other):
         assert isinstance(other, type(self))
-        with tf.name_scope('KL'):
-            return self._kl(other)
-
-    def _logp(self, x):
-        return -self._neglogp(x)
+        return self._kl(other)
 
     def _neglogp(self, x):
         raise NotImplementedError
@@ -47,7 +51,7 @@ class Categorical(Distribution):
 
     def _neglogp(self, x):
         x = tf.reshape(x, [-1])
-        return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=x, logits=self.logits)
+        return tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=x, logits=self.logits), [-1, 1])
 
     def _sample(self):
         return tf.multinomial(self.logits, 1, output_dtype=tf.int32)
@@ -81,8 +85,8 @@ class DiagGaussian(Distribution):
     def _neglogp(self, x):
         return .5 * tf.reduce_sum(np.log(2. * np.pi)
                                   + 2 * self.logstd
-                                  + ((x - self.mean) / (self.std + EPSILON))**2, 
-                                  axis=-1)
+                                  + ((x - self.mean) / self.std)**2, 
+                                  axis=-1, keepdims=True)
 
     def _sample(self):
         return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
@@ -92,4 +96,4 @@ class DiagGaussian(Distribution):
 
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5
-                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std**2 + EPSILON), axis=-1)
+                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / other.std**2, axis=-1)
