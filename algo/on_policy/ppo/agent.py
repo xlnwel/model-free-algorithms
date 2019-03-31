@@ -26,7 +26,12 @@ class Agent(Model):
         self.gamma = args['gamma']
         self.gae_discount = self.gamma * args['lambda']
         self.seq_len = args['seq_len']
-        self.use_lstm = 'lstm_units' in args['ac'] and args['ac']['lstm_units'] != 0
+        self.use_lstm = args['ac']['use_lstm']
+
+        self.entropy_coef = args['ac']['entropy_coef']
+        self.n_minibatches = args['n_minibatches']
+        self.minibach_size = self.seq_len // self.n_minibatches
+        self.minibatch_idx = 0
 
         # environment info
         self.env_vec = GymEnvVec(env_args['name'], args['n_envs'], 
@@ -40,14 +45,10 @@ class Agent(Model):
                          log_score=log_score,
                          device=device)
 
-        self.entropy_coef = self.args['ac']['entropy_coef']
-        self.n_minibatches = args['n_minibatches']
-        self.minibatch_idx = 0
-        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, 
-                                self.env_vec.state_space, self.env_vec.action_space, shuffle=args['shuffle'])
+        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
+                                self.env_vec.state_space, self.env_vec.action_dim)
 
         if self.use_lstm:
-            pwc('lstm is used', 'red')
             self.last_lstm_state = None
 
         with self.graph.as_default():
@@ -55,30 +56,45 @@ class Agent(Model):
 
     """ Implementation """
     def _build_graph(self):
-        self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_space)
+        self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)
 
         self.ac = ActorCritic('ac', 
                               self.args['ac'], 
                               self.graph,
                               self.env_vec, 
                               self.env_phs,
+                              self.minibach_size,
                               self.name, 
                               log_tensorboard=self.log_tensorboard,
                               log_params=self.log_params)
 
-    def _setup_env_placeholders(self, state_space, action_space):
+    def _setup_env_placeholders(self, state_space, action_dim):
         env_phs = {}
 
         with tf.name_scope('placeholder'):
             env_phs['state'] = tf.placeholder(tf.float32, shape=[None, *state_space], name='state')
             env_phs['return'] = tf.placeholder(tf.float32, shape=[None, 1], name='return')
+            env_phs['value'] = tf.placeholder(tf.float32, shape=[None, 1], name='value')
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
             env_phs['old_logpi'] = tf.placeholder(tf.float32, shape=[None, 1], name='old_logpi')
             env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coeff')
         
         return env_phs
 
-    """ worker functions """
+    def _log_loss(self):
+        if self.log_tensorboard:
+            with tf.name_scope('loss'):
+                tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
+                tf.summary.scalar('entropy_', self.ac.entropy)
+                tf.summary.scalar('V_loss_', self.ac.V_loss)
+                
+            
+            with tf.name_scope('V'):
+                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.ac.V))
+                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.ac.V))
+                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.ac.V))
+
+    """ code for single agent """
     def optimize(self):
         fetches = [self.ac.opt_op, 
                    [self.ac.ppo_loss, self.ac.entropy, 
@@ -87,13 +103,14 @@ class Agent(Model):
         feed_dict = {}
         if self.use_lstm:
             fetches.append(self.ac.final_state)
-            feed_dict[self.ac.initial_state] = self.last_lstm_state
+            feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
 
         # normalize advantages (& returns)
         feed_dict.update({
             self.env_phs['state']: self.buffer.get_flat_batch('state', self.minibatch_idx),
             self.ac.action: self.buffer.get_flat_batch('action', self.minibatch_idx),
             self.env_phs['return']: self.buffer.get_flat_batch('return', self.minibatch_idx),
+            self.env_phs['value']: self.buffer.get_flat_batch('value', self.minibatch_idx),
             self.env_phs['advantage']: self.buffer.get_flat_batch('advantage', self.minibatch_idx),
             self.env_phs['old_logpi']: self.buffer.get_flat_batch('old_logpi', self.minibatch_idx),
             self.env_phs['entropy_coef']: self.entropy_coef
@@ -111,15 +128,17 @@ class Agent(Model):
     def sample_trajectories(self):
         env_stats = self._sample_data()
         self.buffer.compute_ret_adv(self.args['advantage_type'], self.gamma, self.gae_discount)
-
+        if self.args['advantage_type'] == 'gae':
+            self.buffer.normalize_adv(np.mean(self.buffer['advantage']), np.std(self.buffer['advantage']))
+        
         return env_stats
 
     def act(self, state):
         fetches = [self.ac.action, self.ac.V, self.ac.logpi]
         feed_dict = {self.env_phs['state']: state}
-        if self.use_lstm:
+        if self.ac.use_lstm:
             fetches.append(self.ac.final_state)
-            feed_dict.update({self.ac.initial_state: self.last_lstm_state})
+            feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         results = self.sess.run(fetches, feed_dict=feed_dict)
         if self.use_lstm:
             action, value, logpi, self.last_lstm_state = results
@@ -128,18 +147,13 @@ class Agent(Model):
 
         return action, np.squeeze(value), np.squeeze(logpi)
 
-    def get_advantages(self):
-        return self.buffer['advantage']
-
-    def normalize_advantages(self, mean, std):
-        self.buffer['advantage'] = (self.buffer['advantage'] - mean) / (std + 1e8)
-
     """ Implementation """
     def _sample_data(self):
         self.buffer.reset()
         state = self.env_vec.reset()
 
         if self.use_lstm:
+            # set initial state to zeros for every epochs
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
         for _ in range(self.seq_len):

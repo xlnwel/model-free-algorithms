@@ -4,11 +4,11 @@ from utility.utils import normalize
 
 
 class PPOBuffer(dict):
-    def __init__(self, n_envs, seq_len, n_minibatches, state_space, action_space, shuffle):
+    def __init__(self, n_envs, seq_len, n_minibatches, minibatch_size, state_space, action_dim):
+        assert seq_len // n_minibatches == minibatch_size
         self.n_envs = n_envs
         self.seq_len = seq_len
-        self.minibatch_size = seq_len // n_minibatches
-        self.shuffle = shuffle
+        self.minibatch_size = minibatch_size
 
         self.indices = np.arange(seq_len)
         self.idx = 0
@@ -16,7 +16,7 @@ class PPOBuffer(dict):
         basic_shape = (n_envs, seq_len)
         super().__init__({
             'state': np.zeros((*basic_shape, *state_space)),
-            'action': np.zeros((*basic_shape, action_space)),
+            'action': np.zeros((*basic_shape, action_dim)),
             'reward': np.zeros(basic_shape),
             'nonterminal': np.zeros(basic_shape),
             'value': np.zeros((n_envs, seq_len + 1)),
@@ -36,8 +36,6 @@ class PPOBuffer(dict):
         self.idx += 1
 
     def get_flat_batch(self, key, batch_idx):
-        if self.shuffle and batch_idx == 0:
-            np.random.shuffle(self.indices) 
         start = batch_idx * self.minibatch_size
         end = (batch_idx + 1) * self.minibatch_size
 
@@ -57,8 +55,6 @@ class PPOBuffer(dict):
             self['advantage'] = normalize(returns - values)
             self['return'] = normalize(returns)
         elif adv_type == 'gae':
-            # deltas = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
-            # advantages = deltas
             advantages = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
             next_adv = 0
             for i in reversed(range(self.seq_len)):
@@ -75,3 +71,6 @@ class PPOBuffer(dict):
 
     def normalize_adv(self, mean, std):
         self['advantage'] = (self['advantage'] - mean) / (std + 1e8)
+
+    def shuffle(self):
+        np.random.shuffle(self.indices)

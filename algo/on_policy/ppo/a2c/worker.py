@@ -26,13 +26,14 @@ class Worker(Agent):
         self.no = worker_no
         self.entropy_coef = self.args['ac']['entropy_coef']
         self.n_minibatches = args['n_minibatches']
+        self.minibach_size = self.seq_len // self.n_minibatches
         self.minibatch_idx = 0
         if self.use_lstm:
             pwc('lstm is used', 'red')
             self.last_lstm_state = None
 
-        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, 
-                                self.env_vec.state_space, self.env_vec.action_space, shuffle=args['shuffle'])
+        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size
+                                self.env_vec.state_space, self.env_vec.action_dim, shuffle=args['shuffle'])
         pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
     @ray.method(num_return_vals=2)
