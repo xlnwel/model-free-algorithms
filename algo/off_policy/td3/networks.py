@@ -34,7 +34,7 @@ class Actor(Base):
         with tf.variable_scope(name):
             for i, u in enumerate(units):
                 layer = self.dense_norm_activation if i < self.args['n_fc'] else self.noisy_norm_activation
-                x = layer(x, u)
+                x = layer(x, u, normalization=False)
             x = self.noisy(x, action_dim, sigma=noisy_sigma)
             x = tf.tanh(x, name='action')
 

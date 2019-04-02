@@ -2,6 +2,7 @@
 env:
     name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
     max_episode_steps: 1000
+    seed: 0
 agent:
     algorithm: td3
     gamma: &gamma 0.99

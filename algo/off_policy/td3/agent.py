@@ -3,6 +3,7 @@ import tensorflow as tf
 from basic_model.off_policy import OffPolicy
 from algo.off_policy.td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
+from utility.tf_utils import n_step_target
 
 
 class Agent(OffPolicy):
@@ -38,7 +39,7 @@ class Agent(OffPolicy):
 
     @property
     def target_variables(self):
-        return self._target_actor.trainable_variables + self._target_critic.trainable_variables
+        return self.target_actor.trainable_variables + self.target_critic.trainable_variables
 
     """ Implementation """
     def _build_graph(self):
@@ -48,7 +49,7 @@ class Agent(OffPolicy):
         else:
             self.data = self._prepare_data(self.buffer)
             
-        self.actor, self.critic, self._target_actor, self._target_critic = self._create_main_target_actor_critic()
+        self.actor, self.critic, self.target_actor, self.target_critic = self._create_main_target_actor_critic()
         self.action = self.actor.action
 
         self.priority, self.actor_loss, self.critic_loss = self._loss()
@@ -110,7 +111,8 @@ class Agent(OffPolicy):
                 # actor_loss = -tf.reduce_mean(self.critic.Q1_with_actor)
 
             with tf.name_scope('critic_loss'):
-                target_Q = self._n_step_target(self._target_critic.Q_with_actor)
+                target_Q = n_step_target(self.data['reward'], self.data['done'], 
+                                        self.target_critic.Q_with_actor, self.gamma, self.data['steps'])
                 
                 TD_error1 = tf.abs(target_Q - self.critic.Q1, name='TD_error1')
                 TD_error2 = tf.abs(target_Q - self.critic.Q2, name='TD_error2')
