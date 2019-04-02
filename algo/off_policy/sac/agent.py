@@ -3,6 +3,7 @@ import tensorflow as tf
 from basic_model.off_policy import OffPolicy
 from algo.off_policy.sac.networks import SoftPolicy, SoftV, SoftQ
 from utility.losses import huber_loss
+from utility.tf_utils import n_step_target
 
 
 class Agent(OffPolicy):
@@ -19,12 +20,9 @@ class Agent(OffPolicy):
                  log_score=True, 
                  device=None):
         self.temperature = args['temperature']
-
         self.n_steps = args['n_steps']
         self.critic_loss_type = args['loss_type']
-        self.extra_critic_updates = args['extra_critic_updates']
         self.priority_type = args['priority']
-        self.reparameterize = args['reparameterize']
 
         super().__init__(name,
                          args,
@@ -46,8 +44,8 @@ class Agent(OffPolicy):
 
         self.actor, self.V_nets, self.Q_nets = self._create_nets(self.data)
         
-        self.action = tf.stop_gradient(self.actor.action) if self.reparameterize else self.actor.action
-        self.logpi = -self.actor.action_distribution.neglogp(self.data['action'])
+        self.action = self.actor.action
+        self.logpi = self.actor.logpi
 
         self.priority, self.actor_loss, self.V_loss, self.Q_loss = self._loss(self.actor, self.V_nets, self.Q_nets, self.logpi)
         self.loss = self.actor_loss + self.V_loss + self.Q_loss
@@ -96,11 +94,7 @@ class Agent(OffPolicy):
     def _loss(self, policy, Vs, Qs, logpi):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
-                if self.reparameterize:
-                    actor_loss = tf.reduce_mean(self.temperature * logpi - Qs.Q1_with_actor)
-                else:
-                    kl = tf.stop_gradient(self.temperature * self.logpi - Qs.Q_with_actor + Vs.V)
-                    actor_loss = tf.reduce_mean(kl * self.logpi)
+                actor_loss = tf.reduce_mean(self.temperature * logpi - Qs.Q1_with_actor)
 
             loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
             with tf.name_scope('V_loss'):
@@ -109,6 +103,8 @@ class Agent(OffPolicy):
                 V_loss = .5 * tf.reduce_mean(loss_func(TD_error))
 
             with tf.name_scope('Q_loss'):
+                target_Q = n_step_target(self.data['reward'], self.data['done'], 
+                                        Vs.target_V, self.gamma, self.data['steps'])
                 target_Q = self._n_step_target(Vs.target_V)
                 Q1_error = tf.abs(target_Q - Qs.Q1)
                 Q2_error = tf.abs(target_Q - Qs.Q2)

@@ -3,6 +3,11 @@ import tensorflow as tf
 from basic_model.basic_nets import Base
 
 
+def clip_but_pass_gradient(x, l=-1., u=1.):
+    clip_up = tf.cast(x > u, tf.float32)
+    clip_low = tf.cast(x < l, tf.float32)
+    return x + tf.stop_gradient((u - x)*clip_up + (l - x)*clip_low)
+    
 class SoftPolicy(Base):
     """ Interface """
     def __init__(self,
@@ -17,6 +22,7 @@ class SoftPolicy(Base):
         self.state = state
         self.env = env
         self.action_dim = env.action_dim
+
         super().__init__(name, 
                          args, 
                          graph, 
@@ -25,12 +31,34 @@ class SoftPolicy(Base):
                          log_params=log_params)
 
     def _build_graph(self):
-        dist_params = self._stochastic_policy_net(self.state, self.args['units'], self.action_dim, 
-                                                  discrete=self.env.is_action_discrete)
+        mean, logstd = self._stochastic_policy_net(self.state, self.args['units'], self.action_dim)
 
-        self.action_distribution = self.env.action_dist_type(dist_params)
+        self.action_distribution = self.env.action_dist_type((mean, logstd))
 
-        self.action = self.action_distribution.sample()
+        action = self.action_distribution.sample()
+        logpi = self.action_distribution.logp(action)
+
+        # Enforcing action bound
+        self.action = tf.tanh(action)
+        self.logpi = logpi - tf.reduce_sum(tf.log(clip_but_pass_gradient(1 - self.action**2, l=0, u=1) + 1e-6), axis=1)
+        # make sure actions are in correct range
+        self.action *= self.env.action_high[0]
+
+    def _stochastic_policy_net(self, state, units, action_dim):
+        x = state
+        with tf.variable_scope('policy_net'):
+            for u in units:
+                x = self.dense_norm_activation(x, u, normalization=None)
+
+            mean = self.dense(x, action_dim)
+
+            # logstd computation follows the implementation of OpenAI Spinning Up
+            logstd = self.dense_norm_activation(x, action_dim, activation=tf.tanh)
+            LOG_STD_MAX = 2
+            LOG_STD_MIN = -20
+            logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
+
+        return mean, logstd
 
 
 class SoftV(Base):
@@ -103,9 +131,13 @@ class SoftQ(Base):
 
     """ Implementation """
     def _build_graph(self):
-        self.Q1 = self._Q_net(self.state, self.args['units'], self.action, self.action_dim, False, name='Qnet1')
-        self.Q1_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_dim, True, name='Qnet1')
-        self.Q2 = self._Q_net(self.state, self.args['units'], self.action, self.action_dim, False, name='Qnet2')
-        self.Q2_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_dim, True, name='Qnet2')
+        self.Q1 = self._Q_net(self.state, self.args['units'], self.action, 
+                              self.action_dim, False, name='Qnet1')
+        self.Q2 = self._Q_net(self.state, self.args['units'], self.action, 
+                              self.action_dim, False, name='Qnet2')
+        self.Q1_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, 
+                                         self.action_dim, True, name='Qnet1')
+        self.Q2_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, 
+                                         self.action_dim, True, name='Qnet2')
         self.Q = tf.minimum(self.Q1, self.Q2, 'Q')
         self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
