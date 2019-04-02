@@ -4,6 +4,7 @@ import ray
 
 from utility import tf_distributions
 from env import atari_wrappers
+from utility.utils import colorize
 
 
 def action_dist_type(env):
@@ -64,13 +65,13 @@ class RayGymEnv:
 
 @envstats
 class GymEnv:
-    def __init__(self, name, max_episode_steps=None, atari=False, seed=0):
-        self.env = env = gym.make(name)
+    def __init__(self, args):
+        self.env = env = gym.make(args['name'])
         # if model_name:
         #     self.env = gym.wrappers.Monitor(self.env, f'data/gym/{model_name}', force=True)
-        if atari:
+        if 'atari' in args and args['atari']:
             env = atari_wrappers.wrap_deepmind(env)
-        env.seed(seed)
+        env.seed(args['seed'])
 
         self.state_space = env.observation_space.shape
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
@@ -79,7 +80,8 @@ class GymEnv:
         self.action_high = env.action_space.high
         self.action_dist_type = action_dist_type(env)
         
-        self.max_episode_steps = env.spec.max_episode_steps if max_episode_steps is None else max_episode_steps
+        self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
+                                    else env.spec.max_episode_steps
 
     def reset(self):
         return self.env.reset()
@@ -95,21 +97,25 @@ class GymEnv:
 
 @envstats
 class GymEnvVec:
-    def __init__(self, name, n_envs=1, max_episode_steps=None, atari=False, seed=0):
-        self.envs = [gym.make(name) for i in range(n_envs)]
-        [env.seed(seed + 10 * i) for i, env in enumerate(self.envs)]
+    def __init__(self, args):
+        assert 'n_envs' in args, colorize(f'Please specify n_envs in args.yaml beforehand', 'red')
+        n_envs = args['n_envs']
+        self.envs = [gym.make(args['name']) for i in range(n_envs)]
+        [env.seed(args['seed'] + 10 * i) for i, env in enumerate(self.envs)]
 
         env = self.envs[0]
         self.state_space = env.observation_space.shape
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
+        self.action_space = env.action_space
         self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
         self.action_low = env.action_space.low
         self.action_high = env.action_space.high
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = n_envs
-        self.max_episode_steps = env.spec.max_episode_steps if max_episode_steps is None else max_episode_steps
-
+        self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
+                                    else env.spec.max_episode_steps
+                                    
         self.score = np.zeros(n_envs)
         self.eps_len = np.zeros(n_envs)
         self.early_done = np.zeros(n_envs)
