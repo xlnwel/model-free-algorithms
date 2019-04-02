@@ -299,6 +299,6 @@ class Model(Module):
                                 self.args['model_dir'], 
                                 self.args['model_name'])
         
-        logger = Logger(log_dir, self.name, self.args['model_name'])
+        logger = Logger(log_dir, exp_name=self.args['model_name'])
 
         return logger

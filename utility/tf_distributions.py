@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from utility.utils import pwc
 EPSILON = 1e-8
+
 
 def tf_scope(func):
     def name_scope(*args):
@@ -85,7 +85,7 @@ class DiagGaussian(Distribution):
     def _neglogp(self, x):
         return .5 * tf.reduce_sum(np.log(2. * np.pi)
                                   + 2 * self.logstd
-                                  + ((x - self.mean) / self.std)**2, 
+                                  + ((x - self.mean) / (self.std + EPSILON))**2, 
                                   axis=-1, keepdims=True)
 
     def _sample(self):
@@ -96,4 +96,4 @@ class DiagGaussian(Distribution):
 
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5
-                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / other.std**2, axis=-1)
+                             + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std + EPSILON)**2, axis=-1)

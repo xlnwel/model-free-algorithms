@@ -81,3 +81,10 @@ def get_tensor(sess, name=None, op_name=None):
     else:
         return sess.graph.get_tensor_by_name(op_name + ':0')
 
+def n_step_target(reward, done, nth_value, gamma, steps=1):
+    n_step_target = tf.stop_gradient(reward 
+                                    + gamma**steps
+                                    * (1 - done)
+                                    * nth_value, name='n_step_target')
+
+    return n_step_target

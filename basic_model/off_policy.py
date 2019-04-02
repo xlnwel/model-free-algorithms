@@ -33,7 +33,7 @@ class OffPolicy(Model):
         self.update_step = 0
 
         # environment info
-        self.env = GymEnv(env_args['name'])
+        self.env = GymEnv(env_args)
         self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
                                  else self.env.max_episode_steps)
         self.state_space = self.env.state_space
@@ -90,7 +90,7 @@ class OffPolicy(Model):
             duration, _ = timeit(self.learn)
             lt.append(duration)
             if i % 1000 == 0:
-                print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f} to learn 1000 times')
+                # print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f} to learn 1000 times')
                 i = 0
                 lt = []
 
@@ -153,14 +153,6 @@ class OffPolicy(Model):
         data['steps'] = steps
 
         return data
-
-    def _n_step_target(self, nth_value):
-        n_step_target = tf.stop_gradient(self.data['reward'] 
-                                        + self.gamma**self.data['steps']
-                                        * (1 - self.data['done'])
-                                        * nth_value, name='n_step_target')
-
-        return n_step_target
 
     def _compute_priority(self, priority):
         with tf.name_scope('priority'):

@@ -188,6 +188,7 @@ class Layer():
 
     def noisy(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), 
                name=None, sigma=.4):
+        """ noisy layer using factorized Gaussian noise """
         name = self.get_name(name, 'noisy')
         
         with tf.variable_scope(name):

@@ -2,6 +2,7 @@ import yaml
 import numpy as np
 from pathlib import Path
 
+
 def default_path(filename):
     if filename.startswith('/'):
         return Path(filename)

@@ -21,7 +21,7 @@ class Base(Module):
             for i, u in enumerate(units):
                 if i == 1:
                     x = tf.concat([x, action], 1)
-                x = self.dense_norm_activation(x, u)
+                x = self.dense_norm_activation(x, u, normalization=None)
 
             x = self.dense(x, 1, name='Q')
 
