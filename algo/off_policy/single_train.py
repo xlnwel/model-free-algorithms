@@ -1,7 +1,7 @@
 """
 Code for training single agent
 """
-
+import time
 import threading
 from pathlib import Path
 from collections import deque
@@ -10,13 +10,14 @@ import numpy as np
 from utility import utils
 
 
-def train(agent, render, n_episodes=3000, print_terminal_info=False):
+def train(agent, render, n_episodes=2000, print_terminal_info=False):
     interval = 100
     scores_deque = deque(maxlen=interval)
     eps_len_deque = deque(maxlen=interval)
     
-    for _ in range(1, n_episodes+1):
+    for i in range(1, n_episodes+1):
         state = agent.env.reset()
+        start = time.time()
 
         for _ in range(1000):
             if render:
@@ -38,11 +39,17 @@ def train(agent, render, n_episodes=3000, print_terminal_info=False):
         avg_eps_len = np.mean(eps_len_deque)
         agent.log_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
 
-        agent.log_tabular('score', score)
-        agent.log_tabular('avg_score', avg_score)
-        agent.log_tabular('eps_len', eps_len)
-        agent.log_tabular('avg_eps_len', avg_eps_len)
-        agent.dump_tabular()
+        log_info = {
+            'ModelName': agent.args['algorithm'],
+            'Iteration': i,
+            'Time': f'{time.time() - start:3.2f}s',
+            'Score': score,
+            'AvgScore': avg_score,
+            'EpsLen': eps_len,
+            'AvgEpsLen': avg_eps_len
+        }
+        [agent.log_tabular(k, v) for k, v in log_info.items()]
+        agent.dump_tabular(print_terminal_info=True)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread
