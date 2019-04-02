@@ -4,7 +4,7 @@ import gym
 
 from basic_model.basic_nets import Base
 from utility import tf_utils, tf_distributions
-from utility.utils import pwc
+
 
 class ActorCritic(Base):
     """ Interface """
@@ -61,7 +61,7 @@ class ActorCritic(Base):
             if self.use_lstm:
                 x, self.actor_init_state, self.actor_final_state = self.lstm_network(x, units, action_dim, output_name)
             else:
-                x = self.feedforward_network(x, units, action_dim, output_name)
+                x = self.feedforward_net(x, units, action_dim, output_name)
 
             if discrete:
                 return x
@@ -75,10 +75,10 @@ class ActorCritic(Base):
             if self.use_lstm:
                 x, self.critic_init_state, self.critic_final_state = self.lstm_network(x, units, 1, 'V')
             else:
-                x = self.feedforward_network(x, units, 1, 'V')
+                x = self.feedforward_net(x, units, 1, 'V')
         return x
 
-    def feedforward_network(self, x, units, output_dim, output_name):
+    def feedforward_net(self, x, units, output_dim, output_name):
         for u in units:
             x = self.dense_norm_activation(x, u)
         x = self.dense(x, output_dim, name=output_name)

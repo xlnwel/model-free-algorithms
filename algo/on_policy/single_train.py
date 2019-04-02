@@ -9,7 +9,7 @@ import ray
 
 from utility import yaml_op
 from algo.on_policy.ppo.agent import Agent
-from env.gym_env import GymEnvVec
+
 
 def main(env_args, agent_args, buffer_args, render=False):
     if 'n_workers' in agent_args:
@@ -26,7 +26,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         loss_info_list = []
         for _ in range(agent_args['n_updates']):
             if agent_args['shuffle']:
-                assert agent_args['ac']['lstm_units'] == 0
+                assert agent_args['ac']['use_lstm'] == False, 'Should not shuffle data when using RNNs'
                 agent.buffer.shuffle()
             for _ in range(agent_args['n_minibatches']):
                 loss_info = agent.optimize()
@@ -52,7 +52,7 @@ def main(env_args, agent_args, buffer_args, render=False):
                         approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
-            'model_name': agent_args['model_name'],
+            'ModelName': agent_args['model_name'],
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
             'AverageScore': score,

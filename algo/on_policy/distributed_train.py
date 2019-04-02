@@ -10,7 +10,6 @@ import ray
 from utility import yaml_op
 from ppo.a2c.worker import Worker
 from ppo.a2c.learner import Learner
-from env.gym_env import GymEnvVec
 
 
 def main(env_args, agent_args, buffer_args, render=False):

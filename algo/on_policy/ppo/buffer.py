@@ -55,14 +55,12 @@ class PPOBuffer(dict):
             self['advantage'] = normalize(returns - values)
             self['return'] = normalize(returns)
         elif adv_type == 'gae':
-            advantages = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
+            advs = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
             next_adv = 0
             for i in reversed(range(self.seq_len)):
-                advantages[:, i] = next_adv = delta[:, i] + self['nonterminal'][:, i] * gae_discount * next_adv
-            returns = advantages + self['value'][:, :-1]
-
-            self['advantage'] = advantages
-            self['return'] = returns
+                advs[:, i] = next_adv = delta[:, i] + self['nonterminal'][:, i] * gae_discount * next_adv
+            self['return'] = advs + self['value'][:, :-1]
+            self['advantage'] = advs
         else:
             NotImplementedError
 

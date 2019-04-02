@@ -24,7 +24,7 @@ class Agent(Model):
                  device=None):
         # hyperparameters
         self.gamma = args['gamma']
-        self.gae_discount = self.gamma * args['lambda']
+        self.gae_discount = self.gamma * args['lam']
         self.seq_len = args['seq_len']
         self.use_lstm = args['ac']['use_lstm']
 
@@ -34,9 +34,7 @@ class Agent(Model):
         self.minibatch_idx = 0
 
         # environment info
-        self.env_vec = GymEnvVec(env_args['name'], args['n_envs'], 
-                                 max_episode_steps=self.seq_len, 
-                                 seed=np.random.randint(1000))
+        self.env_vec = GymEnvVec(env_args)
         super().__init__(name, args, 
                          sess_config=sess_config,
                          save=save, 
@@ -45,7 +43,7 @@ class Agent(Model):
                          log_score=log_score,
                          device=device)
 
-        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
+        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
                                 self.env_vec.state_space, self.env_vec.action_dim)
 
         if self.use_lstm:
@@ -67,6 +65,8 @@ class Agent(Model):
                               self.name, 
                               log_tensorboard=self.log_tensorboard,
                               log_params=self.log_params)
+        
+        self._log_loss()
 
     def _setup_env_placeholders(self, state_space, action_dim):
         env_phs = {}
@@ -87,7 +87,7 @@ class Agent(Model):
                 tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
                 tf.summary.scalar('entropy_', self.ac.entropy)
                 tf.summary.scalar('V_loss_', self.ac.V_loss)
-                
+
             
             with tf.name_scope('V'):
                 tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.ac.V))
@@ -105,6 +105,9 @@ class Agent(Model):
             fetches.append(self.ac.final_state)
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
 
+        if self.log_tensorboard:
+            fetches.append([self.ac.opt_step, self.graph_summary])
+
         # normalize advantages (& returns)
         feed_dict.update({
             self.env_phs['state']: self.buffer.get_flat_batch('state', self.minibatch_idx),
@@ -117,12 +120,16 @@ class Agent(Model):
         })
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_lstm:
-            _, loss_info, self.last_lstm_state = results
+        if self.use_lstm:   # assuming log_tensorboard=True for simplicity, since optimize is only called by learner
+            _, loss_info, self.last_lstm_state, (opt_step, summary) = results
         else:
-            _, loss_info = results
+            _, loss_info, (opt_step, summary) = results
         self.minibatch_idx = self.minibatch_idx + 1 if self.minibatch_idx + 1 < self.n_minibatches else 0
         
+        if opt_step % 50 == 0:
+            self.writer.add_summary(summary, opt_step)
+            self.save()
+
         return loss_info
 
     def sample_trajectories(self):

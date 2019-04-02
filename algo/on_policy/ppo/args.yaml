@@ -3,21 +3,22 @@ n_experiments: 1 # 1 run the following configuration, otherwise, run test code i
 env:
     name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2
     max_episode_steps: &seq_len 1000
+    n_envs: 40
+    seed: 0
 agent:
     algorithm: ppo
     n_workers: 1
-    n_envs: 40
 
     gamma: 0.99
-    lambda: 0.97
+    lam: 0.97
     seq_len: *seq_len
     n_minibatches: 10        # #minibatches a sequence is divided into 
     # batch size = seq_len * n_envs * n_workers
-    n_updates: 10            # #updates per epoch
-    n_epochs: 3000
+    n_updates: 5            # #updates per epoch
+    n_epochs: 2000
 
     advantage_type: norm      # norm or gae
-    shuffle: False           # shuffle data or not
+    shuffle: True           # shuffle data or not
 
     # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_dir/model_name
@@ -30,11 +31,11 @@ agent:
         learning_rate: 3e-4
         shared_fc_units: 0
         use_lstm: True
-        actor_units: [512, 256, 256]
+        actor_units: [500, 300, 200]
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
-        critic_units: [512, 512, 256]
-        value_coef: .5
+        critic_units: [500, 400, 300]
+        value_coef: 2
         value_loss_type: clip    # mse or clip
 
     env_stats:

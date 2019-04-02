@@ -32,7 +32,7 @@ class Worker(Agent):
             pwc('lstm is used', 'red')
             self.last_lstm_state = None
 
-        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size
+        self.buffer = PPOBuffer(args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
                                 self.env_vec.state_space, self.env_vec.action_dim, shuffle=args['shuffle'])
         pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
