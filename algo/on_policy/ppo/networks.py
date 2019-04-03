@@ -87,11 +87,11 @@ class ActorCritic(Base):
 
     def lstm_network(self, x, units, output_dim, output_name):
         u1, u2, u3 = units
-        x = self.dense_norm_activation(x, u1, normalization=None)
+        x = self.dense_norm_activation(x, u1, norm=None)
         x = tf.reshape(x, (self.env_vec.n_envs, -1, u1))
         x, (init_state, final_state) = self.lstm(x, u2, return_sequences=True)
         x = tf.reshape(x, (-1, u2))
-        x = self.dense_norm_activation(x, u3, normalization=None)
+        x = self.dense_norm_activation(x, u3, norm=None)
         x = self.dense(x, output_dim, name=output_name)
         
         return x, init_state, final_state

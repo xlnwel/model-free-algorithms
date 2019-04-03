@@ -25,12 +25,11 @@ agent:
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
     model_dir: *env_name
-    model_name: adv_norm
+    model_name: baseline
 
     ac:
         learning_rate: 3e-4
-        shared_fc_units: 0
-        use_lstm: True
+        use_lstm: False
         actor_units: [500, 300, 200]
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
