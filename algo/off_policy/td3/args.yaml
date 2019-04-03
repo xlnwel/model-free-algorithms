@@ -6,7 +6,7 @@ env:
 agent:
     algorithm: td3
     gamma: &gamma 0.99
-    tau: 0.005      # moving average rate
+    polyak: 0.995      # moving average rate
     batch_size: &batch_size 128
     n_workers: &n_workers 20
     prefetches: 5
@@ -23,16 +23,18 @@ agent:
 
     actor:
         n_fc: 1
-        units: [500, 300]
+        units: [512, 256, 128]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         # args for optimizer
         learning_rate: 1e-4
+        layernorm: True
         
     critic:
-        units: [500, 500, 300]
+        units: [512, 512, 256]
         loss_type: mse   # huber or mse
         # args for optimizer
         learning_rate: 3e-4
+        layernorm: True
 
     env_stats:
         times: *n_workers

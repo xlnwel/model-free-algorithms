@@ -1,12 +1,12 @@
 import tensorflow as tf
 
-from basic_model.off_policy import OffPolicy
+from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
 from utility.tf_utils import n_step_target
 
 
-class Agent(OffPolicy):
+class Agent(OffPolicyOperation):
     """ Interface """
     def __init__(self, 
                  name, 
@@ -130,7 +130,7 @@ class Agent(OffPolicy):
         with tf.name_scope('target_net_op'):
             target_main_var_pairs = list(zip(self.target_variables, self.main_variables))
             init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
-            update_target_op = list(map(lambda v: tf.assign(v[0], self.tau * v[1] + (1. - self.tau) * v[0], name='update_target_op'), target_main_var_pairs))
+            update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op
 

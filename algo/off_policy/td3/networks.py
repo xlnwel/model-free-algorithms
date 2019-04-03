@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+from tensorflow.contrib.layers import layer_norm
 from basic_model.basic_nets import Base
 
 
@@ -17,6 +17,7 @@ class Actor(Base):
         self.state = state
         self.action_dim = action_dim
         self.noisy_sigma = args['noisy_sigma']
+        self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
         super().__init__(name, 
                          args, 
                          graph,
@@ -34,7 +35,7 @@ class Actor(Base):
         with tf.variable_scope(name):
             for i, u in enumerate(units):
                 layer = self.dense_norm_activation if i < self.args['n_fc'] else self.noisy_norm_activation
-                x = layer(x, u, normalization=False)
+                x = layer(x, u, norm=self.norm)
             x = self.noisy(x, action_dim, sigma=noisy_sigma)
             x = tf.tanh(x, name='action')
 
@@ -58,6 +59,7 @@ class Critic(Base):
         self.action = action
         self.actor_action = actor_action
         self.action_dim = action_dim
+        self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
         
         super().__init__(name, 
                          args, 
@@ -72,8 +74,10 @@ class Critic(Base):
 
     def _build_net(self, name):
         with tf.variable_scope(name):
-            Q = self._Q_net(self.state, self.args['units'], self.action, self.action_dim, False)
-            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, self.action_dim, True)
+            Q = self._Q_net(self.state, self.args['units'], self.action, 
+                            self.action_dim, self.norm, False)
+            Q_with_actor = self._Q_net(self.state, self.args['units'], self.actor_action, 
+                                       self.action_dim, self.norm, True)
 
         return Q, Q_with_actor
         
