@@ -88,44 +88,54 @@ class Agent(Model):
                 tf.summary.scalar('entropy_', self.ac.entropy)
                 tf.summary.scalar('V_loss_', self.ac.V_loss)
 
-            
             with tf.name_scope('V'):
                 tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.ac.V))
                 tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.ac.V))
                 tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.ac.V))
 
+            with tf.name_scope('envs'):
+                tf.summary.scalar('adv_max_', tf.reduce_max(self.env_phs['advantage']))
+                tf.summary.scalar('adv_min_', tf.reduce_min(self.env_phs['advantage']))
+                tf.summary.scalar('adv_avg_', tf.reduce_mean(self.env_phs['advantage']))
+                tf.summary.scalar('ret_max_', tf.reduce_max(self.env_phs['return']))
+                tf.summary.scalar('ret_min_', tf.reduce_min(self.env_phs['return']))
+                tf.summary.scalar('ret_avg_', tf.reduce_mean(self.env_phs['return']))
+
     """ code for single agent """
     def optimize(self):
+        get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
+
+        if self.minibatch_idx == 0 and self.use_lstm:
+            # set initial state to zeros for every pass of buffer
+            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
+            
+        # construct fetches and feed_dict
         fetches = [self.ac.opt_op, 
                    [self.ac.ppo_loss, self.ac.entropy, 
                     self.ac.V_loss, self.ac.loss, 
                     self.ac.approx_kl, self.ac.clipfrac]]
-        feed_dict = {}
+        feed_dict = {
+            self.env_phs['state']: get_data('state'),
+            self.ac.action: get_data('action'),
+            self.env_phs['return']: get_data('return'),
+            self.env_phs['value']: get_data('value'),
+            self.env_phs['advantage']: get_data('advantage'),
+            self.env_phs['old_logpi']: get_data('old_logpi'),
+            self.env_phs['entropy_coef']: self.entropy_coef
+        }
         if self.use_lstm:
             fetches.append(self.ac.final_state)
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
-
-        if self.log_tensorboard:
-            fetches.append([self.ac.opt_step, self.graph_summary])
-
-        # normalize advantages (& returns)
-        feed_dict.update({
-            self.env_phs['state']: self.buffer.get_flat_batch('state', self.minibatch_idx),
-            self.ac.action: self.buffer.get_flat_batch('action', self.minibatch_idx),
-            self.env_phs['return']: self.buffer.get_flat_batch('return', self.minibatch_idx),
-            self.env_phs['value']: self.buffer.get_flat_batch('value', self.minibatch_idx),
-            self.env_phs['advantage']: self.buffer.get_flat_batch('advantage', self.minibatch_idx),
-            self.env_phs['old_logpi']: self.buffer.get_flat_batch('old_logpi', self.minibatch_idx),
-            self.env_phs['entropy_coef']: self.entropy_coef
-        })
+        fetches.append([self.ac.opt_step, self.graph_summary])
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
         if self.use_lstm:   # assuming log_tensorboard=True for simplicity, since optimize is only called by learner
             _, loss_info, self.last_lstm_state, (opt_step, summary) = results
         else:
             _, loss_info, (opt_step, summary) = results
+
         self.minibatch_idx = self.minibatch_idx + 1 if self.minibatch_idx + 1 < self.n_minibatches else 0
-        
+
         if opt_step % 50 == 0:
             self.writer.add_summary(summary, opt_step)
             self.save()
@@ -158,9 +168,8 @@ class Agent(Model):
     def _sample_data(self):
         self.buffer.reset()
         state = self.env_vec.reset()
-
+        
         if self.use_lstm:
-            # set initial state to zeros for every epochs
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
         for _ in range(self.seq_len):
