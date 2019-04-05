@@ -39,10 +39,10 @@ class Layer():
                                name=name)
 
     def dense_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                               normalization=tc.layers.layer_norm, activation=tf.nn.relu, name=None, return_layer=False):
+                               norm=tc.layers.layer_norm, activation=tf.nn.relu, name=None, return_layer=False):
         def layer_imp():
             y = self.dense(x, units, kernel_initializer=kernel_initializer)
-            y = tf_utils.norm_activation(y, normalization=normalization, activation=activation, 
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                         training=self.training)
 
             return y
@@ -52,7 +52,7 @@ class Layer():
         return x
 
     def dense_resnet(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(), 
-                      normalization=tc.layers.layer_norm, name=None, return_layer=False):
+                      norm=tc.layers.layer_norm, name=None, return_layer=False):
         """
         kernel_initializer specifies the initialization of the last layer in the residual module
         relu is used as the default activation and no designation is allowed
@@ -62,16 +62,16 @@ class Layer():
         name = self.get_name(name, 'dense_resnet')
 
         with tf.variable_scope(name):
-            y = tf_utils.norm_activation(x, normalization=normalization, activation=tf.nn.relu, training=self.training)
+            y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, training=self.training)
             y = self.dense_norm_activation(y, units, kernel_initializer=tf_utils.kaiming_initializer(), 
-                                            normalization=normalization, activation=tf.nn.relu)
+                                            norm=norm, activation=tf.nn.relu)
             y = self.dense(y, units, kernel_initializer=kernel_initializer)
             x += y
 
         return x
 
     def dense_resnet_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer() ,
-                                      normalization=tc.layers.layer_norm, 
+                                      norm=tc.layers.layer_norm, 
                                       activation=tf.nn.relu, name=None, return_layer=False):
         """
         normalization is used in both the last layer in the residual module and 
@@ -81,8 +81,8 @@ class Layer():
         Caution: _reset_counter should be called first if this residual module is reused
         """
         def layer_imp():
-            y = self.dense_resnet(x, units, kernel_initializer, normalization)
-            y = tf_utils.norm_activation(y, normalization, activation)
+            y = self.dense_resnet(x, units, kernel_initializer, norm)
+            y = tf_utils.norm_activation(y, norm, activation)
 
             return y
         
@@ -100,13 +100,13 @@ class Layer():
 
     def conv_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                               kernel_initializer=tf_utils.kaiming_initializer(), 
-                              normalization=tf.layers.batch_normalization, 
+                              norm=tf.layers.batch_normalization, 
                               activation=tf.nn.relu, name=None, return_layer=False):
         def layer_imp():
             y = self.conv(x, filters, kernel_size, 
                             strides=strides, padding=padding, 
                             kernel_initializer=kernel_initializer)
-            y = tf_utils.norm_activation(y, normalization=normalization, activation=activation, 
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                             training=self.training)
             
             return y
@@ -117,7 +117,7 @@ class Layer():
     
     def conv_resnet(self, x, filters, kernel_size, strides=1, padding='same', 
                      kernel_initializer=tf_utils.kaiming_initializer(),
-                     normalization=tf.layers.batch_normalization, name=None, return_layer=False):
+                     norm=tf.layers.batch_normalization, name=None, return_layer=False):
         """
         kernel_initializer specifies the initialization of the last layer in the residual module
         relu is used as the default activation and no designation is allowed
@@ -127,10 +127,10 @@ class Layer():
         name = self.get_name(name, 'conv_resnet')
 
         with tf.variable_scope(name):
-            y = tf_utils.norm_activation(x, normalization=normalization, activation=tf.nn.relu, training=self.training)
+            y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, training=self.training)
             y = self.conv_norm_activation(y, filters, kernel_size=kernel_size, strides=strides, padding=padding, 
                                            kernel_initializer=tf_utils.kaiming_initializer(), 
-                                           normalization=normalization, activation=tf.nn.relu)
+                                           norm=norm, activation=tf.nn.relu)
             y = self.conv(y, filters, kernel_size, strides=strides, padding=padding,
                            kernel_initializer=kernel_initializer)
             x += y
@@ -139,7 +139,7 @@ class Layer():
     
     def conv_resnet_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                                      kernel_initializer=tf_utils.kaiming_initializer(),
-                                     normalization=tf.layers.batch_normalization, activation=tf.nn.relu, name=None, return_layer=False):
+                                     norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None, return_layer=False):
         """
         normalization is used in both the last layer in the residual module and 
         the layer immediately following the residual module
@@ -151,8 +151,8 @@ class Layer():
             y = self.conv_resnet(x, filters, kernel_size, 
                                   strides=strides, padding=padding, 
                                   kernel_initializer=kernel_initializer,
-                                  normalization=normalization)
-            y = tf_utils.norm_activation(y, normalization=normalization, activation=activation, 
+                                  norm=norm)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                             training=self.training)
 
             return y
@@ -171,13 +171,13 @@ class Layer():
 
     def convtrans_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                                    kernel_initializer=tf_utils.kaiming_initializer(), 
-                                   normalization=tf.layers.batch_normalization, 
+                                   norm=tf.layers.batch_normalization, 
                                    activation=tf.nn.relu, name=None, return_layer=False):
         def layer_imp():
             y = self.convtrans(x, filters, kernel_size, 
                                 strides=strides, padding=padding, 
                                 kernel_initializer=kernel_initializer)
-            y = tf_utils.norm_activation(y, normalization=normalization, activation=activation, 
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                             training=self.training)
 
             return y
@@ -252,12 +252,12 @@ class Layer():
         return x
 
     def noisy_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                               normalization=tc.layers.layer_norm, activation=tf.nn.relu, 
+                               norm=tc.layers.layer_norm, activation=tf.nn.relu, 
                                name=None, sigma=.4):
         def layer_imp():
             y = self.noisy(x, units, kernel_initializer=kernel_initializer, 
                             name=name, sigma=sigma)
-            y = tf_utils.norm_activation(y, normalization=normalization, activation=activation, 
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                          training=self.training)
             
             return y
@@ -267,7 +267,7 @@ class Layer():
         return x
 
     def noisy_resnet(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                      normalization=tc.layers.layer_norm, name=None, sigma=.4):
+                      norm=tc.layers.layer_norm, name=None, sigma=.4):
         """
         kernel_initializer specifies the initialization of the last layer in the residual module
         relu is used as the default activation and no designation is allowed
@@ -277,17 +277,17 @@ class Layer():
         name = self.get_name(name, 'noisy_resnet')
 
         with tf.variable_scope(name):
-            y = tf_utils.norm_activation(x, normalization=normalization, activation=tf.nn.relu, 
+            y = tf_utils.norm_activation(x, norm=norm, activation=tf.nn.relu, 
                                          training=self.training)
             y = self.noisy_norm_activation(y, units, kernel_initializer=tf_utils.kaiming_initializer(), 
-                                            normalization=normalization, activation=tf.nn.relu, sigma=sigma)
+                                            norm=norm, activation=tf.nn.relu, sigma=sigma)
             y = self.noisy(y, units, kernel_initializer=kernel_initializer, sigma=sigma)
             x += y
 
         return x
     
     def noisy_resnet_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                                      normalization=tc.layers.layer_norm, activation=tf.nn.relu, 
+                                      norm=tc.layers.layer_norm, activation=tf.nn.relu, 
                                       name=None, sigma=.4):
         """
         normalization is used in both the last layer in the residual module and 
@@ -297,8 +297,8 @@ class Layer():
         Caution: _reset_counter should be called first if this residual module is reused
         """
         def layer_imp():
-            y = self.noisy_resnet(x, units, kernel_initializer, normalization, sigma=sigma)
-            y = tf_utils.norm_activation(y, normalization=normalization, activation=activation, 
+            y = self.noisy_resnet(x, units, kernel_initializer, norm, sigma=sigma)
+            y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                          training=self.training)
 
             return y
