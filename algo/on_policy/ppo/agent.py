@@ -48,7 +48,7 @@ class Agent(Model):
                          graph=graph)
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
-                                self.env_vec.state_space, self.env_vec.action_dim)
+                                self.env_vec.state_space, self.env_vec.action_dim, args['mask'])
 
         if self.use_rnn:
             self.last_lstm_state = None

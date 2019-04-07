@@ -4,11 +4,12 @@ from utility.utils import normalize
 
 
 class PPOBuffer(dict):
-    def __init__(self, n_envs, seq_len, n_minibatches, minibatch_size, state_space, action_dim):
+    def __init__(self, n_envs, seq_len, n_minibatches, minibatch_size, state_space, action_dim, mask):
         assert seq_len // n_minibatches == minibatch_size
         self.n_envs = n_envs
         self.seq_len = seq_len
         self.minibatch_size = minibatch_size
+        self.mask = mask
 
         self.indices = np.arange(seq_len)
         self.idx = 0
@@ -40,8 +41,10 @@ class PPOBuffer(dict):
         end = (batch_idx + 1) * self.minibatch_size
 
         result = np.reshape(self[key][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
-        mask = np.reshape(self['nonterminal'][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
-        result = result * mask
+        if self.mask:
+            mask = np.reshape(self['nonterminal'][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
+            result = result * mask
+        
         return result
 
     def compute_ret_adv(self, adv_type, gamma, gae_discount):
