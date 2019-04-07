@@ -3,12 +3,13 @@ from datetime import datetime
 from copy import deepcopy
 from multiprocessing import Process
 
-from utility import yaml_op, utils
+from utility.yaml_op import load_args
+from utility.utils import colorize
 
 
 class GridSearch:
-    def __init__(self, args_file, train_func, render=False, n_trials=1):
-        args = yaml_op.load_args(args_file)
+    def __init__(self, args_file, train_func, render=False, n_trials=1, dir_prefix=''):
+        args = load_args(args_file)
         self.env_args = args['env']
         self.agent_args = args['agent']
         self.buffer_args = args['buffer'] if 'buffer' in args else {}
@@ -19,7 +20,7 @@ class GridSearch:
         # add date to root directory
         now = datetime.now()
         for root_dir in ['model_root_dir', 'log_root_dir']:
-            self.agent_args[root_dir] = (f'data/{now.month:02d}{now.day:02d}-{now.hour:02d}{now.minute:02d}/' 
+            self.agent_args[root_dir] = (f'data/{dir_prefix}{now.month:02d}{now.day:02d}-{now.hour:02d}{now.minute:02d}/' 
                                         + self.agent_args[root_dir])
 
         self.agent_args['model_dir'] = f"{self.agent_args['algorithm']}-{self.agent_args['model_dir']}"
@@ -32,7 +33,6 @@ class GridSearch:
             self.train_func(self.env_args, self.agent_args, self.buffer_args, self.render)
             
         # do grid search
-        now = datetime.now()
         self.agent_args['model_name'] = 'GS'
         self._change_args(**kwargs)
         [p.join() for p in self.processes]
@@ -41,11 +41,12 @@ class GridSearch:
         if kwargs == {}:
             # basic case
             old_model_name = self.agent_args['model_name']
-            for i in range(self.n_trials):
+            for i in range(1, self.n_trials+1):
                 if self.n_trials > 1:
                     self.agent_args['model_name'] += f'/trial{i}'
                 # arguments should be deep copied here, 
                 # otherwise args will be reset if sub-process runs after
+                self.env_args['seed'] = 10 * i
                 p = Process(target=self.train_func,
                             args=(deepcopy(self.env_args), deepcopy(self.agent_args), 
                                   deepcopy(self.buffer_args), self.render))
@@ -57,14 +58,11 @@ class GridSearch:
             # recursive case
             kwargs_copy = deepcopy(kwargs)
             key, value = self._popitem(kwargs_copy)
-            valid_args = []
             for args in [self.agent_args, self.buffer_args, self.env_args]:
                 valid_arg = args if key in args else False
                 if valid_arg != False:
-                    valid_args.append(valid_arg)
                     break
-            # print(utils.colorize(f'kwargs after poping: {kwargs}', 'red'))
-            err_msg = lambda k, v: utils.colorize(f'Invalid Argument: {k}={v}', 'red')
+            err_msg = lambda k, v: colorize(f'Invalid Argument: {k}={v}', 'red')
             assert valid_arg != False, err_msg(key, value)
             if isinstance(value, dict) and len(value) != 0:
                 # For simplicity, we do not further consider the case when value is a dict of dicts here
@@ -89,7 +87,7 @@ class GridSearch:
         return k, v
 
     def _recursive_trial(self, arg, key, value, kwargs):
-        assert isinstance(value, list), utils.colorize(f'Expect value of type list, not {type(value)}', 'red')
+        assert isinstance(value, list), colorize(f'Expect value of type list, not {type(value)}', 'red')
         for v in value:
             arg[key] = v
             self._safe_call(f'-{key}={v}', lambda: self._change_args(**kwargs))
