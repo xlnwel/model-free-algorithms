@@ -13,7 +13,7 @@ def default_path(filename):
 def load_args(filename='args.yaml'):
     with open(default_path(filename), 'r') as f:
         try:
-            yaml_f = yaml.load(f)
+            yaml_f = yaml.load(f, Loader=yaml.FullLoader)
             return yaml_f
         except yaml.YAMLError as exc:
             print(exc)

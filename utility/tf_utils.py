@@ -35,11 +35,11 @@ def ln_activation(x, activation=None, return_layer_obj=False):
 
     return x
 
-def norm_activation(x, normalization=None, activation=None, training=False):
-    if normalization:
-        x = (normalization(x, training=training) if
-                'batch_normalization' in str(normalization) else
-                normalization(x))
+def norm_activation(x, norm=None, activation=None, training=False):
+    if norm:
+        x = (norm(x, training=training) if
+                'batch_normalization' in str(norm) else
+                norm(x))
     if activation:
         x = activation(x)
 

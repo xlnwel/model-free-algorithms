@@ -54,7 +54,7 @@ class Categorical(Distribution):
         return tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=x, logits=self.logits), [-1, 1])
 
     def _sample(self):
-        return tf.multinomial(self.logits, 1, output_dtype=tf.int32)
+        return tf.random.categorical(self.logits, 1, dtype=tf.int32)
 
     def _entropy(self):
         probs = self._compute_probs()
