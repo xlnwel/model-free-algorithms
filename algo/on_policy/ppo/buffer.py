@@ -40,7 +40,8 @@ class PPOBuffer(dict):
         end = (batch_idx + 1) * self.minibatch_size
 
         result = np.reshape(self[key][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
-
+        mask = np.reshape(self['nonterminal'][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
+        result = result * mask
         return result
 
     def compute_ret_adv(self, adv_type, gamma, gae_discount):
