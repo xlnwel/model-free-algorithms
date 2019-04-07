@@ -21,7 +21,7 @@ class ActorCritic(Base):
         self.env_vec = env_vec
         self.env_phs = env_phs
         self.clip_range = args['clip_range']
-        self.use_lstm = args['use_lstm']
+        self.use_rnn = args['use_rnn']
 
         super().__init__(name,
                          args,
@@ -40,7 +40,7 @@ class ActorCritic(Base):
                                                     discrete=self.env_vec.is_action_discrete)
 
         self.V = self._V_net(x, self.args['critic_units'])
-        if self.use_lstm:
+        if self.use_rnn:
             self.initial_state = [*self.actor_init_state, *self.critic_init_state]
             self.final_state = [*self.actor_final_state, *self.critic_final_state]
 
@@ -58,7 +58,7 @@ class ActorCritic(Base):
                                discrete=False, name='policy_net'):
         output_name = 'action_logits' if discrete else 'action_mean'
         with tf.variable_scope(name):
-            if self.use_lstm:
+            if self.use_rnn:
                 x, self.actor_init_state, self.actor_final_state = self.lstm_network(x, units, action_dim, output_name)
             else:
                 x = self.feedforward_net(x, units, action_dim, output_name)
@@ -72,7 +72,7 @@ class ActorCritic(Base):
 
     def _V_net(self, x, units, name='V_net'):
         with tf.variable_scope(name):
-            if self.use_lstm:
+            if self.use_rnn:
                 x, self.critic_init_state, self.critic_final_state = self.lstm_network(x, units, 1, 'V')
             else:
                 x = self.feedforward_net(x, units, 1, 'V')

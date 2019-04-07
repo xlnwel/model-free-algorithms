@@ -28,7 +28,7 @@ class Worker(Agent):
         self.n_minibatches = args['n_minibatches']
         self.minibach_size = self.seq_len // self.n_minibatches
         self.minibatch_idx = 0
-        if self.use_lstm:
+        if self.use_rnn:
             pwc('lstm is used', 'red')
             self.last_lstm_state = None
 
@@ -45,7 +45,7 @@ class Worker(Agent):
                     self.ac.V_loss, self.ac.loss, 
                     self.ac.approx_kl, self.ac.clipfrac]]
         feed_dict = {}
-        if self.use_lstm:
+        if self.use_rnn:
             fetches.append(self.ac.final_state)
             feed_dict[self.ac.initial_state] = self.last_lstm_state
 
@@ -60,7 +60,7 @@ class Worker(Agent):
         })
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_lstm:
+        if self.use_rnn:
             grads, loss_info, self.last_lstm_state = results
         else:
             grads, loss_info = results
@@ -79,11 +79,11 @@ class Worker(Agent):
     def act(self, state):
         fetches = [self.ac.action, self.ac.V, self.ac.logpi]
         feed_dict = {self.env_phs['state']: state}
-        if self.use_lstm:
+        if self.use_rnn:
             fetches.append(self.ac.final_state)
             feed_dict.update({self.ac.initial_state: self.last_lstm_state})
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_lstm:
+        if self.use_rnn:
             action, value, logpi, self.last_lstm_state = results
         else:
             action, value, logpi = results
@@ -104,7 +104,7 @@ class Worker(Agent):
         self.buffer.reset()
         state = self.env_vec.reset()
 
-        if self.use_lstm:
+        if self.use_rnn:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
         for _ in range(self.seq_len):

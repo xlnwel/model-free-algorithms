@@ -1,22 +1,13 @@
 import os
 import time
 from collections import deque
-from multiprocessing import cpu_count
 import numpy as np
-import tensorflow as tf
-import gym
-import ray
 
-from utility import yaml_op
+from utility import utils
 from algo.on_policy.ppo.agent import Agent
 
 
-def main(env_args, agent_args, buffer_args, render=False):
-    if 'n_workers' in agent_args:
-        del agent_args['n_workers']
-
-    agent = Agent('agent', agent_args, env_args)
-
+def train(agent, agent_args, test_agent):
     score_deque = deque(maxlen=100)
     eps_len_deque = deque(maxlen=100)
     for i in range(1, agent_args['n_epochs'] + 1):
@@ -25,8 +16,8 @@ def main(env_args, agent_args, buffer_args, render=False):
 
         loss_info_list = []
         for _ in range(agent_args['n_updates']):
-            if agent_args['shuffle']:
-                assert agent_args['ac']['use_lstm'] == False, 'Should not shuffle data when using RNNs'
+            if not agent_args['ac']['use_rnn']:
+                # shuffle data when RNN is not used
                 agent.buffer.shuffle()
             for _ in range(agent_args['n_minibatches']):
                 loss_info = agent.optimize()
@@ -68,3 +59,26 @@ def main(env_args, agent_args, buffer_args, render=False):
         }
         [agent.log_tabular(k, v) for k, v in log_info.items()]
         agent.dump_tabular(print_terminal_info=True)
+
+        if test_agent:
+            test_agent.demonstrate()
+
+def main(env_args, agent_args, buffer_args, render=False):
+    utils.set_global_seed()
+
+    if 'n_workers' in agent_args:
+        del agent_args['n_workers']
+
+    agent_name = 'agent'
+    agent = Agent(agent_name, agent_args, env_args, device='/gpu:0')
+
+    model = os.path.join(agent_args['model_dir'], agent_args['model_name'])
+    print(f'Model {model} starts training')
+
+    test_agent = None
+    if render:
+        env_args['n_envs'] = 1
+        test_agent = Agent(agent_name, agent_args, env_args, log_tensorboard=False, 
+                            log_params=False, log_score=False, device='/gpu:0', reuse=True, graph=agent.graph)
+
+    train(agent, agent_args, test_agent)

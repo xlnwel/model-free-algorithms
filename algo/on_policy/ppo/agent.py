@@ -1,9 +1,9 @@
 import os
 import numpy as np
 import tensorflow as tf
-import ray
+from ray.experimental.tf_utils import TensorFlowVariables
 
-from env.gym_env import GymEnvVec
+from env.gym_env import GymEnv, GymEnvVec
 from utility.losses import huber_loss
 from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
@@ -21,12 +21,14 @@ class Agent(Model):
                  log_tensorboard=True,
                  log_params=False,
                  log_score=True,
-                 device=None):
+                 device=None,
+                 reuse=None,
+                 graph=None):
         # hyperparameters
         self.gamma = args['gamma']
         self.gae_discount = self.gamma * args['lam']
         self.seq_len = args['seq_len']
-        self.use_lstm = args['ac']['use_lstm']
+        self.use_rnn = args['ac']['use_rnn']
 
         self.entropy_coef = args['ac']['entropy_coef']
         self.n_minibatches = args['n_minibatches']
@@ -34,23 +36,25 @@ class Agent(Model):
         self.minibatch_idx = 0
 
         # environment info
-        self.env_vec = GymEnvVec(env_args)
+        self.env_vec = GymEnvVec(env_args) if env_args['n_envs'] > 1 else GymEnv(env_args)
         super().__init__(name, args, 
                          sess_config=sess_config,
                          save=save, 
                          log_tensorboard=log_tensorboard,
                          log_params=log_params, 
                          log_score=log_score,
-                         device=device)
+                         device=device,
+                         reuse=reuse,
+                         graph=graph)
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
                                 self.env_vec.state_space, self.env_vec.action_dim)
 
-        if self.use_lstm:
+        if self.use_rnn:
             self.last_lstm_state = None
 
         with self.graph.as_default():
-            self.variables = ray.experimental.TensorFlowVariables(self.ac.loss, self.sess)
+            self.variables = TensorFlowVariables(self.ac.loss, self.sess)
 
     """ Implementation """
     def _build_graph(self):
@@ -82,6 +86,11 @@ class Agent(Model):
         return env_phs
 
     def _log_loss(self):
+        def stats_summary(data, name):
+            tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
+            tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
+            tf.summary.scalar(f'{name}_avg_', tf.reduce_mean(data))
+
         if self.log_tensorboard:
             with tf.name_scope('loss'):
                 tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
@@ -89,23 +98,17 @@ class Agent(Model):
                 tf.summary.scalar('V_loss_', self.ac.V_loss)
 
             with tf.name_scope('V'):
-                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.ac.V))
-                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.ac.V))
-                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.ac.V))
+                stats_summary(self.ac.V, 'V')
 
             with tf.name_scope('envs'):
-                tf.summary.scalar('adv_max_', tf.reduce_max(self.env_phs['advantage']))
-                tf.summary.scalar('adv_min_', tf.reduce_min(self.env_phs['advantage']))
-                tf.summary.scalar('adv_avg_', tf.reduce_mean(self.env_phs['advantage']))
-                tf.summary.scalar('ret_max_', tf.reduce_max(self.env_phs['return']))
-                tf.summary.scalar('ret_min_', tf.reduce_min(self.env_phs['return']))
-                tf.summary.scalar('ret_avg_', tf.reduce_mean(self.env_phs['return']))
+                stats_summary(self.env_phs['advantage'], 'advantage')
+                stats_summary(self.env_phs['return'], 'return')
 
     """ code for single agent """
     def optimize(self):
         get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
 
-        if self.minibatch_idx == 0 and self.use_lstm:
+        if self.minibatch_idx == 0 and self.use_rnn:
             # set initial state to zeros for every pass of buffer
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
             
@@ -123,13 +126,13 @@ class Agent(Model):
             self.env_phs['old_logpi']: get_data('old_logpi'),
             self.env_phs['entropy_coef']: self.entropy_coef
         }
-        if self.use_lstm:
+        if self.use_rnn:
             fetches.append(self.ac.final_state)
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         fetches.append([self.ac.opt_step, self.graph_summary])
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_lstm:   # assuming log_tensorboard=True for simplicity, since optimize is only called by learner
+        if self.use_rnn:   # assuming log_tensorboard=True for simplicity, since optimize is only called by learner
             _, loss_info, self.last_lstm_state, (opt_step, summary) = results
         else:
             _, loss_info, (opt_step, summary) = results
@@ -151,25 +154,42 @@ class Agent(Model):
         return env_stats
 
     def act(self, state):
+        state = np.reshape(state, (-1, *self.env_vec.state_space))
         fetches = [self.ac.action, self.ac.V, self.ac.logpi]
         feed_dict = {self.env_phs['state']: state}
-        if self.ac.use_lstm:
+        if self.ac.use_rnn:
             fetches.append(self.ac.final_state)
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_lstm:
+        if self.use_rnn:
             action, value, logpi, self.last_lstm_state = results
         else:
             action, value, logpi = results
 
         return action, np.squeeze(value), np.squeeze(logpi)
 
+    def demonstrate(self):
+        state = self.env_vec.reset()
+        if self.use_rnn:
+            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
+        
+        for _ in range(self.seq_len):
+            self.env_vec.render()
+            action, _, _ = self.act(state)
+            state, _, done, _ = self.env_vec.step(action)
+
+            if done:
+                break
+
+        print(f'Demonstration score: {self.env_vec.get_episode_score()}')
+        print(f'Demonstration length: {self.env_vec.get_episode_length()}')
+
     """ Implementation """
     def _sample_data(self):
         self.buffer.reset()
         state = self.env_vec.reset()
         
-        if self.use_lstm:
+        if self.use_rnn:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
         for _ in range(self.seq_len):
