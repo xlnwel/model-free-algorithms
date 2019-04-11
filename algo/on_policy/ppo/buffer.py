@@ -27,6 +27,7 @@ class PPOBuffer(dict):
         })
 
     def add(self, state, action, reward, value, logpi, nonterminal):
+        assert self.idx < self.seq_len, f'Out-of-range idx {self.idx}. Call self.reset() beforehand'
         idx = self.idx
         self['state'][:, idx] = state
         self['action'][:, idx] = action
@@ -40,11 +41,9 @@ class PPOBuffer(dict):
         start = batch_idx * self.minibatch_size
         end = (batch_idx + 1) * self.minibatch_size
 
-        result = np.reshape(self[key][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
-        if self.mask:
-            mask = np.reshape(self['nonterminal'][:, self.indices[start: end]], (self.n_envs * self.minibatch_size, -1))
-            result = result * mask
-        
+        shape = (self.n_envs * self.minibatch_size, *(self[key].shape[2:] if len(self[key].shape) > 2 else (-1, )))
+        result = self[key][:, self.indices[start: end]].reshape(shape)
+
         return result
 
     def compute_ret_adv(self, adv_type, gamma, gae_discount):
@@ -67,6 +66,12 @@ class PPOBuffer(dict):
             self['advantage'] = advs
         else:
             NotImplementedError
+
+        if self.mask:
+            for k in self.keys():
+                shape = list(self['nonterminal'].shape) + [1] * (len(self[k].shape) - len(self['nonterminal'].shape))
+                mask = self['nonterminal'].reshape(shape)
+                self[k][:, :self.seq_len] * mask
 
     def reset(self):
         self.idx = 0

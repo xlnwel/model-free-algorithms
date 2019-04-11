@@ -86,6 +86,7 @@ class ActorCritic(Base):
         return x
 
     def lstm_network(self, x, units, output_dim, output_name):
+        assert len(units) == 3
         u1, u2, u3 = units
         x = self.dense_norm_activation(x, u1, norm=None)
         x = tf.reshape(x, (self.env_vec.n_envs, -1, u1))

@@ -12,10 +12,11 @@ agent:
     gamma: 0.99
     lam: 0.97
     seq_len: *seq_len
-    n_minibatches: 10        # #minibatches a sequence is divided into 
+    n_minibatches: 1        # #minibatches a sequence is divided into 
     # batch size = seq_len * n_envs * n_workers
     n_updates: 5            # #updates per epoch
     n_epochs: 2000
+    mask: True
 
     advantage_type: norm      # norm or gae
 
@@ -28,7 +29,7 @@ agent:
 
     ac:
         learning_rate: 3e-4
-        use_rnn: False
+        use_rnn: True
         actor_units: [500, 300, 200]
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
