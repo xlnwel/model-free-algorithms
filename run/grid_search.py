@@ -30,12 +30,12 @@ class GridSearch:
     def __call__(self, **kwargs):
         if kwargs == {} and self.n_trials == 1:
             # if no argument is passed in, run the default setting
-            self.train_func(self.env_args, self.agent_args, self.buffer_args, self.render)
-            
-        # do grid search
-        self.agent_args['model_name'] = 'GS'
-        self._change_args(**kwargs)
-        [p.join() for p in self.processes]
+            self.train_func(self.env_args, self.agent_args, self.buffer_args, self.render)        
+        else:
+            # do grid search
+            self.agent_args['model_name'] = 'GS'
+            self._change_args(**kwargs)
+            [p.join() for p in self.processes]
 
     def _change_args(self, **kwargs):
         if kwargs == {}:
