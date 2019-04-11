@@ -16,22 +16,23 @@ def action_dist_type(env):
         raise NotImplementedError
 
 class envstats:
+    """ Provide Environment Stats Records """
     def __init__(self, env):
-        self.env = env
+        self.EnvType = env
         self.score = 0
         self.eps_len = 0
         self.early_done = 0
         
         self.env_reset = env.reset
-        self.env.reset = self.reset
+        self.EnvType.reset = self.reset
         self.env_step = env.step
-        self.env.step = self.step
+        self.EnvType.step = self.step
 
-        self.env.get_episode_score = lambda _: self.score
-        self.env.get_episode_length = lambda _: self.eps_len
+        self.EnvType.get_episode_score = lambda _: self.score
+        self.EnvType.get_episode_length = lambda _: self.eps_len
 
     def __call__(self, *args, **kwargs):
-        self.env = self.env(*args, **kwargs)
+        self.env = self.EnvType(*args, **kwargs)
 
         return self.env
 
@@ -76,8 +77,6 @@ class GymEnv:
         self.state_space = env.observation_space.shape
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
-        self.action_low = env.action_space.low
-        self.action_high = env.action_space.high
         self.action_dist_type = action_dist_type(env)
         
         self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
@@ -87,13 +86,11 @@ class GymEnv:
         return self.env.reset()
 
     def step(self, action):
+        action = np.squeeze(action)
         return self.env.step(action)
         
     def render(self):
         return self.env.render()
-
-    def is_inrange(self, action):
-        return action > self.action_low and action < self.action_high
 
 @envstats
 class GymEnvVec:
@@ -108,22 +105,16 @@ class GymEnvVec:
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_space = env.action_space
         self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
-        self.action_low = env.action_space.low
-        self.action_high = env.action_space.high
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = n_envs
         self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
-                                    
-        self.score = np.zeros(n_envs)
-        self.eps_len = np.zeros(n_envs)
-        self.early_done = np.zeros(n_envs)
-        self.zeros = np.zeros(n_envs)
 
     def reset(self):
         return [env.reset() for env in self.envs]
     
     def step(self, actions):
+        actions = np.squeeze(actions)
         return list(zip(*[env.step(a) for env, a in zip(self.envs, actions)]))
 
