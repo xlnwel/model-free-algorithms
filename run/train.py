@@ -2,30 +2,28 @@ import os,sys
 import argparse
 import logging
 
-# parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# os.environ["PYTHONPATH"] = parent_dir + ":" + os.environ.get("PYTHONPATH", "")
-# print(sys.path)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-# print(os.environ['PYTHONPATH'])
-
 from run.grid_search import GridSearch
+
 
 def parse_cmd_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--algorithm',
+    parser.add_argument('--algorithm', '-a',
                         type=str,
                         choices=['td3', 'sac', 'ppo'])
-    parser.add_argument('--render',
+    parser.add_argument('--render', '-r',
                         type=str,
                         choices=['true', 'false'],
                         default='false')
-    parser.add_argument('--distributed',
+    parser.add_argument('--distributed', '-d',
                         type=str,
                         choices=['true', 'false'],
                         default='false')
-    parser.add_argument('--trials',
+    parser.add_argument('--trials', '-t',
                         type=int,
                         default=1)
+    parser.add_argument('--prefix', '-p',
+                        default='')
     args = parser.parse_args()
 
     return args
@@ -35,31 +33,34 @@ if __name__ == '__main__':
     algorithm = cmd_args.algorithm
 
     distributed = True if cmd_args.distributed == 'true' else False
+    if distributed:
+        if algorithm == 'td3' or algorithm == 'sac':
+            from algo.off_policy.distributed_train import main
+        elif algorithm == 'ppo':
+            from algo.on_policy.distributed_train import main
+    else:
+        if algorithm == 'td3' or algorithm == 'sac':
+            from algo.off_policy.single_train import main
+        elif algorithm == 'ppo':
+            from algo.on_policy.single_train import main
+    
     if algorithm == 'td3':
-        arg_file = 'td3/args.yaml'
-        if distributed:
-            from run.off_policy.distributed_train import main
-        else:
-            from run.off_policy.single_train import main
+        arg_file = 'algo/off_policy/td3/args.yaml'
     elif algorithm == 'sac':
-        arg_file = 'sac/args.yaml'
-        if distributed:
-            from run.off_policy.distributed_train import main
-        else:
-            from run.off_policy.single_train import main
+        arg_file = 'algo/off_policy/sac/args.yaml'
     elif algorithm == 'ppo':
-        arg_file = 'ppo/args.yaml'
-        from run.on_policy.train import main
+        arg_file = 'algo/on_policy/ppo/args.yaml'
     else:
         raise NotImplementedError
 
-    # disable tensorflow debug information
-    # logging.getLogger("tensorflow").setLevel(logging.WARNING)
-
     render = True if cmd_args.render == 'true' else False
 
-    gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials)
+    gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials, dir_prefix=cmd_args.prefix)
 
     # Grid search happens here
-    # gs(ac={'shared_fc_units': 0, 'lstm_units': 0, 'actor_units': [[64, 64]], 'critic_units': [[64, 64]]})
-    gs(ac={'shared_fc_units': 0, 'lstm_units': 0})
+    if algorithm == 'ppo':
+        gs(ac={'actor_units': (512, 256, 256), 'critic_units': (512, 512, 256)})
+    elif algorithm == 'td3':
+        gs()
+    elif algorithm == 'sac':
+        gs()
