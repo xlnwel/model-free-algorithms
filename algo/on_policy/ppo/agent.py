@@ -56,54 +56,6 @@ class Agent(Model):
         with self.graph.as_default():
             self.variables = TensorFlowVariables(self.ac.loss, self.sess)
 
-    """ Implementation """
-    def _build_graph(self):
-        self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)
-
-        self.ac = ActorCritic('ac', 
-                              self.args['ac'], 
-                              self.graph,
-                              self.env_vec, 
-                              self.env_phs,
-                              self.minibach_size,
-                              self.name, 
-                              log_tensorboard=self.log_tensorboard,
-                              log_params=self.log_params)
-        
-        self._log_loss()
-
-    def _setup_env_placeholders(self, state_space, action_dim):
-        env_phs = {}
-
-        with tf.name_scope('placeholder'):
-            env_phs['state'] = tf.placeholder(tf.float32, shape=[None, *state_space], name='state')
-            env_phs['return'] = tf.placeholder(tf.float32, shape=[None, 1], name='return')
-            env_phs['value'] = tf.placeholder(tf.float32, shape=[None, 1], name='value')
-            env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
-            env_phs['old_logpi'] = tf.placeholder(tf.float32, shape=[None, 1], name='old_logpi')
-            env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coeff')
-        
-        return env_phs
-
-    def _log_loss(self):
-        def stats_summary(data, name):
-            tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
-            tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
-            tf.summary.scalar(f'{name}_avg_', tf.reduce_mean(data))
-
-        if self.log_tensorboard:
-            with tf.name_scope('loss'):
-                tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
-                tf.summary.scalar('entropy_', self.ac.entropy)
-                tf.summary.scalar('V_loss_', self.ac.V_loss)
-
-            with tf.name_scope('V'):
-                stats_summary(self.ac.V, 'V')
-
-            with tf.name_scope('envs'):
-                stats_summary(self.env_phs['advantage'], 'advantage')
-                stats_summary(self.env_phs['return'], 'return')
-
     """ code for single agent """
     def optimize(self):
         get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
@@ -139,7 +91,7 @@ class Agent(Model):
 
         self.minibatch_idx = self.minibatch_idx + 1 if self.minibatch_idx + 1 < self.n_minibatches else 0
 
-        if opt_step % 50 == 0:
+        if opt_step % (self.args['n_updates'] * self.args['n_minibatches']) == 0:
             self.writer.add_summary(summary, opt_step)
             self.save()
 
@@ -149,7 +101,7 @@ class Agent(Model):
         env_stats = self._sample_data()
         self.buffer.compute_ret_adv(self.args['advantage_type'], self.gamma, self.gae_discount)
         if self.args['advantage_type'] == 'gae':
-            self.buffer.normalize_adv(np.mean(self.buffer['advantage']), np.std(self.buffer['advantage']))
+            self.buffer.normalize_adv(self.buffer['advantage'].mean(), self.buffer['advantage'].std())
         
         return env_stats
 
@@ -157,7 +109,7 @@ class Agent(Model):
         state = np.reshape(state, (-1, *self.env_vec.state_space))
         fetches = [self.ac.action, self.ac.V, self.ac.logpi]
         feed_dict = {self.env_phs['state']: state}
-        if self.ac.use_rnn:
+        if self.use_rnn:
             fetches.append(self.ac.final_state)
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         results = self.sess.run(fetches, feed_dict=feed_dict)
@@ -181,10 +133,61 @@ class Agent(Model):
             if done:
                 break
 
-        print(f'Demonstration score: {self.env_vec.get_episode_score()}')
-        print(f'Demonstration length: {self.env_vec.get_episode_length()}')
+        print(f'Demonstration score:\t{self.env_vec.get_episode_score()}')
+        print(f'Demonstration length:\t{self.env_vec.get_episode_length()}')
 
     """ Implementation """
+    def _build_graph(self):
+        self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)
+
+        self.ac = ActorCritic('ac', 
+                              self.args['ac'], 
+                              self.graph,
+                              self.env_vec, 
+                              self.env_phs,
+                              self.minibach_size,
+                              self.name, 
+                              log_tensorboard=self.log_tensorboard,
+                              log_params=self.log_params)
+        
+        self._log_loss()
+
+    def _setup_env_placeholders(self, state_space, action_dim):
+        env_phs = {}
+
+        with tf.name_scope('placeholder'):
+            env_phs['state'] = tf.placeholder(tf.float32, shape=[None, *state_space], name='state')
+            env_phs['return'] = tf.placeholder(tf.float32, shape=[None, 1], name='return')
+            env_phs['value'] = tf.placeholder(tf.float32, shape=[None, 1], name='value')
+            env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
+            env_phs['old_logpi'] = tf.placeholder(tf.float32, shape=[None, 1], name='old_logpi')
+            env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coeff')
+        
+        return env_phs
+
+    def _log_loss(self):
+        def stats_summary(data, name):
+            tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
+            tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
+            tf.summary.scalar(f'{name}_avg_', tf.reduce_mean(data))
+            tf.summary.histogram(f'{name}_', data)
+
+        if self.log_tensorboard:
+            with tf.name_scope('loss'):
+                tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
+                tf.summary.scalar('entropy_', self.ac.entropy)
+                tf.summary.scalar('V_loss_', self.ac.V_loss)
+
+            with tf.name_scope('value'):
+                stats_summary(self.ac.V, 'V')
+                stats_summary(self.env_phs['advantage'], 'advantage')
+                stats_summary(self.env_phs['return'], 'return')
+
+            with tf.name_scope('policy'):
+                stats_summary(self.ac.action_distribution.mean, 'mean')
+                stats_summary(self.ac.action_distribution.std, 'std')
+                stats_summary(self.ac.action_distribution.entropy(), 'entropy')
+
     def _sample_data(self):
         self.buffer.reset()
         state = self.env_vec.reset()
