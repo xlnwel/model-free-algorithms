@@ -20,11 +20,14 @@ class GridSearch:
         # add date to root directory
         now = datetime.now()
         for root_dir in ['model_root_dir', 'log_root_dir']:
-            self.agent_args[root_dir] = (f'data/{dir_prefix}{now.month:02d}{now.day:02d}-{now.hour:02d}{now.minute:02d}/' 
-                                        + self.agent_args[root_dir])
+            self.agent_args[root_dir] = (f'data/{dir_prefix}'
+                                        f'{now.month:02d}{now.day:02d}-'
+                                        f'{now.hour:02d}{now.minute:02d}-'
+                                        f'{self.agent_args["algorithm"]}-'
+                                        f'{self.env_args["name"]}/' 
+                                        f'{self.agent_args[root_dir]}')
 
-        self.agent_args['model_dir'] = f"{self.agent_args['algorithm']}-{self.agent_args['model_dir']}"
-
+        self.agent_args['model_dir'] = ''
         self.processes = []
 
     def __call__(self, **kwargs):
@@ -52,7 +55,7 @@ class GridSearch:
                                   deepcopy(self.buffer_args), self.render))
                 self.agent_args['model_name'] = old_model_name
                 p.start()
-                time.sleep(1)   # help make sure sub-processs start in order
+                time.sleep(1)   # ensure sub-processs start in order
                 self.processes.append(p)
         else:
             # recursive case

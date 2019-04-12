@@ -62,5 +62,6 @@ if __name__ == '__main__':
         gs(ac={'actor_units': (512, 256, 256), 'critic_units': (512, 512, 256)})
     elif algorithm == 'td3':
         gs()
+        # gs(actor={'units': (64, 64)}, critic={'units': (64, 64)}, name='LunarLanderContinuous-v2', n_epochs=5000)
     elif algorithm == 'sac':
-        gs()
+        gs(temperature=[.2, .01])

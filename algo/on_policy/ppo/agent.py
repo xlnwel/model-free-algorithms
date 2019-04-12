@@ -8,6 +8,7 @@ from utility.losses import huber_loss
 from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
 from algo.on_policy.ppo.buffer import PPOBuffer
+from utility.tf_utils import stats_summary
 
 
 class Agent(Model):
@@ -166,12 +167,6 @@ class Agent(Model):
         return env_phs
 
     def _log_loss(self):
-        def stats_summary(data, name):
-            tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
-            tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
-            tf.summary.scalar(f'{name}_avg_', tf.reduce_mean(data))
-            tf.summary.histogram(f'{name}_', data)
-
         if self.log_tensorboard:
             with tf.name_scope('loss'):
                 tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)

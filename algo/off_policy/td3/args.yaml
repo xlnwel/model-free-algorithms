@@ -20,7 +20,7 @@ agent:
 
     n_steps: &n_steps 3
     policy_delay: 1     # policy will be updated once every policy_delay steps
-    n_epochs: 2000
+    n_epochs: 3000
     
     actor:
         n_fc: 1
