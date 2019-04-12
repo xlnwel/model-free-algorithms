@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
 import tensorflow.keras as tk
@@ -88,3 +89,20 @@ def n_step_target(reward, done, nth_value, gamma, steps=1):
                                     * nth_value, name='n_step_target')
 
     return n_step_target
+
+def stats_summary(data, name, max=True, min=True, mean=True, hist=True):
+    if max:
+        tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
+    if min:
+        tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
+    if mean:
+        tf.summary.scalar(f'{name}_avg_', tf.reduce_mean(data))
+    if hist:
+        tf.summary.histogram(f'{name}_', data)
+
+def get_vars(scope, graph=tf.get_default_graph()):
+    return [x for x in graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)]
+
+def count_vars(scope, graph=tf.get_default_graph()):
+    v = get_vars(scope, graph=graph)
+    return sum([np.prod(var.shape.as_list()) for var in v])
