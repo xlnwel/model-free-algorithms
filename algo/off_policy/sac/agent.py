@@ -132,7 +132,7 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('Q_loss_', self.Q_loss)
                 tf.summary.scalar('loss_', self.loss)
             
-            with tf.name_scope('value'):
+            with tf.name_scope('critic'):
                 stats_summary(self.Q_nets.Q_with_actor, 'Q_with_actor')
                 stats_summary(self.V_nets.V, 'V')
                 stats_summary(self.V_nets.V_next, 'V_next')

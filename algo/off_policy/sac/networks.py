@@ -150,10 +150,10 @@ class SoftQ(Base):
     def _build_graph(self):
         Q_net = lambda action, reuse, name: self._Q_net(self.state, self.args['units'], action, 
                                                         self.action_dim, self.norm, reuse, name=name)
-        actor_action = tf.stop_gradient(self.actor_action)
+
         self.Q1 = Q_net(self.action, False, 'Qnet1')
         self.Q2 = Q_net(self.action, False, 'Qnet2')
-        self.Q1_with_actor = Q_net(actor_action, True, 'Qnet1')
-        self.Q2_with_actor = Q_net(actor_action, True, 'Qnet2')
+        self.Q1_with_actor = Q_net(self.actor_action, True, 'Qnet1')
+        self.Q2_with_actor = Q_net(self.actor_action, True, 'Qnet2')
         self.Q = tf.minimum(self.Q1, self.Q2, 'Q')
         self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
