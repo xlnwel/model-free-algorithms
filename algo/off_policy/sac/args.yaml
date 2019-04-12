@@ -5,7 +5,7 @@ env:
     seed: 0
 agent:
     algorithm: sac
-    temperature: 0.01
+    temperature: 0.2
     gamma: &gamma 0.99
     batch_size: &batch_size 128
     n_workers: &n_workers 10
@@ -22,21 +22,25 @@ agent:
     n_steps: &n_steps 3
     priority: Q               # Q or V
     policy_delay: 1
+    n_epochs: 5000
     
     policy:
         noisy_sigma: 0.4    # standard deviation for noisy layers
-        units: [128, 128]
+        units: [64, 64]
         # args for optimizer
         learning_rate: 1e-4
+        layernorm: True
     V:
-        tau: 0.005      # moving average rate
-        units: [256, 128]
+        polyak: .995      # moving average rate
+        units: &critic_units [64, 64]
         # args for optimizer
-        learning_rate: 3e-4
+        learning_rate: &critic_lr 1e-4
+        layernorm: True
     Q:
-        units: [256, 128]
+        units: *critic_units
         # args for optimizer
-        learning_rate: 3e-4
+        learning_rate: *critic_lr
+        layernorm: True
 
     env_stats:
         times: *n_workers
@@ -44,7 +48,7 @@ agent:
 
 # argumennts for prioritized replay
 buffer:
-    type: proportional # local or proportional
+    type: proportional # proportional
     batch_size: *batch_size
     n_steps: *n_steps
     gamma: *gamma

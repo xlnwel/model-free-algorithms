@@ -1,4 +1,3 @@
 
-.vscode/sftp.json
+.vscode*
 .DS_Store
-old/

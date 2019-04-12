@@ -51,6 +51,7 @@ class envstats:
 
         return next_state, reward, done, info
 
+
 @ray.remote
 class RayGymEnv:
     def __init__(self, name):
@@ -91,6 +92,7 @@ class GymEnv:
         
     def render(self):
         return self.env.render()
+
 
 @envstats
 class GymEnvVec:

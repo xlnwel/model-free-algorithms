@@ -61,22 +61,25 @@ class GridSearch:
             # recursive case
             kwargs_copy = deepcopy(kwargs)
             key, value = self._popitem(kwargs_copy)
-            for args in [self.agent_args, self.buffer_args, self.env_args]:
-                valid_arg = args if key in args else False
-                if valid_arg != False:
-                    break
+
+            valid_args = None
+            for args in [self.env_args, self.agent_args, self.buffer_args]:
+                if key in args:
+                    assert valid_args is None, colorize(f'Conflict: found {key} in both {valid_args} and {args}!', 'red')
+                    valid_args = args
+
             err_msg = lambda k, v: colorize(f'Invalid Argument: {k}={v}', 'red')
-            assert valid_arg != False, err_msg(key, value)
+            assert valid_args is not None, err_msg(key, value)
             if isinstance(value, dict) and len(value) != 0:
                 # For simplicity, we do not further consider the case when value is a dict of dicts here
                 k, v = self._popitem(value)
-                assert k in valid_arg[key], err_msg(k, v)
+                assert k in valid_args[key], err_msg(k, v)
                 if len(value) != 0:
                     # if there is still something left in value, put value back into kwargs
                     kwargs_copy[key] = value
-                self._safe_call(f'-{key}', lambda: self._recursive_trial(valid_arg[key], k, v, kwargs_copy))
+                self._safe_call(f'-{key}', lambda: self._recursive_trial(valid_args[key], k, v, kwargs_copy))
             else:
-                self._recursive_trial(valid_arg, key, value, kwargs_copy)
+                self._recursive_trial(valid_args, key, value, kwargs_copy)
 
     # helper functions for self._change_args
     def _popitem(self, kwargs):

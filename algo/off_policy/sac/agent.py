@@ -1,12 +1,12 @@
 import tensorflow as tf
 
-from basic_model.off_policy import OffPolicy
+from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.sac.networks import SoftPolicy, SoftV, SoftQ
 from utility.losses import huber_loss
-from utility.tf_utils import n_step_target
+from utility.tf_utils import n_step_target, stats_summary
 
 
-class Agent(OffPolicy):
+class Agent(OffPolicyOperation):
     """ Interface """
     def __init__(self, 
                  name, 
@@ -16,7 +16,7 @@ class Agent(OffPolicy):
                  sess_config=None, 
                  save=True, 
                  log_tensorboard=True, 
-                 log_params=False, 
+                 log_params=True, 
                  log_score=True, 
                  device=None):
         self.temperature = args['temperature']
@@ -47,14 +47,13 @@ class Agent(OffPolicy):
         self.action = self.actor.action
         self.logpi = self.actor.logpi
 
-        self.priority, self.actor_loss, self.V_loss, self.Q_loss = self._loss(self.actor, self.V_nets, self.Q_nets, self.logpi)
-        self.loss = self.actor_loss + self.V_loss + self.Q_loss
+        self.priority, losses = self._loss(self.actor, self.V_nets, self.Q_nets, self.logpi)
+        self.actor_loss, self.V_loss, self.Q_loss, self.loss = losses
 
-        self.actor_opt_op, self.opt_step = self.actor._optimization_op(self.actor_loss, opt_step=True)
-        self.V_opt_op, _ = self.V_nets._optimization_op(self.V_loss)
-        self.Q_opt_op, _ = self.Q_nets._optimization_op(self.Q_loss)
-        self.critic_opt_op = tf.group(self.V_opt_op, self.Q_opt_op)
-        self.opt_op = tf.group(self.actor_opt_op, self.critic_opt_op)
+        actor_opt_op, self.opt_step = self.actor._optimization_op(self.actor_loss, opt_step=True)
+        V_opt_op, _ = self.V_nets._optimization_op(self.V_loss)
+        Q_opt_op, _ = self.Q_nets._optimization_op(self.Q_loss)
+        self.opt_op = tf.group(actor_opt_op, V_opt_op, Q_opt_op)
 
         self._log_loss()
 
@@ -100,23 +99,24 @@ class Agent(OffPolicy):
             with tf.name_scope('V_loss'):
                 target_V = tf.stop_gradient(Qs.Q_with_actor - self.temperature * logpi, name='target_V')
                 TD_error = tf.abs(target_V - Vs.V)
-                V_loss = .5 * tf.reduce_mean(loss_func(TD_error))
+                V_loss = tf.reduce_mean(loss_func(TD_error))
 
             with tf.name_scope('Q_loss'):
                 target_Q = n_step_target(self.data['reward'], self.data['done'], 
-                                        Vs.target_V, self.gamma, self.data['steps'])
-                target_Q = self._n_step_target(Vs.target_V)
+                                        Vs.V_next, self.gamma, self.data['steps'])
                 Q1_error = tf.abs(target_Q - Qs.Q1)
                 Q2_error = tf.abs(target_Q - Qs.Q2)
 
-                Q1_loss = loss_func(Q1_error)
-                Q2_loss = loss_func(Q2_error)
-                Q_loss = .5 * tf.reduce_mean(Q1_loss + Q2_loss)
+                Q1_loss = tf.reduce_mean(loss_func(Q1_error))
+                Q2_loss = tf.reduce_mean(loss_func(Q2_error))
+                Q_loss = Q1_loss + Q2_loss
 
-            priority = TD_error if self.priority_type == 'V' else (Q1_error + Q2_error) / 2.
-            priority = self._compute_priority(priority)
+            loss = actor_loss + V_loss + Q_loss
 
-        return priority, actor_loss, V_loss, Q_loss
+        priority = TD_error if self.priority_type == 'V' else (Q1_error + Q2_error) / 2.
+        priority = self._compute_priority(priority)
+
+        return priority, (actor_loss, V_loss, Q_loss, loss)
 
     def _initialize_target_net(self):
         self.sess.run(self.V_nets.init_target_op)
@@ -126,20 +126,24 @@ class Agent(OffPolicy):
 
     def _log_loss(self):
         if self.log_tensorboard:
-            with tf.name_scope('priority'):
-                tf.summary.histogram('priority_', self.priority)
-                tf.summary.scalar('priority_', tf.reduce_mean(self.priority))
-
             with tf.name_scope('loss'):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
                 tf.summary.scalar('V_loss_', self.V_loss)
                 tf.summary.scalar('Q_loss_', self.Q_loss)
+                tf.summary.scalar('loss_', self.loss)
             
-            with tf.name_scope('Q'):
-                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.Q_nets.Q_with_actor))
-                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.Q_nets.Q_with_actor))
-                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.Q_nets.Q_with_actor))
+            with tf.name_scope('value'):
+                stats_summary(self.Q_nets.Q_with_actor, 'Q_with_actor')
+                stats_summary(self.V_nets.V, 'V')
+                stats_summary(self.V_nets.V_next, 'V_next')
+                stats_summary(self.priority, 'priority')
 
-            with tf.name_scope('V'):
-                tf.summary.scalar('V_', tf.reduce_mean(self.V_nets.V))
-                tf.summary.scalar('target_V_', tf.reduce_mean(self.V_nets.target_V))
+            with tf.name_scope('actor'):
+                stats_summary(self.actor.action_distribution.mean, 'action_mean')
+                stats_summary(self.actor.action_distribution.std, 'action_std')
+                stats_summary(self.actor.orig_action, 'orig_action')
+                stats_summary(self.action, 'action')
+                stats_summary(self.actor.orig_logpi, 'orig_logpi')
+                stats_summary(self.logpi, 'logpi')
+                stats_summary(self.actor.sub, 'sub')
+                stats_summary(self.actor.sub2, 'sub2')
