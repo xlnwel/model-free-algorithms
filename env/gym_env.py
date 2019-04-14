@@ -4,7 +4,7 @@ import ray
 
 from utility import tf_distributions
 from env import atari_wrappers
-from utility.utils import colorize
+from utility.utils import assert_colorize
 
 
 def action_dist_type(env):
@@ -97,7 +97,7 @@ class GymEnv:
 @envstats
 class GymEnvVec:
     def __init__(self, args):
-        assert 'n_envs' in args, colorize(f'Please specify n_envs in args.yaml beforehand', 'red')
+        assert_colorize('n_envs' in args, f'Please specify n_envs in args.yaml beforehand')
         n_envs = args['n_envs']
         self.envs = [gym.make(args['name']) for i in range(n_envs)]
         [env.seed(args['seed'] + 10 * i) for i, env in enumerate(self.envs)]

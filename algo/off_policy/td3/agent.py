@@ -3,7 +3,7 @@ import tensorflow as tf
 from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
-from utility.tf_utils import n_step_target
+from utility.tf_utils import n_step_target, stats_summary
 
 
 class Agent(OffPolicyOperation):
@@ -147,7 +147,7 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('critic_loss_', self.critic_loss)
             
             with tf.name_scope('Q'):
-                tf.summary.scalar('max_Q_with_actor', tf.reduce_max(self.critic.Q_with_actor))
-                tf.summary.scalar('min_Q_with_actor', tf.reduce_min(self.critic.Q_with_actor))
-                tf.summary.scalar('Q_with_actor_', tf.reduce_mean(self.critic.Q_with_actor))
-            
+                stats_summary(self.critic.Q_with_actor, 'Q_with_actor')
+
+            with tf.name_scope('actor'):
+                stats_summary(self.action, 'action')            

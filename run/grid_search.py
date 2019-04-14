@@ -4,7 +4,7 @@ from copy import deepcopy
 from multiprocessing import Process
 
 from utility.yaml_op import load_args
-from utility.utils import colorize
+from utility.utils import assert_colorize
 
 
 class GridSearch:
@@ -65,15 +65,15 @@ class GridSearch:
             valid_args = None
             for args in [self.env_args, self.agent_args, self.buffer_args]:
                 if key in args:
-                    assert valid_args is None, colorize(f'Conflict: found {key} in both {valid_args} and {args}!', 'red')
+                    assert_colorize(valid_args is None, f'Conflict: found {key} in both {valid_args} and {args}!')
                     valid_args = args
 
-            err_msg = lambda k, v: colorize(f'Invalid Argument: {k}={v}', 'red')
-            assert valid_args is not None, err_msg(key, value)
+            err_msg = lambda k, v: f'Invalid Argument: {k}={v}'
+            assert_colorize(valid_args is not None, err_msg(key, value))
             if isinstance(value, dict) and len(value) != 0:
                 # For simplicity, we do not further consider the case when value is a dict of dicts here
                 k, v = self._popitem(value)
-                assert k in valid_args[key], err_msg(k, v)
+                assert_colorize(k in valid_args[key], err_msg(k, v))
                 if len(value) != 0:
                     # if there is still something left in value, put value back into kwargs
                     kwargs_copy[key] = value
@@ -83,7 +83,7 @@ class GridSearch:
 
     # helper functions for self._change_args
     def _popitem(self, kwargs):
-        assert isinstance(kwargs, dict)
+        assert_colorize(isinstance(kwargs, dict))
         while len(kwargs) != 0:
             k, v = kwargs.popitem()
             if not isinstance(v, list) and not isinstance(v, dict):
@@ -93,7 +93,7 @@ class GridSearch:
         return k, v
 
     def _recursive_trial(self, arg, key, value, kwargs):
-        assert isinstance(value, list), colorize(f'Expect value of type list, not {type(value)}', 'red')
+        assert_colorize(isinstance(value, list), f'Expect value of type list, not {type(value)}')
         for v in value:
             arg[key] = v
             self._safe_call(f'-{key}={v}', lambda: self._change_args(**kwargs))

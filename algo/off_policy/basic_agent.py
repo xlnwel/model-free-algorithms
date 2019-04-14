@@ -43,7 +43,7 @@ class OffPolicyOperation(Model):
         if buffer_args['type'] == 'proportional':
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args['max_episodes'] * self.max_path_length)
+            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
@@ -71,7 +71,6 @@ class OffPolicyOperation(Model):
         else:
             action = self.sess.run(self.action, feed_dict={self.data['state']: state})
         
-
         return np.squeeze(action)
 
     def add_data(self, state, action, reward, next_state, done):
@@ -90,7 +89,7 @@ class OffPolicyOperation(Model):
             duration, _ = timeit(self.learn)
             lt.append(duration)
             if i % 1000 == 0:
-                # print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f} to learn 1000 times')
+                print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f} to learn 1000 times')
                 i = 0
                 lt = []
 

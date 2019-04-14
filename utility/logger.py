@@ -10,7 +10,7 @@ Adapted by S.C.
 import os.path as osp
 import os, time, atexit
 
-from utility.utils import pwc
+from utility.utils import pwc, assert_colorize
 
 
 class Logger:
@@ -64,8 +64,8 @@ class Logger:
         if self.first_row:
             self.log_headers.append(key)
         else:
-            assert key in self.log_headers, f"Trying to introduce a new key {key} that you didn't include in the first iteration"
-        assert key not in self.log_current_row, f"You already set {key} this iteration. Maybe you forgot to call dump_tabular()"
+            assert_colorize(key in self.log_headers, f"Trying to introduce a new key {key} that you didn't include in the first iteration")
+        assert_colorize(key not in self.log_current_row, f"You already set {key} this iteration. Maybe you forgot to call dump_tabular()")
         self.log_current_row[key] = val
     
     def dump_tabular(self, print_terminal_info=False):

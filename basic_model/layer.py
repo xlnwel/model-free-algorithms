@@ -328,7 +328,6 @@ class Layer():
     """ Auxiliary functions """
     def reset_counter(self, name):
         counter = name + '_counter'
-        # assert hasattr(self, counter), 'No counter named {}'.format(counter)
         setattr(self, counter, -1)   # to avoid scope name conflict caused by _dense_resnet_norm_activation
 
     def get_name(self, name, default_name):

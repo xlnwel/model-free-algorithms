@@ -52,3 +52,6 @@ def set_global_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     tf.set_random_seed(seed)
+
+def assert_colorize(cond, err_msg=''):
+    assert cond, err_msg
