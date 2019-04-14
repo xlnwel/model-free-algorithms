@@ -1,4 +1,3 @@
-import threading
 import numpy as np
 
 from utility.decorators import override
@@ -23,44 +22,15 @@ class PrioritizedReplay(Replay):
 
         self.sample_i = 0   # count how many times self.sample is called
 
-        # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
-        self.locker = threading.Lock()
-
     @override(Replay)
     def sample(self):
         with self.locker:        
             samples = self._sample()
-            if self.sample_i % 100:
+            self.sample_i += 1
+            if self.sample_i % 100 == 0:
                 self._update_beta()
 
         return samples
-
-    @override(Replay)
-    def merge(self, local_buffer, length, start=0):
-        assert length < self.capacity, 'Local buffer is too large'
-        self.locker.acquire()
-
-        end_idx = self.exp_id + length
-
-        if end_idx > self.capacity:
-            first_part = self.capacity - self.exp_id
-            second_part = length - first_part
-            
-            copy_buffer(self.memory, self.exp_id, self.capacity, local_buffer, start, start + first_part)
-            copy_buffer(self.memory, 0, second_part, local_buffer, start + first_part, start + length)
-        else:
-            copy_buffer(self.memory, self.exp_id, end_idx, local_buffer, start, start + length)
-
-        for prio_id, exp_id in enumerate(range(self.exp_id, end_idx)):
-            self.data_structure.update(local_buffer['priority'][prio_id], exp_id % self.capacity)
-        
-        # memory is full, recycle buffer via FIFO
-        if not self.is_full and end_idx >= self.capacity:
-            print('Memory is fulll')
-            self.is_full = True
-        self.exp_id = end_idx % self.capacity
-
-        self.locker.release()
 
     def update_priorities(self, priorities, saved_exp_ids):
         with self.locker:
@@ -80,8 +50,27 @@ class PrioritizedReplay(Replay):
         super().add(state, action, reward, next_state, done)
 
     """ Implementation """
-    def _sample(self):
-        raise NotImplementedError
-
     def _update_beta(self):
         self.beta = min(self.beta + self.beta_grad, 1)
+
+    @override(Replay)
+    def _merge(self, local_buffer, length, start=0):
+        end_idx = self.exp_id + length
+
+        if end_idx > self.capacity:
+            first_part = self.capacity - self.exp_id
+            second_part = length - first_part
+            
+            copy_buffer(self.memory, self.exp_id, self.capacity, local_buffer, start, start + first_part)
+            copy_buffer(self.memory, 0, second_part, local_buffer, start + first_part, start + length)
+        else:
+            copy_buffer(self.memory, self.exp_id, end_idx, local_buffer, start, start + length)
+
+        for prio_id, exp_id in enumerate(range(self.exp_id, end_idx)):
+            self.data_structure.update(local_buffer['priority'][prio_id], exp_id % self.capacity)
+        
+        # memory is full, recycle buffer via FIFO
+        if not self.is_full and end_idx >= self.capacity:
+            print('Memory is fulll')
+            self.is_full = True
+        self.exp_id = end_idx % self.capacity

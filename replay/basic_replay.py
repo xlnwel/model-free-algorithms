@@ -1,9 +1,12 @@
-from abc import ABCMeta, abstractclassmethod
+import threading
 import numpy as np
+
 from replay.utils import add_buffer, copy_buffer
+from replay.utils import init_buffer
+from utility.utils import assert_colorize
 
 
-class Replay(metaclass=ABCMeta):
+class Replay:
     def __init__(self, args, state_space, action_dim):
         self.memory = {}
 
@@ -18,19 +21,6 @@ class Replay(metaclass=ABCMeta):
         self.is_full = False
         self.exp_id = 0
 
-        def init_buffer(buffer, capacity, state_space, action_dim, has_priority):
-            target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
-            target_buffer.update({
-                'state': np.zeros((capacity, *state_space)),
-                'action': np.zeros((capacity, action_dim)),
-                'reward': np.zeros((capacity, 1)),
-                'next_state': np.zeros((capacity, *state_space)),
-                'done': np.zeros((capacity, 1)),
-                'steps': np.zeros((capacity, 1))
-            })
-
-            buffer.update(target_buffer)
-
         init_buffer(self.memory, self.capacity, state_space, action_dim, False)
 
         # Code for single agent
@@ -39,6 +29,9 @@ class Replay(metaclass=ABCMeta):
             init_buffer(self.temporary_buffer, self.n_steps, state_space, action_dim, True)
             self.tb_idx = 0
             self.tb_full = False
+        
+        # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
+        self.locker = threading.Lock()
 
     @property
     def good_to_learn(self):
@@ -51,13 +44,19 @@ class Replay(metaclass=ABCMeta):
         while True:
             yield self.sample()
             
-    @abstractclassmethod
     def sample(self):
-        raise NotImplementedError
+        assert_colorize(self.good_to_learn, 'There are not sufficient transitions to start learning --- '
+                                            f'transitions in buffer: {len(self)}\t'
+                                            f'minimum required size: {self.min_size}', 'red')
+        with self.locker:
+            samples = self._sample()
 
-    @abstractclassmethod
+        return samples
+
     def merge(self, local_buffer, length, start=0):
-        raise NotImplementedError
+        assert_colorize(length < self.capacity, 'Local buffer is too large')
+        with self.locker:
+            self._merge(local_buffer, length, start)
 
     # Code for single agent
     def add(self, state, action, reward, next_state, done):
@@ -81,3 +80,9 @@ class Replay(metaclass=ABCMeta):
             add_buffer(self.memory, self.exp_id, state, action, reward,
                         next_state, done, self.n_steps, self.gamma)
             self.exp_id += 1
+
+    def _sample(self):
+        raise NotImplementedError
+
+    def _merge(self, local_buffer, length, start=0):
+        raise NotImplementedError
