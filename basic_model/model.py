@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as tk
 
-from utility.utils import pwc
+from utility.utils import pwc, assert_colorize
 from utility.logger import Logger
 from utility.yaml_op import save_args
 from basic_model.layer import Layer
@@ -23,7 +23,8 @@ class Module(Layer):
                  graph=tf.get_default_graph(),
                  log_tensorboard=False, 
                  log_params=False,
-                 device=None):
+                 device=None,
+                 reuse=None):
         """ Basic module which defines the basic functions to build a tensorflow graph
         
         Arguments:
@@ -43,6 +44,7 @@ class Module(Layer):
         self.log_tensorboard = log_tensorboard
         self.log_params = log_params
         self.device = device
+        self.reuse = reuse
 
         super().__init__(name, args)
 
@@ -51,10 +53,10 @@ class Module(Layer):
     def build_graph(self):
         if self.device:
             with tf.device(self.device):
-                with tf.variable_scope(self.name):
+                with tf.variable_scope(self.name, reuse=self.reuse):
                     self._build_graph()
         else:
-            with tf.variable_scope(self.name):
+            with tf.variable_scope(self.name, reuse=self.reuse):
                 self._build_graph()
 
     @property
@@ -148,7 +150,9 @@ class Model(Module):
                  log_tensorboard=False,
                  log_params=False,
                  log_score=False,
-                 device=None):
+                 device=None,
+                 reuse=None,
+                 graph=None):
         """ Model, inherited from Module, further defines some boookkeeping functions,
         such as session management, save & restore operations, tensorboard loggings, and etc.
         
@@ -165,10 +169,10 @@ class Model(Module):
             device {[str or None]} -- Device where graph build upon {default: {None}}
         """
 
-        self.graph = tf.Graph()
+        self.graph = graph if graph else tf.Graph()
 
         super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
-                         log_params=log_params, device=device)
+                         log_params=log_params, device=device, reuse=reuse)
 
         if self.log_tensorboard:
             self.logger = self._setup_logger()
@@ -176,7 +180,7 @@ class Model(Module):
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_score:
-            assert self.log_tensorboard, 'Must set up tensorboard writer beforehand'
+            assert_colorize(self.log_tensorboard, 'Must set up tensorboard writer beforehand')
             self.stats = self._setup_stats_logs(args['env_stats']['times'], args['env_stats']['stats'])
 
         # initialize session and global variables
@@ -226,7 +230,7 @@ class Model(Module):
 
     def log_stats(self, **kwargs):
         if 'worker_no' not in kwargs:
-            assert len(self.stats) == 1, 'Specify worker_no for multi-worker logs'
+            assert_colorize(len(self.stats) == 1, 'Specify worker_no for multi-worker logs')
             no = 0
         else:
             no = kwargs['worker_no']
@@ -234,7 +238,7 @@ class Model(Module):
         
         feed_dict = {}
         for k, v in kwargs.items():
-            assert k in self.stats[no], f'{k} is not a valid stats type'
+            assert_colorize(k in self.stats[no], f'{k} is not a valid stats type')
             feed_dict.update({self.stats[no][k]: v})
 
         score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
