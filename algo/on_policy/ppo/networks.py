@@ -14,7 +14,6 @@ class ActorCritic(Base):
                  graph,
                  env_vec,
                  env_phs,
-                 minibatch_size,
                  scope_prefix,
                  log_tensorboard=False,
                  log_params=False):

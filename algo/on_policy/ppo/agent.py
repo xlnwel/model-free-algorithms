@@ -33,7 +33,6 @@ class Agent(Model):
 
         self.entropy_coef = args['ac']['entropy_coef']
         self.n_minibatches = args['n_minibatches']
-        self.minibach_size = self.seq_len // self.n_minibatches
         self.minibatch_idx = 0
 
         # environment info
@@ -48,8 +47,9 @@ class Agent(Model):
                          reuse=reuse,
                          graph=graph)
 
-        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches, self.minibach_size,
-                                self.env_vec.state_space, self.env_vec.action_dim, args['mask'])
+        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
+                                self.env_vec.state_space, self.env_vec.action_dim, 
+                                args['mask'], self.use_rnn)
 
         if self.use_rnn:
             self.last_lstm_state = None
@@ -57,7 +57,6 @@ class Agent(Model):
         with self.graph.as_default():
             self.variables = TensorFlowVariables(self.ac.loss, self.sess)
 
-    """ code for single agent """
     def optimize(self):
         get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
 
@@ -90,7 +89,7 @@ class Agent(Model):
         else:
             _, loss_info, (opt_step, summary) = results
 
-        self.minibatch_idx = self.minibatch_idx + 1 if self.minibatch_idx + 1 < self.n_minibatches else 0
+        self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
 
         if opt_step % (self.args['n_updates'] * self.args['n_minibatches']) == 0:
             self.writer.add_summary(summary, opt_step)
@@ -137,6 +136,9 @@ class Agent(Model):
         print(f'Demonstration score:\t{self.env_vec.get_episode_score()}')
         print(f'Demonstration length:\t{self.env_vec.get_episode_length()}')
 
+    def shuffle_buffer(self):
+        self.buffer.shuffle()
+        
     """ Implementation """
     def _build_graph(self):
         self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)
@@ -146,7 +148,6 @@ class Agent(Model):
                               self.graph,
                               self.env_vec, 
                               self.env_phs,
-                              self.minibach_size,
                               self.name, 
                               log_tensorboard=self.log_tensorboard,
                               log_params=self.log_params)
