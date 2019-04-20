@@ -32,24 +32,23 @@ class PrioritizedReplay(Replay):
 
         return samples
 
+    def add(self, state, action, reward, next_state, done):
+        if self.n_steps > 1:
+            self.temporary_buffer['priority'][self.tb_idx] = self.top_priority
+        super().add(state, action, reward, next_state, done)
+
     def update_priorities(self, priorities, saved_exp_ids):
         with self.locker:
             for priority, exp_id in zip(priorities, saved_exp_ids):
                 self.data_structure.update(priority, exp_id)
 
+    """ Implementation """
     def _compute_IS_ratios(self, N, probabilities):
         IS_ratios = np.power(probabilities * N, -self.beta)
         IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upwards
 
         return IS_ratios
     
-    # Code for single agent
-    def add(self, state, action, reward, next_state, done):
-        if self.n_steps > 1:
-            self.temporary_buffer['priority'][self.tb_idx] = self.top_priority
-        super().add(state, action, reward, next_state, done)
-
-    """ Implementation """
     def _update_beta(self):
         self.beta = min(self.beta + self.beta_grad, 1)
 

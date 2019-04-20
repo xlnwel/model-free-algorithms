@@ -20,14 +20,14 @@ class GridSearch:
         # add date to root directory
         now = datetime.now()
         for root_dir in ['model_root_dir', 'log_root_dir']:
-            self.agent_args[root_dir] = (f'data/{dir_prefix}'
+            self.agent_args[root_dir] = (f'data/'
                                         f'{now.month:02d}{now.day:02d}-'
                                         f'{now.hour:02d}{now.minute:02d}-'
+                                        f'{dir_prefix}-'
                                         f'{self.agent_args["algorithm"]}-'
                                         f'{self.env_args["name"]}/' 
                                         f'{self.agent_args[root_dir]}')
 
-        self.agent_args['model_dir'] = ''
         self.processes = []
 
     def __call__(self, **kwargs):
@@ -90,10 +90,10 @@ class GridSearch:
                 v = [v]
             if len(v) != 0:
                 break
-        return k, v
+        return deepcopy(k), deepcopy(v)
 
     def _recursive_trial(self, arg, key, value, kwargs):
-        assert_colorize(isinstance(value, list), f'Expect value of type list, not {type(value)}')
+        assert_colorize(isinstance(value, list), f'Expect value of type list, not {type(value)}: {value}')
         for v in value:
             arg[key] = v
             self._safe_call(f'-{key}={v}', lambda: self._change_args(**kwargs))

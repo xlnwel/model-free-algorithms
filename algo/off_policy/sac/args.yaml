@@ -1,46 +1,53 @@
 ---
 env:
-    name: &env_name LunarLanderContinuous-v2
+    name: &env_name BipedalWalker-v2
     max_episode_steps: 1000
     seed: 0
 agent:
     algorithm: sac
-    temperature: 0.2
+    temperature: 0.01
     gamma: &gamma 0.99
-    batch_size: &batch_size 128
+    batch_size: &batch_size 64
     n_workers: &n_workers 10
     prefetches: 5
 
-    # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
-    # tensorboard path: log_root_dir/model_dir/model_name
+    # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
+    # tensorboard path: log_root_dir/model_name
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
-    model_dir: *env_name
     model_name: baseline
 
     loss_type: mse            # huber or mse
     n_steps: &n_steps 3
     priority: Q               # Q or V
     policy_delay: 1
-    n_epochs: 5000
+    n_epochs: 10000
     
     policy:
+        n_noisy: 2
         noisy_sigma: 0.4    # standard deviation for noisy layers
-        units: [64, 64]
+        units: [512, 256, 128]
+        layernorm: True
         # args for optimizer
         learning_rate: 1e-4
-        layernorm: True
+        decay_rate: &decay_rate 1.
+        decay_steps: &decay_steps 1e4
     V:
         polyak: .995      # moving average rate
-        units: &critic_units [64, 64]
-        # args for optimizer
-        learning_rate: &critic_lr 1e-4
+        units: &critic_units [512, 512, 256]
         layernorm: True
+        # args for optimizer
+        learning_rate: &critic_lr 3e-4
+        layernorm: True
+        decay_rate: *decay_rate
+        decay_steps: *decay_steps
     Q:
         units: *critic_units
+        layernorm: True
         # args for optimizer
         learning_rate: *critic_lr
-        layernorm: True
+        decay_rate: *decay_rate
+        decay_steps: *decay_steps
 
     env_stats:
         times: *n_workers

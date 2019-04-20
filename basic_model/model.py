@@ -10,7 +10,7 @@ from utility.yaml_op import save_args
 from basic_model.layer import Layer
 """ 
 Module defines the basic functions to build a tesorflow graph
-Model further defines save & restore functionns based onn Module
+Model further defines save & restore functionns based on Module
 For example, Actor-Critic should inherit Module and DDPG should inherit Model
 since we generally save parameters all together in DDPG
 """
@@ -60,16 +60,18 @@ class Module(Layer):
                 self._build_graph()
 
     @property
+    def scope(self):
+        return getattr(self, 'variable_scope') if hasattr(self, 'variable_scope')  else self.name
+
+    @property
     def global_variables(self):
         # variable_scope is defined by sub-class if needed
-        scope = getattr(self, 'variable_scope') if hasattr(self, 'variable_scope')  else self.name
-        return self.graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+        return self.graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
 
     @property
     def trainable_variables(self):
         # variable_scope is defined by sub-class if needed
-        scope = getattr(self, 'variable_scope') if hasattr(self, 'variable_scope')  else self.name
-        return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
+        return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.scope)
         
     @property
     def perturbable_variables(self):
@@ -140,6 +142,7 @@ class Module(Layer):
         return opt_op
 
 
+""" Restore suffers some mysterious bugs... Too busy to fix. TF2.X will change the interface anyway """
 class Model(Module):
     """ Interface """
     def __init__(self, 
@@ -185,9 +188,12 @@ class Model(Module):
 
         # initialize session and global variables
         if sess_config is None:
-            sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
-                                         inter_op_parallelism_threads=1,
-                                         allow_soft_placement=True)
+            if 'n_workers' in args and args['n_workers'] > 1:
+                sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
+                                             inter_op_parallelism_threads=1,
+                                             allow_soft_placement=True)
+            else:
+                sess_config = tf.ConfigProto(allow_soft_placement=True)
             # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         sess_config.gpu_options.allow_growth=True
         self.sess = tf.Session(graph=self.graph, config=sess_config)
@@ -197,9 +203,8 @@ class Model(Module):
             
         if save:
             self.saver = self._setup_saver(save)
-            self.model_name, self.model_dir, self.model_file = self._setup_model_path(
+            self.model_name, self.model_file = self._setup_model_path(
                 args['model_root_dir'],
-                args['model_dir'],
                 args['model_name']
             )
             self.restore()
@@ -212,10 +217,11 @@ class Model(Module):
         with self.graph.as_default():
             super().build_graph()
 
-    def restore(self):
+    def restore(self, model_file=None):
         """ To restore the most recent model, simply leave filename None
         To restore a specific version of model, set filename to the model stored in saved_models
         """
+        model_file = model_file if model_file else self.model_file
         try:
             self.saver.restore(self.sess, self.model_file)
         except:
@@ -226,25 +232,10 @@ class Model(Module):
 
     def save(self):
         if hasattr(self, 'saver'):
-            self.saver.save(self.sess, self.model_file)
+            return self.saver.save(self.sess, self.model_file)
 
     def log_stats(self, **kwargs):
-        if 'worker_no' not in kwargs:
-            assert_colorize(len(self.stats) == 1, 'Specify worker_no for multi-worker logs')
-            no = 0
-        else:
-            no = kwargs['worker_no']
-            del kwargs['worker_no']
-        
-        feed_dict = {}
-        for k, v in kwargs.items():
-            assert_colorize(k in self.stats[no], f'{k} is not a valid stats type')
-            feed_dict.update({self.stats[no][k]: v})
-
-        score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
-                                            feed_dict=feed_dict)
-
-        self.writer.add_summary(summary, score_count)
+        self._log_stats_impl(kwargs)
 
     def log_tabular(self, key, value):
         self.logger.log_tabular(key, value)
@@ -272,26 +263,25 @@ class Model(Module):
                         
                         with tf.control_dependencies([step_op]):
                             stats[i]['log_op'] = tf.summary.merge(merge_inputs, name='log_op')
-        
+
         return stats
 
     def _setup_saver(self, save):
         return tf.train.Saver(self.global_variables) if save else None
 
-    def _setup_model_path(self, root_dir, model_dir, model_name):
-        model_dir = Path(root_dir) / model_dir / model_name
+    def _setup_model_path(self, root_dir, model_name):
+        model_dir = Path(root_dir) / model_name
 
         if not model_dir.is_dir():
             model_dir.mkdir(parents=True)
 
         model_file = str(model_dir / 'ckpt')
-        return model_name, str(model_dir), model_file
+        return model_name, model_file
 
     def _setup_tensorboard_summary(self):
         with self.graph.as_default():
             graph_summary = tf.summary.merge_all()
             filename = os.path.join(self.args['log_root_dir'], 
-                                    self.args['model_dir'], 
                                     self.args['model_name'])
             writer = tf.summary.FileWriter(filename, self.graph)
             atexit.register(writer.close)
@@ -300,9 +290,27 @@ class Model(Module):
 
     def _setup_logger(self):
         log_dir = os.path.join(self.args['log_root_dir'], 
-                                self.args['model_dir'], 
                                 self.args['model_name'])
         
         logger = Logger(log_dir, exp_name=self.args['model_name'])
 
         return logger
+
+    def _log_stats_impl(self, kwargs):
+        if 'worker_no' not in kwargs:
+            assert_colorize(len(self.stats) == 1, 'Specify worker_no for multi-worker logs')
+            no = 0
+        else:
+            no = kwargs['worker_no']
+            del kwargs['worker_no']
+        
+        feed_dict = {}
+
+        for k, v in kwargs.items():
+            assert_colorize(k in self.stats[no], f'{k} is not a valid stats type')
+            feed_dict.update({self.stats[no][k]: v})
+
+        score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
+                                            feed_dict=feed_dict)
+
+        self.writer.add_summary(summary, score_count)

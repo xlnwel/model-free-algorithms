@@ -7,8 +7,8 @@ from ray.experimental.tf_utils import TensorFlowVariables
 
 from utility.logger import Logger
 from basic_model.model import Model
-from env.gym_env import GymEnv
-from replay.local_buffer import LocalBuffer
+from env.gym_env import GymEnv, GymEnvVec
+from algo.off_policy.apex.buffer import LocalBuffer
 from replay.proportional_replay import ProportionalPrioritizedReplay
 
 
@@ -33,9 +33,7 @@ class OffPolicyOperation(Model):
         self.update_step = 0
 
         # environment info
-        self.env = GymEnv(env_args)
-        self.max_path_length = (env_args['max_episode_steps'] if 'max_episode_steps' in env_args 
-                                 else self.env.max_episode_steps)
+        self.env = GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1 else GymEnv(env_args)
         self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
         
@@ -61,6 +59,10 @@ class OffPolicyOperation(Model):
 
         with self.graph.as_default():
             self.variables = TensorFlowVariables(self.loss, self.sess)
+        
+    @property
+    def max_path_length(self):
+        return self.env.max_episode_steps
     
     def act(self, state, return_q=False):
         state = state.reshape((-1, *self.state_space))
@@ -89,7 +91,7 @@ class OffPolicyOperation(Model):
             duration, _ = timeit(self.learn)
             lt.append(duration)
             if i % 1000 == 0:
-                print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f} to learn 1000 times')
+                print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f}s to learn 1000 times')
                 i = 0
                 lt = []
 

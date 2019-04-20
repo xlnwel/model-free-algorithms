@@ -1,9 +1,12 @@
-import os,sys
+import os, sys
 import argparse
 import logging
+from copy import deepcopy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from run.grid_search import GridSearch
+from utility.yaml_op import load_args
+from utility.utils import assert_colorize
 
 
 def parse_cmd_args():
@@ -23,6 +26,9 @@ def parse_cmd_args():
                         type=int,
                         default=1)
     parser.add_argument('--prefix', '-p',
+                        default='')
+    parser.add_argument('--file', '-f',
+                        type=str,
                         default='')
     args = parser.parse_args()
 
@@ -55,13 +61,27 @@ if __name__ == '__main__':
 
     render = True if cmd_args.render == 'true' else False
 
-    gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials, dir_prefix=cmd_args.prefix)
+    if cmd_args.file != '':
+        args = load_args(arg_file)
+        env_args = args['env']
+        agent_args = args['agent']
+        buffer_args = args['buffer'] if 'buffer' in args else {}
+        model_file = cmd_args.file
+        assert_colorize(os.path.exists(model_file), 'Model file does not exists')
+        agent_args['model_root_dir'], agent_args['model_name'] = os.path.split(model_file)
+        agent_args['log_root_dir'], _ = os.path.split(agent_args['model_root_dir'])
+        agent_args['log_root_dir'] += '/logs'
 
-    # Grid search happens here
-    if algorithm == 'ppo':
-        gs(ac={'actor_units': (512, 256, 256), 'critic_units': (512, 512, 256)})
-    elif algorithm == 'td3':
-        gs()
-        # gs(actor={'units': (64, 64)}, critic={'units': (64, 64)}, name='LunarLanderContinuous-v2', n_epochs=5000)
-    elif algorithm == 'sac':
-        gs(temperature=[.2, .01])
+        main(env_args, agent_args, buffer_args, render=render)
+    else:
+        prefix = cmd_args.prefix + ('dist' if distributed else '') 
+        gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials, dir_prefix=prefix)
+
+        args = {'units': [(1024, 512, 256), (1024, 512, 512, 256)]}
+        # Grid search happens here
+        if algorithm == 'ppo':
+            gs(n_envs=[10, 20])
+        elif algorithm == 'td3':
+            gs()
+        elif algorithm == 'sac':
+            gs()

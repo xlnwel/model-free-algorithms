@@ -8,6 +8,7 @@ from collections import deque
 import numpy as np
 
 from utility import utils
+from utility.debug_tools import timeit
 
 
 def train(agent, render, n_epochs, print_terminal_info=False):
@@ -18,11 +19,13 @@ def train(agent, render, n_epochs, print_terminal_info=False):
     for i in range(1, n_epochs + 1):
         state = agent.env.reset()
         start = time.time()
+        action_time = 0
 
-        for _ in range(1000):
+        for _ in range(agent.max_path_length):
             if render:
                 agent.env.render()
-            action = agent.act(state)
+            t, action = timeit(lambda: agent.act(state))
+            action_time += t
             next_state, reward, done, _ = agent.env.step(action)
 
             agent.add_data(state, action, reward, next_state, done)
@@ -43,6 +46,7 @@ def train(agent, render, n_epochs, print_terminal_info=False):
             'ModelName': agent.args['algorithm'],
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
+            'AvgActionTime': action_time / eps_len,
             'Score': score,
             'AvgScore': avg_score,
             'EpsLen': eps_len,
@@ -67,10 +71,10 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
     lt = threading.Thread(target=agent.background_learning, daemon=True)
     lt.start()
-    model = Path(agent_args['model_dir']) / agent_args['model_name']
+    model = agent_args['model_name']
     print(f'Model {model} starts training')
     
     train(agent, render, agent_args['n_epochs'])

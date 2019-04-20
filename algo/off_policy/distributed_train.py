@@ -7,24 +7,24 @@ import ray
 
 from utility.yaml_op import load_args
 from replay.proportional_replay import ProportionalPrioritizedReplay
+from algo.off_policy.apex.worker import get_worker
+from algo.off_policy.apex.learner import get_learner
 
 
 def main(env_args, agent_args, buffer_args, render=False):
     if agent_args['algorithm'] == 'td3':
-        from algo.off_policy.td3.learner import Learner
-        from algo.off_policy.td3.worker import Worker
+        from algo.off_policy.td3.agent import Agent
     elif agent_args['algorithm'] == 'sac':
-        from algo.off_policy.sac.learner import Learner
-        from algo.off_policy.sac.worker import Worker
+        from algo.off_policy.sac.agent import Agent
     else:
         raise NotImplementedError
 
     if 'n_workers' not in agent_args:
-        agent_args['n_workers'] = cpu_count() - 2
-    ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
+        agent_args['n_workers'] = cpu_count() - 1
+    ray.init(num_cpus=agent_args['n_workers'] + 1, num_gpus=1)
 
     agent_name = 'Agent'
-    learner = Learner.remote(agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
+    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
 
     workers = []
     buffer_args['type'] = 'local'
@@ -34,8 +34,8 @@ def main(env_args, agent_args, buffer_args, render=False):
             agent_args['actor']['noisy_sigma'] = .4
         else:
             agent_args['actor']['noisy_sigma'] = np.random.randint(4, 10) * .1
-        worker = Worker.remote(agent_name, worker_no, agent_args, env_args, buffer_args, 
-                                max_episodes, device='/cpu: {}'.format(worker_no + 1))
+        worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
+                            max_episodes, device='/cpu: {}'.format(worker_no + 1))
         workers.append(worker)
 
     pids = [worker.sample_data.remote(learner) for worker in workers]

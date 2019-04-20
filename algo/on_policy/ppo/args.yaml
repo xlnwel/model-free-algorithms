@@ -3,7 +3,7 @@ n_experiments: 1 # 1 run the following configuration, otherwise, run test code i
 env:
     name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
     max_episode_steps: &seq_len 1000
-    n_envs: 40
+    n_envs: 20
     seed: 0
 agent:
     algorithm: ppo
@@ -15,28 +15,27 @@ agent:
     n_minibatches: 1        # #minibatches a sequence is divided into 
     # batch size = seq_len * n_envs * n_workers
     n_updates: 5            # #updates per epoch
-    n_epochs: 2000
+    n_epochs: 5000
     mask: True
 
     advantage_type: norm      # norm or gae
 
-    # model path: model_root_dir/model_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
-    # tensorboard path: log_root_dir/model_dir/model_name
+    # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
+    # tensorboard path: log_root_dir/model_name
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
-    model_dir: *env_name
     model_name: baseline
 
     ac:
         learning_rate: 3e-4
         use_rnn: True
-        actor_units: [500, 300, 200]
+        actor_units: [512, 256, 256]
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
-        critic_units: [500, 400, 300]
+        critic_units: [512, 512, 256]
         value_coef: 2
         value_loss_type: clip    # mse or clip
 
     env_stats:
         times: 1
-        stats: [score, avg_score, eps_len, avg_eps_len, approx_kl, clip_frac]
+        stats: [avg_score, std_score, max_score, min_score, avg_eps_len, approx_kl, clip_frac]

@@ -19,7 +19,7 @@ class Base(Module):
         x = state
         with tf.variable_scope(name, reuse=reuse):
             for i, u in enumerate(units):
-                if i == 1:
+                if i <= 2:
                     x = tf.concat([x, action], 1)
                 x = self.dense_norm_activation(x, u, norm=norm)
 

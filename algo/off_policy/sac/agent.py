@@ -93,13 +93,13 @@ class Agent(OffPolicyOperation):
     def _loss(self, policy, Vs, Qs, logpi):
         with tf.name_scope('loss'):
             with tf.name_scope('actor_loss'):
-                actor_loss = tf.reduce_mean(self.temperature * logpi - Qs.Q1_with_actor)
+                actor_loss = tf.reduce_mean(self.data['IS_ratio'] * (self.temperature * logpi - Qs.Q1_with_actor))
 
             loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
             with tf.name_scope('V_loss'):
                 target_V = tf.stop_gradient(Qs.Q_with_actor - self.temperature * logpi, name='target_V')
                 TD_error = tf.abs(target_V - Vs.V)
-                V_loss = tf.reduce_mean(loss_func(TD_error))
+                V_loss = tf.reduce_mean(self.data['IS_ratio'] * (loss_func(TD_error)))
 
             with tf.name_scope('Q_loss'):
                 target_Q = n_step_target(self.data['reward'], self.data['done'], 
@@ -107,8 +107,8 @@ class Agent(OffPolicyOperation):
                 Q1_error = tf.abs(target_Q - Qs.Q1)
                 Q2_error = tf.abs(target_Q - Qs.Q2)
 
-                Q1_loss = tf.reduce_mean(loss_func(Q1_error))
-                Q2_loss = tf.reduce_mean(loss_func(Q2_error))
+                Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * (loss_func(Q1_error)))
+                Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * (loss_func(Q2_error)))
                 Q_loss = Q1_loss + Q2_loss
 
             loss = actor_loss + V_loss + Q_loss
@@ -131,19 +131,3 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('V_loss_', self.V_loss)
                 tf.summary.scalar('Q_loss_', self.Q_loss)
                 tf.summary.scalar('loss_', self.loss)
-            
-            with tf.name_scope('critic'):
-                stats_summary(self.Q_nets.Q_with_actor, 'Q_with_actor')
-                stats_summary(self.V_nets.V, 'V')
-                stats_summary(self.V_nets.V_next, 'V_next')
-                stats_summary(self.priority, 'priority')
-
-            with tf.name_scope('actor'):
-                stats_summary(self.actor.action_distribution.mean, 'action_mean')
-                stats_summary(self.actor.action_distribution.std, 'action_std')
-                stats_summary(self.actor.orig_action, 'orig_action')
-                stats_summary(self.action, 'action')
-                stats_summary(self.actor.orig_logpi, 'orig_logpi')
-                stats_summary(self.logpi, 'logpi')
-                stats_summary(self.actor.sub, 'sub')
-                stats_summary(self.actor.sub2, 'sub2')

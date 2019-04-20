@@ -1,6 +1,5 @@
 import os
 import time
-from collections import deque
 import numpy as np
 
 from utility import utils
@@ -8,8 +7,6 @@ from algo.on_policy.ppo.agent import Agent
 
 
 def train(agent, agent_args, test_agent):
-    score_deque = deque(maxlen=100)
-    eps_len_deque = deque(maxlen=100)
     for i in range(1, agent_args['n_epochs'] + 1):
         start = time.time()
         env_stats = agent.sample_trajectories()
@@ -17,8 +14,7 @@ def train(agent, agent_args, test_agent):
         loss_info_list = []
         for _ in range(agent_args['n_updates']):
             if not agent_args['ac']['use_rnn']:
-                # shuffle data when RNN is not used
-                agent.buffer.shuffle()
+                agent.shuffle_buffer()
             for _ in range(agent_args['n_minibatches']):
                 loss_info = agent.optimize()
 
@@ -26,30 +22,29 @@ def train(agent, agent_args, test_agent):
 
         # score logging
         scores, eps_lens = env_stats
-        score = np.mean(scores)
-        eps_len = np.mean(eps_lens)
-        score_deque.append(score)
-        eps_len_deque.append(eps_len)
+        avg_score = np.mean(scores)
+        std_score = np.std(scores)
+        max_score = np.max(scores)
+        min_score = np.min(scores)
+        avg_eps_len = np.mean(eps_lens)
         
         # data logging
         loss_info = list(zip(*loss_info_list))
         ppo_loss, entropy, value_loss, total_loss, approx_kl, clip_frac = loss_info
 
-        avg_score = np.mean(score_deque)
         approx_kl = np.mean(approx_kl)
         clip_frac = np.mean(clip_frac)
-        agent.log_stats(score=score, avg_score=avg_score,
-                        eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque),
-                        approx_kl=approx_kl, clip_frac=clip_frac)
+        agent.log_stats(avg_score=avg_score, std_score=std_score, max_score=max_score, min_score=min_score,
+                        avg_eps_len=avg_eps_len, approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
-            'ModelName': agent_args['model_name'],
+            'ModelName': 'ppo',
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
-            'AverageScore': score,
-            'StdScore': np.std(scores),
-            'MaxScore': np.max(scores),
-            'MinScore': np.min(scores),
+            'AverageScore': avg_score,
+            'StdScore': std_score,
+            'MaxScore': max_score,
+            'MinScore': min_score,
             'PPOLoss': np.mean(ppo_loss),
             'Entropy': np.mean(entropy),
             'ValueLoss': np.mean(value_loss),
@@ -69,10 +64,10 @@ def main(env_args, agent_args, buffer_args, render=False):
     if 'n_workers' in agent_args:
         del agent_args['n_workers']
 
-    agent_name = 'agent'
+    agent_name = 'Agent'
     agent = Agent(agent_name, agent_args, env_args, device='/gpu:0')
 
-    model = os.path.join(agent_args['model_dir'], agent_args['model_name'])
+    model = agent_args['model_name']
     print(f'Model {model} starts training')
 
     test_agent = None

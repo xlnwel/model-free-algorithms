@@ -137,8 +137,9 @@ class Agent(Model):
         print(f'Demonstration length:\t{self.env_vec.get_episode_length()}')
 
     def shuffle_buffer(self):
-        self.buffer.shuffle()
-        
+        if not self.use_rnn:
+            self.buffer.shuffle()
+
     """ Implementation """
     def _build_graph(self):
         self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)

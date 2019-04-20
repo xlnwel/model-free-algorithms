@@ -41,8 +41,8 @@ def main():
 
     use_legend = False
     if args.legend is not None:
-        assert len(args.legend) == len(args.logdir), \
-            "Must give a legend title for each set of experiments."
+        assert_colorize(len(args.legend) == len(args.logdir),
+            "Must give a legend title for each set of experiments.")
         use_legend = True
 
     data = []

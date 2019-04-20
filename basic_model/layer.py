@@ -308,17 +308,8 @@ class Layer():
         return x
 
     def lstm(self, x, units, return_sequences=False):
-        if isinstance(units, int):
-            num_layers = 1
-            units = [units]
-        else:
-            num_layers = len(units)
+        lstm_cell = tk.layers.CuDNNLSTM(units, return_sequences=return_sequences, return_state=True)
         
-        if num_layers == 1:
-            lstm_cell = tk.layers.CuDNNLSTM(units[0], return_sequences=return_sequences, return_state=True)
-        else:
-            cells = [tk.layers.CuDNNLSTM(n, return_sequences=return_sequences, return_state=True) for n in units]
-            lstm_cell = tk.layers.StackedRNNCells(cells)
         initial_state = lstm_cell.get_initial_state(x)
         x, h, c = lstm_cell(x, initial_state=initial_state)
         final_state = (h, c)

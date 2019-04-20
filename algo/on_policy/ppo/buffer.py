@@ -1,18 +1,23 @@
 import numpy as np
 
-from utility.utils import normalize
+from utility.utils import normalize, assert_colorize
 
 
 class PPOBuffer(dict):
-    def __init__(self, n_envs, seq_len, n_minibatches, minibatch_size, state_space, action_dim, mask):
-        assert seq_len // n_minibatches == minibatch_size
+    def __init__(self, n_envs, seq_len, n_minibatches, state_space, action_dim, mask, use_rnn):
         self.n_envs = n_envs
         self.seq_len = seq_len
-        self.minibatch_size = minibatch_size
+        self.n_minibatches = n_minibatches
+        # self.minibatch_size = n_envs // n_minibatches if use_rnn else seq_len // n_minibatches
+        self.minibatch_size = seq_len // n_minibatches
         self.mask = mask
 
-        self.indices = np.arange(seq_len)
         self.idx = 0
+        
+        # self.use_rnn = use_rnn
+        # index environment dimension when using rnn, sequence dimension when not
+        # self.indices = np.arange(n_envs) if use_rnn else np.arange(seq_len)
+        self.indices = np.arange(seq_len)
 
         basic_shape = (n_envs, seq_len)
         super().__init__({
@@ -27,7 +32,7 @@ class PPOBuffer(dict):
         })
 
     def add(self, state, action, reward, value, logpi, nonterminal):
-        assert self.idx < self.seq_len, f'Out-of-range idx {self.idx}. Call self.reset() beforehand'
+        assert_colorize(self.idx < self.seq_len, f'Out-of-range idx {self.idx}. Call self.reset() beforehand')
         idx = self.idx
         self['state'][:, idx] = state
         self['action'][:, idx] = action
@@ -40,8 +45,9 @@ class PPOBuffer(dict):
     def get_flat_batch(self, key, batch_idx):
         start = batch_idx * self.minibatch_size
         end = (batch_idx + 1) * self.minibatch_size
-
-        shape = (self.n_envs * self.minibatch_size, *(self[key].shape[2:] if len(self[key].shape) > 2 else (-1, )))
+        
+        shape = (self.n_envs * self.seq_len // self.n_minibatches, *(self[key].shape[2:] if len(self[key].shape) > 2 else (-1, )))
+        # result = (self[key][self.indices[start: end], :self.seq_len] if self.use_rnn else self[key][:, self.indices[start: end]]).reshape(shape)
         result = self[key][:, self.indices[start: end]].reshape(shape)
 
         return result

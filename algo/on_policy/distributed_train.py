@@ -18,8 +18,8 @@ def main(env_args, agent_args, buffer_args, render=False):
 
     ray.init(num_cpus=n_workers+1, num_gpus=1)
 
-    learner = Learner.remote('agent', agent_args, env_args)
-    workers = [Worker.remote('agent', i, agent_args, env_args) for i in range(n_workers)]
+    learner = Learner.remote('Agent', agent_args, env_args)
+    workers = [Worker.remote('Agent', i, agent_args, env_args) for i in range(n_workers)]
     
     weights_id = learner.get_weights.remote()
     score_deque = deque(maxlen=100)

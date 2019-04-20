@@ -8,34 +8,37 @@ agent:
     gamma: &gamma 0.99
     polyak: 0.995      # moving average rate
     batch_size: &batch_size 64
-    n_workers: &n_workers 20
+    n_workers: &n_workers 10
     prefetches: 5
 
-    # model path: model_root_dir/model_dir/model_name
-    # tensorboard path: log_root_dir/model_dir/model_name
+    # model path: model_root_dir/model_name
+    # tensorboard path: log_root_dir/model_name
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
-    model_dir: *env_name
     model_name: baseline
 
     n_steps: &n_steps 3
     policy_delay: 1     # policy will be updated once every policy_delay steps
-    n_epochs: 3000
+    n_epochs: 10000
     
     actor:
-        n_fc: 1
+        n_noisy: 2
         units: [512, 256, 128]
         noisy_sigma: 0.4    # standard deviation for noisy layers
+        layernorm: True
         # args for optimizer
         learning_rate: 1e-4
-        layernorm: True
+        decay_rate: &decay_rate .95
+        decay_steps: &decay_steps 1e4
         
     critic:
         units: [512, 512, 256]
         loss_type: mse   # huber or mse
+        layernorm: True
         # args for optimizer
         learning_rate: 3e-4
-        layernorm: True
+        decay_rate: *decay_rate
+        decay_steps: *decay_steps
 
     env_stats:
         times: *n_workers
@@ -54,3 +57,5 @@ buffer:
     beta_steps: 1e5
     min_size: 1e3
     capacity: 1e6
+
+    local_capacity: 100

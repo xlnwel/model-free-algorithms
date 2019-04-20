@@ -4,11 +4,6 @@ from tensorflow.contrib.layers import layer_norm
 from basic_model.basic_nets import Base
 
 
-def clip_but_pass_gradient(x, l=-1., u=1.):
-    clip_up = tf.cast(x > u, tf.float32)
-    clip_low = tf.cast(x < l, tf.float32)
-    return x + tf.stop_gradient((u - x)*clip_up + (l - x)*clip_low)
-    
 class SoftPolicy(Base):
     """ Interface """
     def __init__(self,
@@ -37,40 +32,32 @@ class SoftPolicy(Base):
 
         self.action_distribution = self.env.action_dist_type((mean, logstd))
 
-        self.orig_action = self.action_distribution.sample()
-        self.orig_logpi = self.action_distribution.logp(self.orig_action)
+        orig_action = self.action_distribution.sample()
+        orig_logpi = self.action_distribution.logp(orig_action)
 
         # Enforcing action bound
-        # self.action = tf.tanh(self.orig_action)
-        # self.sub2 = tf.reduce_sum(tf.log(clip_but_pass_gradient(1 - self.action**2, l=0, u=1) + 1e-6), axis=1)
-        # self.sub = 2 * tf.reduce_sum(tf.log(2.) + self.orig_action - tf.nn.softplus(2 * self.orig_action), axis=1)
-        # self.logpi = self.orig_logpi - self.sub
-        self.action, self.logpi = self._squash_correction(self.orig_action, self.orig_logpi)
+        self.action, self.logpi = self._squash_correction(orig_action, orig_logpi)
 
     def _stochastic_policy_net(self, state, units, action_dim, norm):
         x = state
         with tf.variable_scope('policy_net'):
-            for u in units:
-                x = self.dense_norm_activation(x, u, norm=norm)
+            for i, u in enumerate(units):
+                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else self.noisy_norm_activation
+                x = layer(x, u, norm=norm)
 
             mean = self.dense(x, action_dim)
 
             # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-            # implemented following the implementation of OpenAI Spinning Up
-            # logstd = self.dense_norm_activation(x, action_dim, norm=None, activation=tf.tanh)
-            # LOG_STD_MAX = 2
-            # LOG_STD_MIN = -20
-            # logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
             logstd = self.dense(x, action_dim)
             logstd = tf.clip_by_value(logstd, -20., 2.)
 
         return mean, logstd
 
     def _squash_correction(self, action, logpi):
-        action_new = tf.tanh(action)
-        self.sub2 = tf.reduce_sum(tf.log(clip_but_pass_gradient(1 - action_new**2, l=0, u=1) + 1e-6), axis=1)
-        self.sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1)
-        logpi -= self.sub
+        with tf.name_scope('squash'):
+            action_new = tf.tanh(action)
+            sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1)
+            logpi -= sub
 
         return action_new, logpi
 
