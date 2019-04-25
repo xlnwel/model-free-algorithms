@@ -8,7 +8,7 @@ from utility.utils import pwc
 
 def get_worker(BaseClass, *args, **kwargs):
 
-    @ray.remote(num_cpus=.5)
+    @ray.remote(num_cpus=1)
     class Worker(BaseClass):
         """ Interface """
         def __init__(self, 
@@ -76,8 +76,8 @@ def get_worker(BaseClass, *args, **kwargs):
                 stats = dict(score=score, avg_score=np.mean(score_deque), 
                             eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque), 
                             worker_no=self.no)
-                ray.get(learner.log_stats.remote(stats))
-
+                            
+                learner.log_stats.remote(stats)
                 
                 # pull weights from learner
                 if episode_i >= self.max_episodes:

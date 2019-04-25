@@ -80,7 +80,7 @@ if __name__ == '__main__':
         args = {'units': [(1024, 512, 256), (1024, 512, 512, 256)]}
         # Grid search happens here
         if algorithm == 'ppo':
-            gs(n_envs=[10, 20])
+            gs(ac=dict(common=True, value_coef=[.5, 1, 2]))
         elif algorithm == 'td3':
             gs()
         elif algorithm == 'sac':

@@ -245,7 +245,7 @@ class Model(Module):
 
     """ Implementation """
     def _setup_stats_logs(self, times, stats_info):
-        stats = [{}] * times
+        stats = [{} for _ in range(times)]
 
         with self.graph.as_default():
             with tf.variable_scope('stats'):
@@ -254,7 +254,7 @@ class Model(Module):
                     with tf.variable_scope(f'worker_{i}'):
                         stats[i]['counter'] = counter = tf.Variable(0, trainable=False, name='counter')
                         stats[i]['step_op'] = step_op = tf.assign(counter, counter + 1, name='counter_update')
-                        
+
                         merge_inputs = []
                         for info in stats_info:
                             stats[i][info] = info_ph = tf.placeholder(tf.float32, name=info)

@@ -9,7 +9,7 @@ from utility.logger import Logger
 from basic_model.model import Model
 from env.gym_env import GymEnv, GymEnvVec
 from algo.off_policy.apex.buffer import LocalBuffer
-from replay.proportional_replay import ProportionalPrioritizedReplay
+from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
 
 
 class OffPolicyOperation(Model):

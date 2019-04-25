@@ -12,9 +12,9 @@ agent:
     gamma: 0.99
     lam: 0.97
     seq_len: *seq_len
-    n_minibatches: 1        # #minibatches a sequence is divided into 
+    n_minibatches: 1        # number of minibatches a sequence is divided into 
     # batch size = seq_len * n_envs * n_workers
-    n_updates: 5            # #updates per epoch
+    n_updates: 5            # number of updates per epoch
     n_epochs: 5000
     mask: True
 
@@ -28,13 +28,18 @@ agent:
 
     ac:
         learning_rate: 3e-4
+        common: False           # if share initial dense and lstm layers
+        common_dense_units: [512, 512]
+        common_lstm_units: 256
         use_rnn: True
-        actor_units: [512, 256, 256]
+        actor_units: [256]
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
-        critic_units: [512, 512, 256]
+        critic_units: [256]
         value_coef: 2
         value_loss_type: clip    # mse or clip
+        rho: 1
+        c: 1
 
     env_stats:
         times: 1

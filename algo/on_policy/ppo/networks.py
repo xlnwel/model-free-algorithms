@@ -33,15 +33,22 @@ class ActorCritic(Base):
     def _build_graph(self):
         x = self.env_phs['state']
         
-        # actor & critic networks
-        actor_output = self._stochastic_policy_net(x, self.args['actor_units'], 
-                                                    self.env_vec.action_dim, 
-                                                    discrete=self.env_vec.is_action_discrete)
+        if self.args['common']:
+            x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_rnn)
+            x, self.initial_state, self.final_state = self._common_lstm(x, self.args['common_lstm_units'])
+            actor_output = self._policy_head(x, self.args['actor_units'], self.env_vec.action_dim, 
+                                            discrete=self.env_vec.is_action_discrete)
+            self.V = self._V_head(x, self.args['critic_units'])
+        else:
+            # independent actor & critic networks
+            actor_output = self._policy_net(x, self.args['actor_units'], 
+                                            self.env_vec.action_dim, 
+                                            discrete=self.env_vec.is_action_discrete)
 
-        self.V = self._V_net(x, self.args['critic_units'])
-        if self.use_rnn:
-            self.initial_state = [*self.actor_init_state, *self.critic_init_state]
-            self.final_state = [*self.actor_final_state, *self.critic_final_state]
+            self.V = self._V_net(x, self.args['critic_units'])
+            if self.use_rnn:
+                self.initial_state = [*self.actor_init_state, *self.critic_init_state]
+                self.final_state = [*self.actor_final_state, *self.critic_final_state]
 
         self.action_distribution = self.env_vec.action_dist_type(actor_output)
         self.action = self.action_distribution.sample()
@@ -53,14 +60,48 @@ class ActorCritic(Base):
         # optimizer
         self.optimizer, self.opt_step, self.grads_and_vars, self.opt_op = self._optimize(self.loss)
 
-    def _stochastic_policy_net(self, x, units, action_dim, 
-                               discrete=False, name='policy_net'):
+    def _common_dense(self, x, units, reshape_for_rnn=True, name='common_dense'):
+        with tf.variable_scope(name):
+            for u in units:
+                x = self.dense_norm_activation(x, u)
+            x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
+
+        return x
+
+    def _common_lstm(self, x, units, name='common_lstm'):
+        with tf.variable_scope(name):
+            x, (init_state, final_state) = self.lstm(x, units, return_sequences=True)
+            x = tf.reshape(x, (-1, units))
+
+        return x, init_state, final_state
+
+    def _policy_head(self, x, units, action_dim, discrete=False, name='policy_head'):
+        output_name = 'action_logits' if discrete else 'action_mean'
+        with tf.variable_scope(name):
+            x = self._feedforward_net(x, units, action_dim, output_name)
+
+            if discrete:
+                return x
+            else:
+                logstd = tf.get_variable('action_logstd', [action_dim], tf.float32)
+                
+                return x, logstd
+
+        return x
+
+    def _V_head(self, x, units, name='V_head'):
+        with tf.variable_scope(name):
+            x = self._feedforward_net(x, units, 1, name)
+
+        return x
+
+    def _policy_net(self, x, units, action_dim, discrete=False, name='policy_net'):
         output_name = 'action_logits' if discrete else 'action_mean'
         with tf.variable_scope(name):
             if self.use_rnn:
-                x, self.actor_init_state, self.actor_final_state = self.lstm_network(x, units, action_dim, output_name)
+                x, self.actor_init_state, self.actor_final_state = self._lstm_network(x, units, action_dim, output_name)
             else:
-                x = self.feedforward_net(x, units, action_dim, output_name)
+                x = self._feedforward_net(x, units, action_dim, output_name)
 
             if discrete:
                 return x
@@ -72,19 +113,20 @@ class ActorCritic(Base):
     def _V_net(self, x, units, name='V_net'):
         with tf.variable_scope(name):
             if self.use_rnn:
-                x, self.critic_init_state, self.critic_final_state = self.lstm_network(x, units, 1, 'V')
+                x, self.critic_init_state, self.critic_final_state = self._lstm_network(x, units, 1, 'V')
             else:
-                x = self.feedforward_net(x, units, 1, 'V')
+                x = self._feedforward_net(x, units, 1, 'V')
+
         return x
 
-    def feedforward_net(self, x, units, output_dim, output_name):
+    def _feedforward_net(self, x, units, output_dim, output_name):
         for u in units:
             x = self.dense_norm_activation(x, u)
         x = self.dense(x, output_dim, name=output_name)
 
         return x
 
-    def lstm_network(self, x, units, output_dim, output_name):
+    def _lstm_network(self, x, units, output_dim, output_name):
         assert len(units) == 3
         u1, u2, u3 = units
         x = self.dense_norm_activation(x, u1, norm=None)

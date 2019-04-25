@@ -1,6 +1,6 @@
 ``` shell
 conda create -n gym python=3.6
-pip install -r requirements.txt
+pip install -r requirements.yml
 ```
 
 ```shell
@@ -14,11 +14,25 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export OPENBLAS_NUM_THREADS=1
 
 # for full argument specification, please refer to run/train.py
-python run/train.py -a=sac
+python run/train.py -a=td3
 ```
 
-All off-policy algorithms use proportional replay as default experience replay buffer
+## Algorithms Implemented
+
+- [x]: Noisy Nets in Actor
+- [x]: Multi-Step Learning
+- [x]: PER
+- [x]: TD3
+- [x]: PPO
+- [x]: A3C
+- [x]: A2C
+- [x]: Apex
+
+## Some Common Implementation Details
+
+All off-policy algorithms use proportional replay as default experience replay buffer.
 Noisy nets are used as default exploration strategy.
+
 
 ## Paper References
 

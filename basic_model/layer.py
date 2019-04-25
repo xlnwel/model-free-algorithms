@@ -4,7 +4,7 @@ import tensorflow.contrib as tc
 import tensorflow.keras as tk
 
 from utility import tf_utils
-
+from utility.utils import assert_colorize, pwc
 
 # TODO: return layer object for TF V2
 class Layer():
@@ -308,6 +308,7 @@ class Layer():
         return x
 
     def lstm(self, x, units, return_sequences=False):
+        assert_colorize(len(x.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(x.shape.as_list())}')
         lstm_cell = tk.layers.CuDNNLSTM(units, return_sequences=return_sequences, return_state=True)
         
         initial_state = lstm_cell.get_initial_state(x)

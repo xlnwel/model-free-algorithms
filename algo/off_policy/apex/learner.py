@@ -8,7 +8,7 @@ from utility import tf_utils
 
 def get_learner(BaseClass, *args, **kwargs):
 
-    @ray.remote(num_gpus=1, num_cpus=1)
+    @ray.remote(num_gpus=1, num_cpus=2)
     class Learner(BaseClass):
         """ Interface """
         def __init__(self, 

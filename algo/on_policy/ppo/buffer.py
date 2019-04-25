@@ -8,15 +8,11 @@ class PPOBuffer(dict):
         self.n_envs = n_envs
         self.seq_len = seq_len
         self.n_minibatches = n_minibatches
-        # self.minibatch_size = n_envs // n_minibatches if use_rnn else seq_len // n_minibatches
         self.minibatch_size = seq_len // n_minibatches
         self.mask = mask
 
         self.idx = 0
         
-        # self.use_rnn = use_rnn
-        # index environment dimension when using rnn, sequence dimension when not
-        # self.indices = np.arange(n_envs) if use_rnn else np.arange(seq_len)
         self.indices = np.arange(seq_len)
 
         basic_shape = (n_envs, seq_len)
@@ -47,7 +43,6 @@ class PPOBuffer(dict):
         end = (batch_idx + 1) * self.minibatch_size
         
         shape = (self.n_envs * self.seq_len // self.n_minibatches, *(self[key].shape[2:] if len(self[key].shape) > 2 else (-1, )))
-        # result = (self[key][self.indices[start: end], :self.seq_len] if self.use_rnn else self[key][:, self.indices[start: end]]).reshape(shape)
         result = self[key][:, self.indices[start: end]].reshape(shape)
 
         return result

@@ -29,7 +29,8 @@ def train(agent, render, n_epochs, print_terminal_info=False):
             next_state, reward, done, _ = agent.env.step(action)
 
             agent.add_data(state, action, reward, next_state, done)
-
+            # if agent.buffer.good_to_learn:
+            #     agent.learn()
             state = next_state
             if done:
                 break
@@ -75,6 +76,6 @@ def main(env_args, agent_args, buffer_args, render=False):
     lt = threading.Thread(target=agent.background_learning, daemon=True)
     lt.start()
     model = agent_args['model_name']
-    print(f'Model {model} starts training')
+    utils.pwc(f'Model {model} starts training')
     
     train(agent, render, agent_args['n_epochs'])
