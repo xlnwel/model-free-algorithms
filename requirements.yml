@@ -1,6 +1,0 @@
-mujoco-py==1.50.1.56
-gym
-tensorflow
-numpy
-seaborn
-Box2D

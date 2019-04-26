@@ -23,7 +23,7 @@ agent:
     
     actor:
         n_noisy: 2      # number of noisy layer
-        units: [512, 256, 128]
+        units: [512, 256, 256]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         layernorm: True
         # args for optimizer

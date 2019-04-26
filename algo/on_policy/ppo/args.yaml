@@ -3,7 +3,7 @@ n_experiments: 1 # 1 run the following configuration, otherwise, run test code i
 env:
     name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
     max_episode_steps: &seq_len 1000
-    n_envs: 20
+    n_envs: 32
     seed: 0
 agent:
     algorithm: ppo
@@ -28,7 +28,7 @@ agent:
 
     ac:
         learning_rate: 3e-4
-        common: False           # if share initial dense and lstm layers
+        common: True           # if share initial dense and lstm layers
         common_dense_units: [512, 512]
         common_lstm_units: 256
         use_rnn: True
@@ -36,7 +36,7 @@ agent:
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
         critic_units: [256]
-        value_coef: 2
+        value_coef: .5
         value_loss_type: clip    # mse or clip
         rho: 1
         c: 1

@@ -20,8 +20,8 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     if 'n_workers' not in agent_args:
-        agent_args['n_workers'] = cpu_count() - 1
-    ray.init(num_cpus=agent_args['n_workers'] + 1, num_gpus=1)
+        agent_args['n_workers'] = cpu_count() - 2
+    ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'
     learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')

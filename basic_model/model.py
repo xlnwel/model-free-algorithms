@@ -184,7 +184,7 @@ class Model(Module):
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_score:
             assert_colorize(self.log_tensorboard, 'Must set up tensorboard writer beforehand')
-            self.stats = self._setup_stats_logs(args['env_stats']['times'], args['env_stats']['stats'])
+            self.stats = self._setup_stats_logs(args['env_stats'])
 
         # initialize session and global variables
         if sess_config is None:
@@ -244,7 +244,9 @@ class Model(Module):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
     """ Implementation """
-    def _setup_stats_logs(self, times, stats_info):
+    def _setup_stats_logs(self, env_stats):
+        times = env_stats['times'] if 'times' in env_stats else 1
+        stats_info = env_stats['stats']
         stats = [{} for _ in range(times)]
 
         with self.graph.as_default():

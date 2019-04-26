@@ -1,12 +1,26 @@
-``` shell
-conda create -n gym python=3.6
-pip install -r requirements.yml
-```
+## Algorithms Implemented
+
+- [x]: Noisy Nets
+- [x]: PER
+- [x]: TD3
+- [x]: PPO
+- [x]: A3C
+- [x]: A2C
+- [x]: Apex
+
+## Notes
+
+Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en/latest/), a flexible, high-performance distributed execution framework.
+
+Experimental results are recorded in `algo/on_policy/readme.md` and `algo/off_policy/readme.md`.
+
+All code are tested in [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2/) first, and then [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/). The later is a pretty challenging game, 
+
+Best arguments are kept in `args.yaml` in each algorithm folder.
+
+## Running
 
 ```shell
-# train
-source activate gym
-
 # silence tensorflow debug message
 export TF_CPP_MIN_LOG_LEVEL=3
 # For distributed training using Ray
@@ -16,23 +30,6 @@ export OPENBLAS_NUM_THREADS=1
 # for full argument specification, please refer to run/train.py
 python run/train.py -a=td3
 ```
-
-## Algorithms Implemented
-
-- [x]: Noisy Nets in Actor
-- [x]: Multi-Step Learning
-- [x]: PER
-- [x]: TD3
-- [x]: PPO
-- [x]: A3C
-- [x]: A2C
-- [x]: Apex
-
-## Some Common Implementation Details
-
-All off-policy algorithms use proportional replay as default experience replay buffer.
-Noisy nets are used as default exploration strategy.
-
 
 ## Paper References
 
@@ -62,4 +59,4 @@ OpenAI Baselines
 
 OpenAI Spinning UP
 
-Berkeley CS291-112
+Homework of Berkeley CS291-112
