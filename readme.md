@@ -10,16 +10,13 @@
 
 ## Requirement
 
-numpy
-Tensorflow=1.*
-Gym
-Ray
+numpy, Tensorflow=1.*, Gym, swig, Box2D, Box2D-kengz, Ray
 
 ## Notes
 
 Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en/latest/), a flexible, high-performance distributed execution framework.
 
-All algorithms are tested on the [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environment from OpenAI's Gym and steadily solve it. In particular, our TD3 and SAC steadily solves BipedalWalker-v2 in 2-4 hours, significantly faster than the one on the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2). TD3 is further tested on `BipedalWalkerHardcore-v2` with resNets, achieving about 200+ scores averaged over 100 episodes after 15 hours training.
+All algorithms are tested on the [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environment from OpenAI's Gym and steadily solve it. In particular, our TD3 and SAC steadily solves BipedalWalker-v2 in 2-4 hours, significantly faster than the first one on the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2). TD3 is further tested on `BipedalWalkerHardcore-v2` with resNets, achieving about 200+ scores averaged over 100 episodes after 15 hours training.
 Some further experimental results are recorded in `algo/on_policy/readme.md` and `algo/off_policy/readme.md`.
 
 Best arguments are kept in `args.yaml` in each algorithm folder.
@@ -63,6 +60,6 @@ Berkeley cs294-112
 
 OpenAI Baselines
 
-OpenAI Spinning UP
+OpenAI Spinning Up
 
 Homework of Berkeley CS291-112
