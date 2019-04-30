@@ -1,17 +1,10 @@
 ## Algorithms Implemented
-
 - [x]: Noisy Nets
-
 - [x]: PER
-
 - [x]: TD3
-
 - [x]: SAC
-
 - [x]: PPO
-
 - [x]: A2C
-
 - [x]: Apex
 
 ## Requirement
