@@ -28,9 +28,9 @@ agent:
 
     ac:
         learning_rate: 3e-4
-        common: True           # if share initial dense and lstm layers
+        common: True           # if share initial dense and lstm layers, if false common* are treated separately
         common_dense_units: [512, 512]
-        common_lstm_units: 256
+        common_lstm_units: [256]
         use_rnn: True
         actor_units: [256]
         clip_range: 0.2        # clip range for ppo
