@@ -189,11 +189,12 @@ class Model(Module):
         # initialize session and global variables
         if sess_config is None:
             if 'n_workers' in args and args['n_workers'] > 1:
-                sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
-                                             inter_op_parallelism_threads=1,
+                sess_config = tf.ConfigProto(intra_op_parallelism_threads=2,
+                                             inter_op_parallelism_threads=2,
                                              allow_soft_placement=True)
             else:
                 sess_config = tf.ConfigProto(allow_soft_placement=True)
+            # sess_config = tf.ConfigProto(allow_soft_placement=True)
             # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         sess_config.gpu_options.allow_growth=True
         self.sess = tf.Session(graph=self.graph, config=sess_config)

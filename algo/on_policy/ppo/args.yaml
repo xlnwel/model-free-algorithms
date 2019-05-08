@@ -16,6 +16,7 @@ agent:
     # batch size = seq_len * n_envs * n_workers
     n_updates: 5            # number of updates per epoch
     n_epochs: 5000
+    max_kl: .03             # early stop when max_kl is violated. 0 suggests no bound
     mask: True
 
     advantage_type: norm      # norm or gae
@@ -38,8 +39,6 @@ agent:
         critic_units: [256]
         value_coef: .5
         value_loss_type: clip    # mse or clip
-        rho: 1
-        c: 1
 
     env_stats:
         times: 1

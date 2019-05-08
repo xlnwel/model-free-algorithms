@@ -27,6 +27,7 @@ class envstats:
         self.EnvType.reset = self.reset
         self.env_step = env.step
         self.EnvType.step = self.step
+        self.EnvType.early_done = self.early_done
 
         self.EnvType.get_episode_score = lambda _: self.score
         self.EnvType.get_episode_length = lambda _: self.eps_len
@@ -119,4 +120,3 @@ class GymEnvVec:
     def step(self, actions):
         actions = np.squeeze(actions)
         return list(zip(*[env.step(a) for env, a in zip(self.envs, actions)]))
-

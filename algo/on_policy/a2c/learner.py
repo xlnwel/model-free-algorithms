@@ -18,7 +18,9 @@ class Learner(Agent):
                  log_params=False,
                  log_score=True,
                  device=None):
-        super().__init__(name, args, env_args, 
+        super().__init__(name, 
+                         args, 
+                         env_args, 
                          sess_config=sess_config,
                          save=save, 
                          log_tensorboard=log_tensorboard,

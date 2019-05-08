@@ -35,7 +35,8 @@ class ActorCritic(Base):
         
         if self.args['common']:
             x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_rnn)
-            x, self.initial_state, self.final_state = self._common_lstm(x, self.args['common_lstm_units'])
+            if self.use_rnn:
+                x, self.initial_state, self.final_state = self._common_lstm(x, self.args['common_lstm_units'])
             actor_output = self._policy_head(x, self.args['actor_units'], self.env_vec.action_dim, 
                                             discrete=self.env_vec.is_action_discrete)
             self.V = self._V_head(x, self.args['critic_units'])
@@ -64,13 +65,14 @@ class ActorCritic(Base):
         with tf.variable_scope(name):
             for u in units:
                 x = self.dense_norm_activation(x, u)
-            x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
 
         return x
 
     def _common_lstm(self, x, units, name='common_lstm'):
         init_state_list, final_state_list = [], []
         with tf.variable_scope(name):
+            u = x.shape.as_list()[-1]
+            x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
             for u in units:
                 x, (init_state, final_state) = self.lstm(x, u, return_sequences=True)
                 init_state_list += init_state

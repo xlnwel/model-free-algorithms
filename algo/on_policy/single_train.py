@@ -11,14 +11,7 @@ def train(agent, agent_args, test_agent):
         start = time.time()
         env_stats = agent.sample_trajectories()
 
-        loss_info_list = []
-        for _ in range(agent_args['n_updates']):
-            if not agent_args['ac']['use_rnn']:
-                agent.shuffle_buffer()
-            for _ in range(agent_args['n_minibatches']):
-                loss_info = agent.optimize()
-
-                loss_info_list.append(loss_info)
+        loss_info_list = agent.optimize(i)
 
         # score logging
         scores, eps_lens = env_stats
@@ -38,10 +31,10 @@ def train(agent, agent_args, test_agent):
                         avg_eps_len=avg_eps_len, approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
-            'ModelName': 'ppo',
+            'ModelName': 'ppo' + agent.model_name,
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
-            'AverageScore': avg_score,
+            'AvgScore': avg_score,
             'StdScore': std_score,
             'MaxScore': max_score,
             'MinScore': min_score,

@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 
 from utility.utils import normalize, assert_colorize
 
@@ -47,7 +48,9 @@ class PPOBuffer(dict):
 
         return result
 
-    def compute_ret_adv(self, adv_type, gamma, gae_discount):
+    def compute_ret_adv(self, last_value, adv_type, gamma, gae_discount):
+        self['value'][:, -1] = last_value
+        
         if adv_type == 'norm':
             returns = self['return']
             next_return = 0
@@ -59,20 +62,28 @@ class PPOBuffer(dict):
             self['advantage'] = normalize(returns - values)
             self['return'] = normalize(returns)
         elif adv_type == 'gae':
-            advs = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
+            delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
+            advs = np.zeros_like(delta)
             next_adv = 0
             for i in reversed(range(self.seq_len)):
                 advs[:, i] = next_adv = delta[:, i] + self['nonterminal'][:, i] * gae_discount * next_adv
             self['return'] = advs + self['value'][:, :-1]
-            self['advantage'] = advs
+            self['advantage'] = normalize(advs)
         else:
             NotImplementedError
 
-        if self.mask:
-            for k in self.keys():
-                shape = list(self['nonterminal'].shape) + [1] * (len(self[k].shape) - len(self['nonterminal'].shape))
-                mask = self['nonterminal'].reshape(shape)
-                self[k][:, :self.seq_len] * mask
+        # if self.mask:
+        #     for k in self.keys():
+        #         shape = list(self['nonterminal'].shape) + [1] * (len(self[k].shape) - len(self['nonterminal'].shape))
+        #         mask = deepcopy(self['nonterminal'])
+        #         # do not mask the first done
+        #         for i in range(self.n_envs):
+        #             for j in range(self.seq_len):
+        #                 if mask[i][j] == 0:
+        #                     mask[i][j] = 1
+        #                     break
+        #         mask = mask.reshape(shape)
+        #         self[k][:, :self.seq_len] *= mask
 
     def reset(self):
         self.idx = 0

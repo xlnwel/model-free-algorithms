@@ -9,6 +9,7 @@ from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
 from algo.on_policy.ppo.buffer import PPOBuffer
 from utility.tf_utils import stats_summary
+from utility.utils import pwc
 
 
 class Agent(Model):
@@ -57,52 +58,9 @@ class Agent(Model):
         with self.graph.as_default():
             self.variables = TensorFlowVariables(self.ac.loss, self.sess)
 
-    def optimize(self):
-        get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
-
-        if self.minibatch_idx == 0 and self.use_rnn:
-            # set initial state to zeros for every pass of buffer
-            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
-            
-        # construct fetches and feed_dict
-        fetches = [self.ac.opt_op, 
-                   [self.ac.ppo_loss, self.ac.entropy, 
-                    self.ac.V_loss, self.ac.loss, 
-                    self.ac.approx_kl, self.ac.clipfrac]]
-        feed_dict = {
-            self.env_phs['state']: get_data('state'),
-            self.ac.action: get_data('action'),
-            self.env_phs['return']: get_data('return'),
-            self.env_phs['value']: get_data('value'),
-            self.env_phs['advantage']: get_data('advantage'),
-            self.env_phs['old_logpi']: get_data('old_logpi'),
-            self.env_phs['entropy_coef']: self.entropy_coef
-        }
-        if self.use_rnn:
-            fetches.append(self.ac.final_state)
-            feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
-        fetches.append([self.ac.opt_step, self.graph_summary])
-
-        results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_rnn:   # assuming log_tensorboard=True for simplicity, since optimize is only called by learner
-            _, loss_info, self.last_lstm_state, (opt_step, summary) = results
-        else:
-            _, loss_info, (opt_step, summary) = results
-
-        self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
-
-        if opt_step % (self.args['n_updates'] * self.args['n_minibatches']) == 0:
-            self.writer.add_summary(summary, opt_step)
-            self.save()
-
-        return loss_info
-
     def sample_trajectories(self):
         env_stats = self._sample_data()
-        self.buffer.compute_ret_adv(self.args['advantage_type'], self.gamma, self.gae_discount)
-        if self.args['advantage_type'] == 'gae':
-            self.buffer.normalize_adv(self.buffer['advantage'].mean(), self.buffer['advantage'].std())
-        
+
         return env_stats
 
     def act(self, state):
@@ -139,6 +97,32 @@ class Agent(Model):
     def shuffle_buffer(self):
         if not self.use_rnn:
             self.buffer.shuffle()
+
+    def optimize(self, epoch_i):
+        loss_info_list = []
+        for i in range(self.args['n_updates']):
+            self.shuffle_buffer()
+            for j in range(self.args['n_minibatches']):
+                loss_info, opt_step, summary = self._optimize()
+
+                loss_info_list.append(loss_info)
+
+                if 'max_kl' not in self.args or self.args['max_kl'] == 0.:
+                    continue
+                kl = np.mean(loss_info[4])
+                if kl > self.args['max_kl']:
+                    pwc(f'{self.model_name}: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl')
+                    break
+            if 'max_kl' not in self.args or self.args['max_kl'] == 0.:
+                continue
+            
+            if kl > self.args['max_kl']:
+                break
+
+        self.writer.add_summary(summary, epoch_i)
+        self.save()
+
+        return loss_info_list
 
     """ Implementation """
     def _build_graph(self):
@@ -181,6 +165,7 @@ class Agent(Model):
                 stats_summary(self.env_phs['return'], 'return')
 
             with tf.name_scope('policy'):
+                stats_summary(self.env_phs['advantage'], 'advantage')
                 stats_summary(self.ac.action_distribution.mean, 'mean')
                 stats_summary(self.ac.action_distribution.std, 'std')
                 stats_summary(self.ac.action_distribution.entropy(), 'entropy')
@@ -195,13 +180,56 @@ class Agent(Model):
         for _ in range(self.seq_len):
             action, value, logpi = self.act(state)
             next_state, reward, done, _ = self.env_vec.step(action)
+            
+            if self.args['mask']:
+                state = np.where(self.env_vec.early_done, 0, state)
+                value = np.where(self.env_vec.early_done, 0, value)
+                reward = np.where(self.env_vec.early_done, 0, reward)
 
             self.buffer.add(state, action, reward, value, logpi, 1-np.array(done))
 
             state = next_state
         
         # add one more ad hoc value so that we can take values[1:] as next state values
-        value = np.squeeze(self.sess.run(self.ac.V, feed_dict={self.env_phs['state']: state}))
-        self.buffer['value'][:, -1] = value
+        last_value = np.squeeze(self.sess.run(self.ac.V, feed_dict={self.env_phs['state']: state}))
+        if self.args['mask']:
+            last_value = np.where(self.env_vec.early_done, 0, last_value)
+        self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount)
         
         return self.env_vec.get_episode_score(), self.env_vec.get_episode_length()
+
+    def _optimize(self):
+        get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
+
+        if self.minibatch_idx == 0 and self.use_rnn:
+            # set initial state to zeros for every pass of buffer
+            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
+            
+        # construct fetches and feed_dict
+        fetches = [self.ac.opt_op, 
+                   [self.ac.ppo_loss, self.ac.entropy, 
+                    self.ac.V_loss, self.ac.loss, 
+                    self.ac.approx_kl, self.ac.clipfrac]]
+        feed_dict = {
+            self.env_phs['state']: get_data('state'),
+            self.ac.action: get_data('action'),
+            self.env_phs['return']: get_data('return'),
+            self.env_phs['value']: get_data('value'),
+            self.env_phs['advantage']: get_data('advantage'),
+            self.env_phs['old_logpi']: get_data('old_logpi'),
+            self.env_phs['entropy_coef']: self.entropy_coef
+        }
+        if self.use_rnn:
+            fetches.append(self.ac.final_state)
+            feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
+        fetches.append([self.ac.opt_step, self.graph_summary])
+
+        results = self.sess.run(fetches, feed_dict=feed_dict)
+        if self.use_rnn:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
+            _, loss_info, self.last_lstm_state, (opt_step, summary) = results
+        else:
+            _, loss_info, (opt_step, summary) = results
+
+        self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
+
+        return loss_info, opt_step, summary
