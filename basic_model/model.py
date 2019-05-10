@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as tk
 
-from utility.utils import pwc, assert_colorize
+from utility.utils import pwc, assert_colorize, display_var_info
 from utility.logger import Logger
 from utility.yaml_op import save_args
 from basic_model.layer import Layer
@@ -177,6 +177,8 @@ class Model(Module):
         super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device, reuse=reuse)
 
+        display_var_info(self.trainable_variables)
+
         if self.log_tensorboard:
             self.logger = self._setup_logger()
             self.graph_summary, self.writer = self._setup_tensorboard_summary()
@@ -234,6 +236,9 @@ class Model(Module):
     def save(self):
         if hasattr(self, 'saver'):
             return self.saver.save(self.sess, self.model_file)
+        else:
+            # no intention to treat no saver as an error, just print a warning message
+            pwc('No saver is available')
 
     def log_stats(self, **kwargs):
         self._log_stats_impl(kwargs)
