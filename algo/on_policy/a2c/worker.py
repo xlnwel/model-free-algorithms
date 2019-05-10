@@ -34,7 +34,7 @@ class Worker(Agent):
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
                                 self.env_vec.state_space, self.env_vec.action_dim, 
-                                args['mask'], self.use_rnn)
+                                self.use_rnn)
         pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
     @ray.method(num_return_vals=2)

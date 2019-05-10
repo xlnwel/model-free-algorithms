@@ -11,11 +11,11 @@ class Base(Module):
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
-        self.variable_scope = scope_prefix + '/' + name
+        self.variable_scope = f'{scope_prefix}/{name}'
         
         super().__init__(name, args, graph, log_tensorboard=log_tensorboard, log_params=log_params)
 
-    def _Q_net(self, state, units, action, action_dim, norm, reuse, name='Q_net'):
+    def _Q_net(self, state, units, action, norm, reuse, name='Q_net'):
         x = state
         with tf.variable_scope(name, reuse=reuse):
             for i, u in enumerate(units):

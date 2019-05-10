@@ -5,12 +5,11 @@ from utility.utils import normalize, assert_colorize
 
 
 class PPOBuffer(dict):
-    def __init__(self, n_envs, seq_len, n_minibatches, state_space, action_dim, mask, use_rnn):
+    def __init__(self, n_envs, seq_len, n_minibatches, state_space, action_dim, use_rnn):
         self.n_envs = n_envs
         self.seq_len = seq_len
         self.n_minibatches = n_minibatches
         self.minibatch_size = seq_len // n_minibatches
-        self.mask = mask
 
         self.idx = 0
         
@@ -71,19 +70,6 @@ class PPOBuffer(dict):
             self['advantage'] = normalize(advs)
         else:
             NotImplementedError
-
-        # if self.mask:
-        #     for k in self.keys():
-        #         shape = list(self['nonterminal'].shape) + [1] * (len(self[k].shape) - len(self['nonterminal'].shape))
-        #         mask = deepcopy(self['nonterminal'])
-        #         # do not mask the first done
-        #         for i in range(self.n_envs):
-        #             for j in range(self.seq_len):
-        #                 if mask[i][j] == 0:
-        #                     mask[i][j] = 1
-        #                     break
-        #         mask = mask.reshape(shape)
-        #         self[k][:, :self.seq_len] *= mask
 
     def reset(self):
         self.idx = 0

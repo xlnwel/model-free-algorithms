@@ -12,7 +12,7 @@
 
 Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en/latest/), a flexible, high-performance distributed execution framework.
 
-Due to lack of a Mujoco license, all algorithms are tested on the [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environment from OpenAI's Gym and solve it. In particular, our TD3 and SAC solve BipedalWalker-v2 in 2-4 hours, significantly faster than the best one on the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2). On the other hand, PPO steadily solves it in  TD3 is further tested on `BipedalWalkerHardcore-v2` with resNets and other modifications, achieving about 200+ scores averaged over 100 episodes after 15 hours training.
+Due to lack of a Mujoco license, all algorithms are tested on the [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2) and [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environments from OpenAI's Gym and solve them. In particular, our TD3 and SAC solve BipedalWalker-v2 in 2-4 hours, significantly faster than the best one on the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2). On the other hand, PPO steadily solves it in 5-8 hours. TD3 is further tested on `BipedalWalkerHardcore-v2` with resNets and other modifications, achieving about 200+ scores averaged over 100 episodes after 15 hours training.
 Some further experimental results are recorded in `algo/on_policy/readme.md` and `algo/off_policy/readme.md`.
 
 Best arguments are kept in `args.yaml` in each algorithm folder.

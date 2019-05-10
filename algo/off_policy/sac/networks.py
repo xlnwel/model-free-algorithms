@@ -136,7 +136,7 @@ class SoftQ(Base):
     """ Implementation """
     def _build_graph(self):
         Q_net = lambda action, reuse, name: self._Q_net(self.state, self.args['units'], action, 
-                                                        self.action_dim, self.norm, reuse, name=name)
+                                                        self.norm, reuse, name=name)
 
         self.Q1 = Q_net(self.action, False, 'Qnet1')
         self.Q2 = Q_net(self.action, False, 'Qnet2')

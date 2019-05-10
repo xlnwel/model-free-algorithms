@@ -50,7 +50,7 @@ class Agent(Model):
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
                                 self.env_vec.state_space, self.env_vec.action_dim, 
-                                args['mask'], self.use_rnn)
+                                self.use_rnn)
 
         if self.use_rnn:
             self.last_lstm_state = None
@@ -165,7 +165,6 @@ class Agent(Model):
                 stats_summary(self.env_phs['return'], 'return')
 
             with tf.name_scope('policy'):
-                stats_summary(self.env_phs['advantage'], 'advantage')
                 stats_summary(self.ac.action_distribution.mean, 'mean')
                 stats_summary(self.ac.action_distribution.std, 'std')
                 stats_summary(self.ac.action_distribution.entropy(), 'entropy')

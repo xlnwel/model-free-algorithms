@@ -16,8 +16,8 @@ agent:
     # batch size = seq_len * n_envs * n_workers
     n_updates: 5            # number of updates per epoch
     n_epochs: 5000
-    max_kl: .03             # early stop when max_kl is violated. 0 suggests no bound
-    mask: True
+    max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
+    mask: False
 
     advantage_type: norm      # norm or gae
 
