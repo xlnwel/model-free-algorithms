@@ -1,8 +1,23 @@
 ## Results
 
+Here we demonstrate the average score per 100 episodes shown in tensorboard:
+
+### TD3, learning in a background thread, x-axis denotes running time
+
 <p align="center">
-<img src="/results/td3/result_time.png" alt="instant score in tensorboard" height="350">
-<figcaption>Average score per 100 episodes shwon in tensorboard. x-axis denotes running time</figcaption>
+<img src="/results/td3/back_time.png" alt="average score in tensorboard" height="350">
+</p>
+
+#### TD3, learning in a background thread, x-axis denotes episodes
+
+<p align="center">
+<img src="/results/td3/back_episode.png" alt="average score in tensorboard" height="350">
+</p>
+
+#### TD3, learning in the foreground thread, x-axis denotes episodes
+
+<p align="center">
+<img src="/results/td3/back_time.png" alt="average score in tensorboard" height="350">
 </p>
 
 ## Implementation Details
@@ -45,4 +60,4 @@ Applying bias correction for prioritized sampling to actor loss improves the per
 
 ### Ape-X
 
-Ape-X requires larger network than general single-process algorithms 
+Ape-X requires larger network than general single-process algorithms.
