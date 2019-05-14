@@ -68,10 +68,12 @@ class RayGymEnv:
 
 @envstats
 class GymEnv:
-    def __init__(self, args):
+    def __init__(self, args, video_path=None):
         self.env = env = gym.make(args['name'])
-        # if model_name:
-        #     self.env = gym.wrappers.Monitor(self.env, f'data/gym/{model_name}', force=True)
+
+        # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
+        if video_path:
+            self.env = gym.wrappers.Monitor(self.env, video_path, force=True)
         if 'atari' in args and args['atari']:
             env = atari_wrappers.wrap_deepmind(env)
         env.seed(args['seed'])
@@ -81,6 +83,7 @@ class GymEnv:
         self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
         self.action_dist_type = action_dist_type(env)
         
+        self.n_envs = 1
         self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
 

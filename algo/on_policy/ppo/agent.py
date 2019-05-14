@@ -37,7 +37,13 @@ class Agent(Model):
         self.minibatch_idx = 0
 
         # environment info
-        self.env_vec = GymEnvVec(env_args) if env_args['n_envs'] > 1 else GymEnv(env_args)
+        self.env_vec = (GymEnvVec(env_args) if env_args['n_envs'] > 1 
+                        else GymEnv(env_args, f'{args["log_root_dir"]}/{args["model_name"]}'))
+
+        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
+                                self.env_vec.state_space, self.env_vec.action_dim, 
+                                self.use_rnn)
+
         super().__init__(name, args, 
                          sess_config=sess_config,
                          save=save, 
@@ -47,10 +53,6 @@ class Agent(Model):
                          device=device,
                          reuse=reuse,
                          graph=graph)
-
-        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
-                                self.env_vec.state_space, self.env_vec.action_dim, 
-                                self.use_rnn)
 
         if self.use_rnn:
             self.last_lstm_state = None
@@ -80,10 +82,11 @@ class Agent(Model):
 
     def demonstrate(self):
         state = self.env_vec.reset()
+        state = np.reshape(state, (-1, *self.env_vec.state_space))
         if self.use_rnn:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
-        for _ in range(self.seq_len):
+        for _ in range(self.env_vec.max_episode_steps):
             self.env_vec.render()
             action, _, _ = self.act(state)
             state, _, done, _ = self.env_vec.step(action)
@@ -181,7 +184,6 @@ class Agent(Model):
             next_state, reward, done, _ = self.env_vec.step(action)
             
             if self.args['mask']:
-                state = np.where(self.env_vec.early_done, 0, state)
                 value = np.where(self.env_vec.early_done, 0, value)
                 reward = np.where(self.env_vec.early_done, 0, reward)
 

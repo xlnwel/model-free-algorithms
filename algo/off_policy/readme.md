@@ -1,3 +1,10 @@
+## Results
+
+<p align="center">
+<img src="/results/td3/result_time.png" alt="instant score in tensorboard" height="350">
+<figcaption>Average score per 100 episodes shwon in tensorboard. x-axis denotes running time</figcaption>
+</p>
+
 ## Implementation Details
 
 ### Some Implementation Details
@@ -25,6 +32,8 @@ Large networks are easy to result in fluctuation at the convergence
 Add actions at the first two levels improve performance. This effect is more significant when having learning in a background thread.
 
 Large networks slow down the learning process, and worse still, may impair the final performance, resulting in fluctuation at the convergence.
+
+Training networks in a background thread may cause learning unstable, which could be alleviated by increasing batch size.
 
 ### SAC
 

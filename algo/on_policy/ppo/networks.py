@@ -174,4 +174,3 @@ class ActorCritic(Base):
             opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
         return optimizer, opt_step, grads_and_vars, opt_op
-

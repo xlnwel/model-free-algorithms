@@ -4,10 +4,11 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
+    background_learning: True
     algorithm: td3
-    gamma: &gamma 0.99
+    gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: &batch_size 64
+    batch_size: 128
     n_workers: &n_workers 10
     prefetches: 5
 
@@ -17,7 +18,7 @@ agent:
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
 
-    n_steps: &n_steps 3
+    n_steps: 3
     policy_delay: 1     # policy will be updated once every policy_delay steps
     n_epochs: 5000
     
@@ -47,9 +48,6 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # local or proportional
-    batch_size: *batch_size
-    n_steps: *n_steps
-    gamma: *gamma
 
     alpha: 0.4
     beta0: 0.4

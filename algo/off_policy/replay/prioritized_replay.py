@@ -24,6 +24,9 @@ class PrioritizedReplay(Replay):
 
     @override(Replay)
     def sample(self):
+        assert_colorize(self.good_to_learn, 'There are not sufficient transitions to start learning --- '
+                                            f'transitions in buffer: {len(self)}\t'
+                                            f'minimum required size: {self.min_size}')
         with self.locker:        
             samples = self._sample()
             self.sample_i += 1
@@ -45,7 +48,7 @@ class PrioritizedReplay(Replay):
     """ Implementation """
     def _compute_IS_ratios(self, N, probabilities):
         IS_ratios = np.power(probabilities * N, -self.beta)
-        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upwards
+        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upward
 
         return IS_ratios
     

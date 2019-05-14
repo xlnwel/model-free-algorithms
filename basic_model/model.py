@@ -179,9 +179,10 @@ class Model(Module):
 
         display_var_info(self.trainable_variables)
 
+        self.model_name = args['model_name']
         if self.log_tensorboard:
-            self.logger = self._setup_logger()
-            self.graph_summary, self.writer = self._setup_tensorboard_summary()
+            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
+            self.graph_summary, self.writer = self._setup_tensorboard_summary(args['log_root_dir'], self.model_name)
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_score:
@@ -206,11 +207,8 @@ class Model(Module):
             
         if save:
             self.saver = self._setup_saver(save)
-            self.model_name, self.model_file = self._setup_model_path(
-                args['model_root_dir'],
-                args['model_name']
-            )
-            self.restore()
+            self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
+            self.restore(self.model_file)
     
     @property
     def global_variables(self):
@@ -284,23 +282,21 @@ class Model(Module):
             model_dir.mkdir(parents=True)
 
         model_file = str(model_dir / 'ckpt')
-        return model_name, model_file
+        return model_file
 
-    def _setup_tensorboard_summary(self):
+    def _setup_tensorboard_summary(self, root_dir, model_name):
         with self.graph.as_default():
             graph_summary = tf.summary.merge_all()
-            filename = os.path.join(self.args['log_root_dir'], 
-                                    self.args['model_name'])
+            filename = os.path.join(root_dir, model_name)
             writer = tf.summary.FileWriter(filename, self.graph)
             atexit.register(writer.close)
         save_args(self.args, filename=filename + '/args.yaml')
         return graph_summary, writer
 
-    def _setup_logger(self):
-        log_dir = os.path.join(self.args['log_root_dir'], 
-                                self.args['model_name'])
+    def _setup_logger(self, root_dir, model_name):
+        log_dir = os.path.join(root_dir, model_name)
         
-        logger = Logger(log_dir, exp_name=self.args['model_name'])
+        logger = Logger(log_dir, exp_name=model_name)
 
         return logger
 

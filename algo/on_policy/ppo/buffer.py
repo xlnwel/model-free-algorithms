@@ -61,8 +61,8 @@ class PPOBuffer(dict):
             self['advantage'] = normalize(returns - values)
             self['return'] = normalize(returns)
         elif adv_type == 'gae':
-            delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
-            advs = np.zeros_like(delta)
+            advs = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
+            # advs = np.zeros_like(delta)
             next_adv = 0
             for i in reversed(range(self.seq_len)):
                 advs[:, i] = next_adv = delta[:, i] + self['nonterminal'][:, i] * gae_discount * next_adv

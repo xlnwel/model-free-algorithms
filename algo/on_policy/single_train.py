@@ -31,7 +31,7 @@ def train(agent, agent_args, test_agent):
                         avg_eps_len=avg_eps_len, approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
-            'ModelName': 'ppo' + agent.model_name,
+            'ModelName': agent.args['algorithm'] + agent.model_name,
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
             'AvgScore': avg_score,
@@ -66,7 +66,8 @@ def main(env_args, agent_args, buffer_args, render=False):
     test_agent = None
     if render:
         env_args['n_envs'] = 1
-        test_agent = Agent(agent_name, agent_args, env_args, log_tensorboard=False, 
+        del env_args['max_episode_steps']
+        test_agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=False, 
                             log_params=False, log_score=False, device='/gpu:0', reuse=True, graph=agent.graph)
 
     train(agent, agent_args, test_agent)

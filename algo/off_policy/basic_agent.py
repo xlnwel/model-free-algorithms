@@ -33,11 +33,15 @@ class OffPolicyOperation(Model):
         self.update_step = 0
 
         # environment info
-        self.env = GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1 else GymEnv(env_args)
+        self.env = (GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1
+                    else GymEnv(env_args))
         self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
         
         # replay buffer
+        buffer_args['n_steps'] = args['n_steps']
+        buffer_args['gamma'] = args['gamma']
+        buffer_args['batch_size'] = args['batch_size']
         if buffer_args['type'] == 'proportional':
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
         elif buffer_args['type'] == 'local':

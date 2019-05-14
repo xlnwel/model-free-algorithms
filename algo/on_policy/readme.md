@@ -12,6 +12,6 @@ It is important to monitor the value of the approximate KL divergence when fine-
 
 Clipping target value helps.
 
-gae advantage should work with a lower learning rate, but I do not spot that it outperforms norm advantage during my experiments.
-
 To my surprise, mask out states and rewards after the agent encounters a done does not improve performance
+
+GAE seems but NAE is more stable tham GAE

@@ -1,8 +1,8 @@
 import threading
 import numpy as np
 
-from replay.utils import add_buffer, copy_buffer
-from replay.utils import init_buffer
+from algo.off_policy.replay.utils import add_buffer, copy_buffer
+from algo.off_policy.replay.utils import init_buffer
 from utility.utils import assert_colorize
 
 
@@ -47,7 +47,7 @@ class Replay:
     def sample(self):
         assert_colorize(self.good_to_learn, 'There are not sufficient transitions to start learning --- '
                                             f'transitions in buffer: {len(self)}\t'
-                                            f'minimum required size: {self.min_size}', 'red')
+                                            f'minimum required size: {self.min_size}')
         with self.locker:
             samples = self._sample()
 

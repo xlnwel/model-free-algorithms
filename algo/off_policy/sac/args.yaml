@@ -4,10 +4,11 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
+    background_learning: True
     algorithm: sac
     temperature: 0.01
     gamma: &gamma 0.99
-    batch_size: &batch_size 64
+    batch_size: 128
     n_workers: &n_workers 10
     prefetches: 5
 
@@ -18,7 +19,7 @@ agent:
     model_name: baseline
 
     loss_type: mse            # huber or mse
-    n_steps: &n_steps 3
+    n_steps: 3
     priority: Q               # Q or V
     policy_delay: 1
     n_epochs: 5000
@@ -56,9 +57,6 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # proportional
-    batch_size: *batch_size
-    n_steps: *n_steps
-    gamma: *gamma
 
     alpha: 0.4
     beta0: 0.4
