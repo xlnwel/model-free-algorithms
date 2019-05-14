@@ -1,8 +1,8 @@
-## Results
+## Results on BipedalWalker-v2
 
 Here we demonstrate the average score per 100 episodes shown in tensorboard:
 
-### TD3, learning in a background thread, x-axis denotes running time
+#### TD3, learning in a background thread, x-axis denotes running time
 
 <p align="center">
 <img src="/results/td3/back_time.png" alt="average score in tensorboard" height="350">
@@ -33,7 +33,7 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
 
     The downside is:
 
-    - This makes the algorithm more fluctuate at the convergence, but this could be mitigated by learning rate decay
+    - This makes the algorithm more fluctuate at the convergence, but this could be mitigated by learning rate decay and large batch size.
     - This causes loss of control of the number of updates per environment step, which is sometimes required when doing research experiments, but we do not concern it here. 
 
 ## Experimental Results
