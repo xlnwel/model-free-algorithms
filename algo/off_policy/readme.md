@@ -2,22 +2,28 @@
 
 Here we demonstrate the average score per 100 episodes shown in tensorboard:
 
-#### TD3, learning in a background thread, x-axis denotes running time
+#### TD3, learning in a background thread, x-axis denotes running time, three random seeds
 
 <p align="center">
 <img src="/results/td3/back_time.png" alt="average score in tensorboard" height="350">
 </p>
 
-#### TD3, learning in a background thread, x-axis denotes episodes
+#### TD3, learning in a background thread, x-axis denotes episodes, three random seeds
 
 <p align="center">
 <img src="/results/td3/back_episode.png" alt="average score in tensorboard" height="350">
 </p>
 
-#### TD3, learning in the foreground thread, x-axis denotes episodes
+#### TD3, learning in the foreground thread, x-axis denotes episodes, three random seeds
 
 <p align="center">
-<img src="/results/td3/back_time.png" alt="average score in tensorboard" height="350">
+<img src="/results/td3/fore_episode.png" alt="average score in tensorboard" height="350">
+</p>
+
+#### SAC, learning in the foreground thread, x-axis denotes episodes, three random seeds
+
+<p align="center">
+<img src="/results/sac/fore_episode.png" alt="average score in tensorboard" height="350">
 </p>
 
 ## Implementation Details
