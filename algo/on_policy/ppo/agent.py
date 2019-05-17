@@ -184,6 +184,7 @@ class Agent(Model):
             next_state, reward, done, _ = self.env_vec.step(action)
             
             if self.args['mask']:
+                state = np.where(self.env_vec.early_done, 0, state)
                 value = np.where(self.env_vec.early_done, 0, value)
                 reward = np.where(self.env_vec.early_done, 0, reward)
 

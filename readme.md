@@ -17,16 +17,6 @@ Some further experimental results are recorded in `algo/on_policy/readme.md` and
 
 Best arguments are kept in `args.yaml` in each algorithm folder.
 
-## Requirement
-
-apt:
-
-swig
-
-pip:
-
-numpy, tensorflow=1.*, gym, box2d, box2d-kengz, ray
-
 ## Running
 
 ```shell

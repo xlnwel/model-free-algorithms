@@ -14,4 +14,8 @@ Clipping target value helps.
 
 To my surprise, mask out states and rewards after the agent encounters a done does not improve performance
 
+GAE works better with a smaller learning rate (1e-4), NAE works better with a larger learning rate (3e-4)
+
 GAE seems but NAE is more stable tham GAE
+
+Both take around 4 hours to reach 250+ scores averaged over 10 episodes, but takes about 10 to solve BipedalWalker-v2.

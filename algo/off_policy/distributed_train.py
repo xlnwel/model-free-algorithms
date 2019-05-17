@@ -30,7 +30,12 @@ def main(env_args, agent_args, buffer_args, render=False):
     buffer_args['type'] = 'local'
     for worker_no in range(agent_args['n_workers']):
         max_episodes = 1    # np.random.randint(1, 10)
-        agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
+        if agent_args['algorithm'] == 'td3':
+            agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
+        elif agent_args['algorithm'] == 'sac':
+            agent_args['policy']['noisy_sigma'] = np.random.randint(3, 7) * .1
+        else:
+             raise NotImplementedError
         env_args['seed'] = worker_no * 10
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
                             max_episodes, device='/cpu: {}'.format(worker_no + 1))
