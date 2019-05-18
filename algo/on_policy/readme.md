@@ -2,6 +2,12 @@
 
 a2c is legacy code and no longer maintained because I personally think a2c could be completely replaced by using an environment vector if one only intends to run ppo on a single machine.
 
+## Performance on BipedalWalker-v2
+
+<p align="center">
+<img src="/results/ppo/time.png" alt="average score in tensorboard" height="350">
+</p>
+
 ## Experimental Results 
 
 ### PPO
@@ -14,7 +20,7 @@ Clipping target value helps.
 
 To my surprise, mask out states and rewards after the agent encounters a done does not improve performance
 
-GAE works better with a smaller learning rate (1e-4), NAE works better with a larger learning rate (3e-4)
+GAE works better with a smaller learning rate (1e-4), NAE works better with a larger learning rate (3e-4).
 
 GAE seems but NAE is more stable tham GAE
 

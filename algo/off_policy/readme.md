@@ -1,4 +1,4 @@
-## Results on BipedalWalker-v2
+## Performance on BipedalWalker-v2
 
 Here we demonstrate the average score per 100 episodes shown in tensorboard:
 
@@ -18,6 +18,12 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
 
 <p align="center">
 <img src="/results/td3/fore_episode.png" alt="average score in tensorboard" height="350">
+</p>
+
+#### SAC, learning in the background thread, x-axis denotes episodes, three random seeds
+
+<p align="center">
+<img src="/results/sac/back_time.png" alt="average score in tensorboard" height="350">
 </p>
 
 #### SAC, learning in the foreground thread, x-axis denotes episodes, three random seeds
