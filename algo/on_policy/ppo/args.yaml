@@ -13,7 +13,7 @@ agent:
     lam: 0.97
     seq_len: *seq_len
     n_minibatches: 1        # number of minibatches a sequence is divided into 
-    # batch size = seq_len * n_envs * n_workers
+    # batch size = seq_len * n_envs / n_minibatches
     n_updates: 5            # number of updates per epoch
     n_epochs: 5000
     max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
