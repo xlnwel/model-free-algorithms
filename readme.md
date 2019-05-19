@@ -11,7 +11,7 @@
 ## Architecture
 
 <p align="center">
-<img src="/results/Architecture.png" alt="average score in tensorboard" height="350">
+<img src="/results/Architecture.png" alt="average score in tensorboard" height="500">
 </p>
 
 ## Notes
