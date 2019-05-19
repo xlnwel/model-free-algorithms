@@ -3,7 +3,7 @@ n_experiments: 1 # 1 run the following configuration, otherwise, run test code i
 env:
     name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
     max_episode_steps: &seq_len 1000
-    n_envs: 32
+    n_envs: 64
     seed: 0
 agent:
     algorithm: ppo

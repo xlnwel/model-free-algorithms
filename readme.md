@@ -8,6 +8,12 @@
 - [x] A2C
 - [x] Apex
 
+## Architecture
+
+<p align="center">
+<img src="/results/Architecture.png" alt="average score in tensorboard" height="350">
+</p>
+
 ## Notes
 
 Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en/latest/), a flexible, high-performance distributed execution framework.
