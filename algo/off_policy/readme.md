@@ -45,22 +45,20 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
 
     The downside is:
 
-    - This makes the algorithm more fluctuate at the convergence, but this could be mitigated by learning rate decay and large batch size.
+    - This makes the algorithm unstable at the convergence, which, however, could be mitigated by learning rate decay and a large batch size.
     - This causes loss of control of the number of updates per environment step, which is sometimes required when doing research experiments, but we do not concern it here. 
 
 ## Experimental Results
 
 ## Common
 
-Learning rate decay helps to stabilize the learning at the convergence
-
-Large networks are easy to result in fluctuation at the convergence
+Large networks are easy to result in fluctuation at the convergence, which may be caused by overfitting.
 
 Add actions at the first two levels improve performance. This effect is more significant when having learning in a background thread.
 
 Large networks slow down the learning process, and worse still, may impair the final performance, resulting in fluctuation at the convergence.
 
-Training networks in a background thread may cause learning unstable, which could be alleviated by increasing batch size.
+Training networks in a background thread may cause learning unstable at the convergence, which could be alleviated by increasing the batch size.
 
 ### SAC
 
