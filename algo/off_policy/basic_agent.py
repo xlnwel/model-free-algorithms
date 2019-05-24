@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals  # provide backward compatibility
 
 import time
+from abc import ABC, abstractmethod
 import numpy as np
 import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
@@ -12,7 +13,11 @@ from algo.off_policy.apex.buffer import LocalBuffer
 from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
 
 
-class OffPolicyOperation(Model):
+class OffPolicyOperation(Model, ABC):
+    """ Abstract base class for off-policy algorithms.
+    Generally speaking, inherited class only need to define _build_graph
+    and leave all interface as it-is.
+    """
     """ Interface """
     def __init__(self, 
                  name, 
@@ -72,7 +77,7 @@ class OffPolicyOperation(Model):
         state = state.reshape((-1, *self.state_space))
         if return_q:
             action, q = self.sess.run([self.action, self.critic.Q_with_action], 
-                                            feed_dict={self.data['state']: state})
+                                        feed_dict={self.data['state']: state})
             return np.squeeze(action), q
         else:
             action = self.sess.run(self.action, feed_dict={self.data['state']: state})
@@ -127,6 +132,10 @@ class OffPolicyOperation(Model):
         self.buffer.update_priorities(priority, saved_exp_ids)
     
     """ Implementation """
+    @abstractmethod
+    def _build_graph(self):
+        raise NotImplementedError
+
     def _prepare_data(self, buffer):
         with tf.name_scope('data'):
             sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))

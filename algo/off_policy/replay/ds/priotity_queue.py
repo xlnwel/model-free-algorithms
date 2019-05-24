@@ -1,6 +1,6 @@
 from collections import namedtuple
 import numpy as np
-from replay.ds.container import Container
+from algo.off_policy.replay.ds.container import Container
 
 class PriorityQueue(Container):
     """ Interface """

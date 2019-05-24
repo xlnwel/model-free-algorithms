@@ -44,7 +44,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
         agent.log_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
 
         log_info = {
-            'ModelName': agent.args['algorithm'] + agent.model_name,
+            'ModelName': f'{agent.args['algorithm']}-{agent.model_name}',
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
             'AvgActionTime': action_time / eps_len,

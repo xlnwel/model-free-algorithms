@@ -142,7 +142,6 @@ class Module(Layer):
         return opt_op
 
 
-""" Restore suffers some mysterious bugs... Too busy to fix. TF2.X will change the interface anyway """
 class Model(Module):
     """ Interface """
     def __init__(self, 

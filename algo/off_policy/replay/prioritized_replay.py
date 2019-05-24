@@ -1,8 +1,9 @@
 import numpy as np
 
 from utility.decorators import override
-from replay.basic_replay import Replay
-from replay.utils import add_buffer, copy_buffer
+from utility.utils import assert_colorize
+from algo.off_policy.replay.basic_replay import Replay
+from algo.off_policy.replay.utils import add_buffer, copy_buffer
 
 
 class PrioritizedReplay(Replay):
@@ -35,10 +36,11 @@ class PrioritizedReplay(Replay):
 
         return samples
 
+    @override(Replay)
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
             self.temporary_buffer['priority'][self.tb_idx] = self.top_priority
-        super().add(state, action, reward, next_state, done)
+        super()._add(state, action, reward, next_state, done)
 
     def update_priorities(self, priorities, saved_exp_ids):
         with self.locker:
@@ -46,12 +48,6 @@ class PrioritizedReplay(Replay):
                 self.data_structure.update(priority, exp_id)
 
     """ Implementation """
-    def _compute_IS_ratios(self, N, probabilities):
-        IS_ratios = np.power(probabilities * N, -self.beta)
-        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upward
-
-        return IS_ratios
-    
     def _update_beta(self):
         self.beta = min(self.beta + self.beta_grad, 1)
 
@@ -76,3 +72,9 @@ class PrioritizedReplay(Replay):
             print('Memory is fulll')
             self.is_full = True
         self.exp_id = end_idx % self.capacity
+
+    def _compute_IS_ratios(self, N, probabilities):
+        IS_ratios = np.power(probabilities * N, -self.beta)
+        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upward
+
+        return IS_ratios

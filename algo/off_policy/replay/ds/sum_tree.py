@@ -1,5 +1,5 @@
 import numpy as np
-from replay.ds.container import Container
+from algo.off_policy.replay.ds.container import Container
 
 class SumTree(Container):
     """ Interface """

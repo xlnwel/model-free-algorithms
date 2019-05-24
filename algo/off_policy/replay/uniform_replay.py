@@ -2,8 +2,8 @@ import threading
 import numpy as np
 
 from utility.decorators import override
-from replay.basic_replay import Replay
-from replay.utils import add_buffer, copy_buffer
+from algo.off_policy.replay.basic_replay import Replay
+from algo.off_policy.replay.utils import add_buffer, copy_buffer
 
 
 class UniformReplay(Replay):
@@ -11,6 +11,11 @@ class UniformReplay(Replay):
     def __init__(self, args, state_space, action_space):
         super(args, state_space, action_space)
 
+    @override(Replay)
+    def add(self, state, action, reward, next_state, done):
+        super()._add(state, action, reward, next_state, done)
+
+    """ Implementation """
     @override(Replay)
     def _sample(self):
         indices = np.random.randint(0, self.capacity, self.batch_size)

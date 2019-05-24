@@ -32,6 +32,7 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
 <img src="/results/sac/fore_episode.png" alt="average score in tensorboard" height="350">
 </p>
 
+#### Ape-X, 10 workers, bach size 512 x-axis denotes time
 ## Implementation Details
 
 ### Some Implementation Details
@@ -46,7 +47,7 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
     The downside is:
 
     - This makes the algorithm unstable at the convergence, which, however, could be mitigated by learning rate decay and a large batch size.
-    - This causes loss of control of the number of updates per environment step, which is sometimes required when doing research experiments, but we do not concern it here. 
+    - This causes loss of control of the number of updates per environment step, which is sometimes required when doing research experiments, but we do not concern it here.256 
 
 ## Experimental Results
 
@@ -56,18 +57,24 @@ Large networks are easy to result in fluctuation at the convergence, which may b
 
 Add actions at the first two levels improve performance. This effect is more significant when having learning in a background thread.
 
-Large networks slow down the learning process, and worse still, may impair the final performance, resulting in fluctuation at the convergence.
+Large networks slow down the learning process, and worse still, may impair the final performance, resulting in fluctuation at the convergence. This may be the result of overfitting.
 
 Training networks in a background thread may cause learning unstable at the convergence, which could be alleviated by increasing the batch size.
 
-### SAC
-
-It is better to use Q-error instead of V-error as priority
+Adding noisy layers at the last two dense layers significantly helps do exploration.
 
 ### TD3
 
 Applying bias correction for prioritized sampling to actor loss improves the performance.
 
+### SAC
+
+It is better to use Q-error instead of V-error as priority
+
+It is hard to tell the effect of noisy layers in SAC. During experiments noisy layers in deed speed up the learning process. 
+
+Bias correction for prioritized sampling helps.
+
 ### Ape-X
 
-Ape-X requires larger network than general single-process algorithms.
+Ape-X requires a larger batch size than general single-process algorithms.

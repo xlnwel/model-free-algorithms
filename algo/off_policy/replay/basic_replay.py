@@ -1,12 +1,12 @@
 import threading
 import numpy as np
 
-from algo.off_policy.replay.utils import add_buffer, copy_buffer
-from algo.off_policy.replay.utils import init_buffer
 from utility.utils import assert_colorize
+from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 
 class Replay:
+    """ Interface """
     def __init__(self, args, state_space, action_dim):
         self.memory = {}
 
@@ -58,8 +58,14 @@ class Replay:
         with self.locker:
             self._merge(local_buffer, length, start)
 
-    # Code for single agent
-    def add(self, state, action, reward, next_state, done):
+    def add(self):
+        # locker should be handled in implementation
+        raise NotImplementedError
+
+    """ Implementation """
+    def _add(self, state, action, reward, next_state, done):
+        """ add is only used for single agent, no multiple adds are expected to run at the same time
+            but it may fight for resource with self.sample if background learning is enabled """
         if self.n_steps > 1:
             add_buffer(self.temporary_buffer, self.tb_idx, state, action, reward, 
                         next_state, done, self.n_steps, self.gamma)
@@ -77,9 +83,10 @@ class Replay:
                 # add the ready experience in temporary buffer to memory
                 self.merge(self.temporary_buffer, 1, self.tb_idx)
         else:
-            add_buffer(self.memory, self.exp_id, state, action, reward,
-                        next_state, done, self.n_steps, self.gamma)
-            self.exp_id += 1
+            with self.locker:
+                add_buffer(self.memory, self.exp_id, state, action, reward,
+                            next_state, done, self.n_steps, self.gamma)
+                self.exp_id += 1
 
     def _sample(self):
         raise NotImplementedError

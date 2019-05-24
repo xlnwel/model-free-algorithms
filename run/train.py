@@ -24,12 +24,15 @@ def parse_cmd_args():
                         default='false')
     parser.add_argument('--trials', '-t',
                         type=int,
-                        default=1)
+                        default=1,
+                        help='number of trials')
     parser.add_argument('--prefix', '-p',
-                        default='')
+                        default='',
+                        help='prefix for model dir')
     parser.add_argument('--file', '-f',
                         type=str,
-                        default='')
+                        default='',
+                        help='filepath to restore')
     args = parser.parse_args()
 
     return args
@@ -60,6 +63,7 @@ if __name__ == '__main__':
         raise NotImplementedError
 
     render = True if cmd_args.render == 'true' else False
+    
 
     if cmd_args.file != '':
         args = load_args(arg_file)
@@ -75,13 +79,12 @@ if __name__ == '__main__':
         main(env_args, agent_args, buffer_args, render=render)
     else:
         prefix = cmd_args.prefix + ('dist' if distributed else '') 
-        gs = GridSearch(arg_file, main, render, n_trials=cmd_args.trials, dir_prefix=prefix)
+        gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
 
-        args = {'units': [(1024, 512, 256), (1024, 512, 512, 256)]}
         # Grid search happens here
         if algorithm == 'ppo':
-            gs(mask=[True, False], advantage_type=['norm', 'gae'])
+            gs()
         elif algorithm == 'td3':
             gs()
         elif algorithm == 'sac':
-            gs(temperature=[0, 0.01])
+            gs()
