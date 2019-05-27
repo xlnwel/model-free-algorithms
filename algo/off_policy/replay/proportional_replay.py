@@ -19,9 +19,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         
         segment = total_priorities / self.batch_size
 
-        priorities, exp_ids = list(zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment), 
-                                                                  i, (i+1) * segment, total_priorities, 
-                                                                  self.data_structure.total_priorities)
+        priorities, exp_ids = list(zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment))
                                         for i in range(self.batch_size)]))
 
         priorities = np.squeeze(priorities)

@@ -18,7 +18,7 @@ class SumTree(Container):
     def total_priorities(self):
         return self.container[0][0]
 
-    def find(self, value, i, high, total, total2):
+    def find(self, value):
         idx = 0                 # start from the root
 
         while idx < self.capacity - 1:
