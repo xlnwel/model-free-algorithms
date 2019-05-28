@@ -317,6 +317,51 @@ class Layer():
 
         return x, (initial_state, final_state)
 
+    def lstm_norm(self, x, units, masks, norm=True):
+        kernel_initializer = tf_utils.kaiming_initializer() if norm else tf_utils.xavier_initializer()
+        xw_shape = [x.shape.as_list()[-1], units]
+        xb_shape = [units]
+        hw_shape = [units, units]
+        hb_shape = [units]
+        
+        n_batch, n_steps = x.shape.as_list()[:2]
+
+        ln = tc.layers.layer_norm
+
+        with tf.variable_scope('lstm_norm'):
+            x_w = tf.get_variable('x_w', shape=xw_shape, 
+                                  initializer=kernel_initializer,
+                                  regularizer=self.l2_regularizer)
+            x_b = tf.get_variable('x_b', shape=xb_shape, 
+                                  initializer=tf.constant_initializer(0))
+            
+            h_w = tf.get_variable('h_w', shape=hw_shape, 
+                                  initializer=kernel_initializer,
+                                  regularizer=self.l2_regularizer)
+            h_b = tf.get_variable('h_b', shape=hb_shape, 
+                                  initializer=tf.constant_initializer(0))
+
+            initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
+            c, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
+            xs = [tf.squeeze(v, [1]) for v in tf.split(value=x, num_or_size_splits=n_steps, axis=1)]
+            for idx, (x, m) in enumerate(zip(xs, masks)):
+                c *= 1-masks
+                h *= 1-masks
+                z = ln(tf.matmul(x, x_w) + x_b) + ln(tf.matmul(h, h_w) + h_b)
+                f, i, o, u = tf.split(value=z, num_or_size_splits=4, axis=1)
+                f = tf.nn.sigmoid(f)
+                i = tf.nn.sigmoid(i)
+                o = tf.nn.sigmoid(o)
+                u = tf.tanh(u)
+                c = f * c + i * u
+                h = o * tf.tanh(ln(c))
+                xs[idx] = h
+            
+            final_state = (h, c)
+            xs = tf.stack(xs, 1)
+
+        return xs, (initial_state, final_state)
+
     """ Auxiliary functions """
     def reset_counter(self, name):
         counter = name + '_counter'
