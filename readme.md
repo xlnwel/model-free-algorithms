@@ -8,7 +8,7 @@
 - [x] A2C
 - [x] Apex
 
-## Architecture
+## Overall Architecture
 
 <p align="center">
 <img src="/results/Architecture.png" alt="average score in tensorboard" height="650">
@@ -23,6 +23,16 @@ Performance figures and some further experimental results are recorded in "algo/
 
 Best arguments are kept in "args.yaml" in each algorithm folder. If you want to modify some arguments, do not modify it in "args.yaml". It is better to first pass the experimental arguments to `gs` defined in "run/train.py" to verify that they do improve the performance.
 
+## Requirements
+
+Minimal requirements to run the algorithms. Tested on Ubuntu 18.04.2, using Tensorflow 1.13.1.
+
+```shell
+conda create -n gym python
+source activate gym
+pip install -r requirements.txt
+```
+
 ## Running
 
 ```shell
@@ -34,6 +44,7 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export OPENBLAS_NUM_THREADS=1
 
 # for full argument specification, please refer to run/train.py
+# especially, Ape-X share the same arguments with either td3 and sac, so 
 python run/train.py -a=td3
 ```
 
