@@ -37,33 +37,51 @@ def parse_cmd_args():
 
     return args
 
-if __name__ == '__main__':
-    cmd_args = parse_cmd_args()
-    algorithm = cmd_args.algorithm
-
-    distributed = True if cmd_args.distributed == 'true' else False
+def import_main(algorithm, distributed):
     if distributed:
         if algorithm == 'td3' or algorithm == 'sac':
             from algo.off_policy.distributed_train import main
-        elif algorithm == 'ppo':
+        elif algorithm == 'a2c':
             from algo.on_policy.distributed_train import main
+        else:
+            raise NotImplementedError
     else:
         if algorithm == 'td3' or algorithm == 'sac':
             from algo.off_policy.single_train import main
         elif algorithm == 'ppo':
             from algo.on_policy.single_train import main
+        elif algorithm == 'a2c':
+            from algo.on_policy.distributed_train import main   # we could directly specify a2c
+        else:
+            raise NotImplementedError
     
+    return main
+
+def get_arg_file(algorithm):
     if algorithm == 'td3':
         arg_file = 'algo/off_policy/td3/args.yaml'
     elif algorithm == 'sac':
         arg_file = 'algo/off_policy/sac/args.yaml'
     elif algorithm == 'ppo':
         arg_file = 'algo/on_policy/ppo/args.yaml'
+    elif algorithm == 'a2c':
+        arg_file = 'algo/on_policy/a2c/args.yaml'
     else:
         raise NotImplementedError
 
-    render = True if cmd_args.render == 'true' else False
+    return arg_file
+
+if __name__ == '__main__':
+    cmd_args = parse_cmd_args()
+    algorithm = cmd_args.algorithm
+    distributed = True if cmd_args.distributed == 'true' else False
+    if algorithm == 'ppo' and distributed:
+        algorithm = 'a2c'
     
+    main = import_main(algorithm, distributed)
+    arg_file = get_arg_file(algorithm)
+
+    render = True if cmd_args.render == 'true' else False
 
     if cmd_args.file != '':
         args = load_args(arg_file)
@@ -79,10 +97,14 @@ if __name__ == '__main__':
         main(env_args, agent_args, buffer_args, render=render)
     else:
         prefix = cmd_args.prefix + ('dist' if distributed else '') 
+        # Although random parameter search is in general better than grid search, 
+        # we here continue to go with grid search since it is easier to deal with architecture search
         gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
 
         # Grid search happens here
         if algorithm == 'ppo':
+            gs()    # specify arguments for ppo here
+        elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
             gs()
