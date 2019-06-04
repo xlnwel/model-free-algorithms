@@ -60,9 +60,6 @@ def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread
     utils.set_global_seed()
 
-    if 'n_workers' in agent_args:
-        del agent_args['n_workers']
-
     algorithm = agent_args['algorithm']
     if algorithm == 'td3':
         from algo.off_policy.td3.agent import Agent

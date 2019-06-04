@@ -7,7 +7,6 @@ env:
     seed: 0
 agent:
     algorithm: ppo
-    n_workers: 1
 
     gamma: 0.99
     lam: 0.97

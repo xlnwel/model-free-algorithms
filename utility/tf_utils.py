@@ -12,9 +12,27 @@ def kaiming_initializer(distribution='truncated_normal', seed=None):
 def xavier_initializer(distribution='truncated_normal', seed=None):
     return tk.initializers.VarianceScaling(scale=1., mode='fan_avg', distribution=distribution, seed=seed)
 
+def constant_initializer(val):
+    return tk.initializers.Constant(val)
+
 # batch normalization and relu
 def bn_relu(x, training): 
     return tf.nn.relu(tf.layers.batch_normalization(x, training=training))
+
+def layer_norm(x, name='LayerNorm'):
+    with tf.variable_scope(name):
+        n_dims = len(x.shape.as_list())
+        mean, var = tf.nn.moments(x, list(range(1, n_dims)), keepdims=True)
+        std = tf.sqrt(var)
+
+        x = (x - mean) / std
+
+        shape = x.shape.as_list[1:]
+        gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
+        beta = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(0))
+        x = gamma * x + beta
+
+    return x
 
 # layer normalization and relu
 def ln_relu(x):
@@ -47,10 +65,12 @@ def norm_activation(x, norm=None, activation=None, training=False):
     return x
 
 def standard_normalization(x):
-    mean, var = tf.nn.moments(x, [0] if len(x.shape.as_list()) == 2 else [0, 1, 2], keepdims=True)
-    std = tf.sqrt(var)
+    with tf.variable_scope('Normalization'):
+        n_dims = len(x.shape.as_list())
+        mean, var = tf.nn.moments(x, list(range(n_dims-1)), keepdims=True)
+        std = tf.sqrt(var)
 
-    x = (x - mean) / std
+        x = (x - mean) / std
     
     return x
 

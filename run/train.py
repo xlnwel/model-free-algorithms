@@ -13,12 +13,8 @@ def parse_cmd_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--algorithm', '-a',
                         type=str,
-                        choices=['td3', 'sac', 'ppo'])
+                        choices=['td3', 'sac', 'apex-td3', 'apex-sac', 'ppo', 'a2c'])
     parser.add_argument('--render', '-r',
-                        type=str,
-                        choices=['true', 'false'],
-                        default='false')
-    parser.add_argument('--distributed', '-d',
                         type=str,
                         choices=['true', 'false'],
                         default='false')
@@ -37,31 +33,29 @@ def parse_cmd_args():
 
     return args
 
-def import_main(algorithm, distributed):
-    if distributed:
-        if algorithm == 'td3' or algorithm == 'sac':
-            from algo.off_policy.distributed_train import main
-        elif algorithm == 'a2c':
-            from algo.on_policy.distributed_train import main
-        else:
-            raise NotImplementedError
+def import_main(algorithm):
+    if algorithm == 'td3' or algorithm == 'sac':
+        from algo.off_policy.single_train import main
+    elif algorithm.startswith('apex'):
+        from algo.off_policy.distributed_train import main
+    elif algorithm == 'ppo':
+        from algo.on_policy.single_train import main
+    elif algorithm == 'a2c':
+        from algo.on_policy.distributed_train import main
     else:
-        if algorithm == 'td3' or algorithm == 'sac':
-            from algo.off_policy.single_train import main
-        elif algorithm == 'ppo':
-            from algo.on_policy.single_train import main
-        elif algorithm == 'a2c':
-            from algo.on_policy.distributed_train import main   # we could directly specify a2c
-        else:
-            raise NotImplementedError
-    
-    return main
+        raise NotImplementedError
 
+    return main
+    
 def get_arg_file(algorithm):
     if algorithm == 'td3':
         arg_file = 'algo/off_policy/td3/args.yaml'
     elif algorithm == 'sac':
         arg_file = 'algo/off_policy/sac/args.yaml'
+    elif algorithm == 'apex-td3':
+        arg_file = 'algo/off_policy/apex/td3_args.yaml'
+    elif algorithm == 'apex-sac':
+        arg_file = 'algo/off_policy/apex/sac_args.yaml'
     elif algorithm == 'ppo':
         arg_file = 'algo/on_policy/ppo/args.yaml'
     elif algorithm == 'a2c':
@@ -74,13 +68,10 @@ def get_arg_file(algorithm):
 if __name__ == '__main__':
     cmd_args = parse_cmd_args()
     algorithm = cmd_args.algorithm
-    distributed = True if cmd_args.distributed == 'true' else False
-    if algorithm == 'ppo' and distributed:
-        algorithm = 'a2c'
     
-    main = import_main(algorithm, distributed)
+    main = import_main(algorithm)
     arg_file = get_arg_file(algorithm)
-
+    
     render = True if cmd_args.render == 'true' else False
 
     if cmd_args.file != '':
@@ -96,17 +87,25 @@ if __name__ == '__main__':
 
         main(env_args, agent_args, buffer_args, render=render)
     else:
-        prefix = cmd_args.prefix + ('dist' if distributed else '') 
+        prefix = cmd_args.prefix
+        if algorithm.startswith('apex'):
+            prefix = f'{prefix}-apex' if prefix else 'apex'
         # Although random parameter search is in general better than grid search, 
         # we here continue to go with grid search since it is easier to deal with architecture search
         gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
 
         # Grid search happens here
         if algorithm == 'ppo':
-            gs()    # specify arguments for ppo here
+            gs(mask=[True, False])
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
             gs()
         elif algorithm == 'sac':
             gs()
+        elif algorithm == 'apex-td3':
+            gs()
+        elif algorithm == 'apex-sac':
+            gs()
+        else:
+            raise NotImplementedError

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import threading
 import tensorflow as tf
@@ -32,7 +33,11 @@ def get_learner(BaseClass, *args, **kwargs):
                             log_params=log_params,
                             log_score=log_score,
                             device=device)
-            self.learning_thread = threading.Thread(target=self.background_learning)
+            
+            # Avoid contention when using ray to implement distributed training
+            # For more details: https://ray.readthedocs.io/en/latest/example-rl-pong.html?highlight=openblas
+            os.environ["MKL_NUM_THREADS"] = "1"
+            self.learning_thread = threading.Thread(target=self.background_learning, daemon=True)
             self.learning_thread.start()
             
             print('Learner has been constructed.')

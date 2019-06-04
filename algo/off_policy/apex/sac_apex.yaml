@@ -1,57 +1,67 @@
 ---
 env:
-    name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
+    name: &env_name BipedalWalker-v2
     max_episode_steps: 1000
     seed: 0
 agent:
     background_learning: True
-    algorithm: td3
-    gamma: 0.99
-    polyak: 0.995      # moving average rate
-    batch_size: 128
+    algorithm: sac
+    temperature: 0.01
+    gamma: &gamma 0.99
+    batch_size: 512
+    n_workers: &n_workers 10
     prefetches: 5
 
-    # model path: model_root_dir/model_name
+    # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
 
+    loss_type: mse            # huber or mse
     n_steps: 3
-    policy_delay: 1     # policy will be updated once every policy_delay steps
+    priority: Q               # Q or V
+    policy_delay: 1
     n_epochs: 5000
     
-    actor:
-        n_noisy: 2      # number of noisy layer
-        units: [512, 256, 128]
+    policy:
+        n_noisy: 2
         noisy_sigma: 0.4    # standard deviation for noisy layers
+        units: [512, 256, 128]
         layernorm: True
         # args for optimizer
         learning_rate: 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
-        
-    critic:
-        units: [512, 512, 256]
-        loss_type: mse   # huber or mse
+    V:
+        polyak: .995      # moving average rate
+        units: &critic_units [512, 512, 256]
         layernorm: True
         # args for optimizer
-        learning_rate: 3e-4
+        learning_rate: &critic_lr 3e-4
+        layernorm: True
+        decay_rate: *decay_rate
+        decay_steps: *decay_steps
+    Q:
+        units: *critic_units
+        layernorm: True
+        # args for optimizer
+        learning_rate: *critic_lr
         decay_rate: *decay_rate
         decay_steps: *decay_steps
 
     env_stats:
-        times: 1
+        times: *n_workers
         stats: [score, avg_score, eps_len, avg_eps_len]
 
 # argumennts for prioritized replay
 buffer:
-    type: proportional # local or proportional
+    type: proportional # proportional
 
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 5e4
+    beta_steps: 1e5
     min_size: 1e3
     capacity: 1e6
 

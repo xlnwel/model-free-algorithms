@@ -19,8 +19,8 @@ It is important to monitor the value of the approximate KL divergence when fine-
 
 Clipping target value helps.
 
-To my surprise, mask out states and rewards after the agent encounters a done does not improve performance
+Masking out states and rewards after the agent encounters a done significantly speeds up the learning.
 
 GAE works better with a smaller learning rate (1e-4), NAE works better with a larger learning rate (3e-4).
 
-NAE is more stable than GAE. Both take around 4 hours to reach 250+ scores averaged over 10 episodes, but take about 8-10 hours to solve BipedalWalker-v2.
+NAE is more stable than GAE in my test. Both take around 4 hours to reach 250+ scores averaged over 10 episodes, but take about 8-10 hours to reach the solved requirement of BipedalWalker-v2.

@@ -4,10 +4,10 @@ pandas
 box2d
 box2d-kengz
 opencv-python
-tensorflow-gpu
 pyyaml
 psutil
 lz4
 requests
+setproctitle
 ray
 gym

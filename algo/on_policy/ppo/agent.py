@@ -201,30 +201,17 @@ class Agent(Model):
         return self.env_vec.get_episode_score(), self.env_vec.get_episode_length()
 
     def _optimize(self):
-        get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
-
-        if self.minibatch_idx == 0 and self.use_rnn:
-            # set initial state to zeros for every pass of buffer
-            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
-            
-        # construct fetches and feed_dict
+        # construct fetches
         fetches = [self.ac.opt_op, 
                    [self.ac.ppo_loss, self.ac.entropy, 
                     self.ac.V_loss, self.ac.loss, 
                     self.ac.approx_kl, self.ac.clipfrac]]
-        feed_dict = {
-            self.env_phs['state']: get_data('state'),
-            self.ac.action: get_data('action'),
-            self.env_phs['return']: get_data('return'),
-            self.env_phs['value']: get_data('value'),
-            self.env_phs['advantage']: get_data('advantage'),
-            self.env_phs['old_logpi']: get_data('old_logpi'),
-            self.env_phs['entropy_coef']: self.entropy_coef
-        }
         if self.use_rnn:
             fetches.append(self.ac.final_state)
-            feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         fetches.append([self.ac.opt_step, self.graph_summary])
+
+        # construct feed_dict
+        feed_dict = self._get_feeddict()
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
         if self.use_rnn:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
@@ -235,3 +222,25 @@ class Agent(Model):
         self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
 
         return loss_info, opt_step, summary
+
+    def _get_feeddict(self):
+        get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
+
+        if self.minibatch_idx == 0 and self.use_rnn:
+            # set initial state to zeros for every pass of buffer
+            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
+            
+        # construct feed_dict
+        feed_dict = {
+            self.env_phs['state']: get_data('state'),
+            self.ac.action: get_data('action'),
+            self.env_phs['return']: get_data('return'),
+            self.env_phs['value']: get_data('value'),
+            self.env_phs['advantage']: get_data('advantage'),
+            self.env_phs['old_logpi']: get_data('old_logpi'),
+            self.env_phs['entropy_coef']: self.entropy_coef
+        }
+        if self.use_rnn:
+            feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
+
+        return feed_dict

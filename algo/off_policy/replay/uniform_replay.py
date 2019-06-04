@@ -38,3 +38,5 @@ class UniformReplay(Replay):
         if not self.is_full and end_idx >= self.capacity:
             print('Memory is fulll')
             self.is_full = True
+        
+        self.exp_id = end_idx % self.capacity

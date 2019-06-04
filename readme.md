@@ -27,26 +27,24 @@ Best arguments are kept in "args.yaml" in each algorithm folder. If you want to 
 
 ## Requirements
 
-Minimal requirements to run the algorithms. Tested on Ubuntu 18.04.2, using Tensorflow 1.13.1.
+It is recommended to install Tensorflow from source following [this instruction](https://www.tensorflow.org/install/source) to gain some CPU boost and other potential benefits.
 
 ```shell
+# Minimal requirements to run the algorithms. Tested on Ubuntu 18.04.2, using Tensorflow 1.13.1.
 conda create -n gym python
 source activate gym
 pip install -r requirements.txt
+# Install tensorflow-gpu or install it from scratch
+pip install tensorflow-gpu
 ```
 
 ## Running
 
 ```shell
-# silence tensorflow debug message
+# Silence tensorflow debug message
 export TF_CPP_MIN_LOG_LEVEL=3
-# Avoid contention when using ray to implement distributed training
-# For more details: https://ray.readthedocs.io/en/latest/example-rl-pong.html?highlight=openblas
-# However, I spot that this setting somehow impairs the performance :-(
-export OPENBLAS_NUM_THREADS=1
 
-# for full argument specification, please refer to run/train.py
-# especially, Ape-X share the same arguments with either td3 and sac, so 
+# For full argument specification, please refer to run/train.py
 python run/train.py -a=td3
 ```
 

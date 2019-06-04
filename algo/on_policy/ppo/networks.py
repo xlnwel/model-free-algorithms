@@ -59,7 +59,8 @@ class ActorCritic(Base):
         self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.V_loss, self.loss = self._loss()
 
         # optimizer
-        self.optimizer, self.opt_step, self.grads_and_vars, self.opt_op = self._optimize(self.loss)
+        self.optimizer, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss)
+        self.grads = [gv[0] for gv in self.grads_and_vars]
 
     def _common_dense(self, x, units, reshape_for_rnn=True, name='common_dense'):
         with tf.variable_scope(name):
@@ -100,6 +101,7 @@ class ActorCritic(Base):
 
         return x
 
+    """ Code for separate policy and value network """
     def _policy_net(self, x, units, action_dim, discrete=False, name='policy_net'):
         with tf.variable_scope(name):
             x = self._common_dense(x, self.args['common_dense_units'], 
@@ -129,6 +131,7 @@ class ActorCritic(Base):
 
         return x
 
+    """ Losses """
     def _loss(self):
         with tf.name_scope('loss'):
             loss_info = self._policy_loss(self.logpi, self.env_phs['old_logpi'], 
@@ -167,7 +170,7 @@ class ActorCritic(Base):
 
         return loss
 
-    def _optimize(self, loss):
+    def _optimization_op(self, loss):
         with tf.name_scope('optimization'):
             optimizer, opt_step = self._adam_optimizer(opt_step=True)
             grads_and_vars = self._compute_gradients(loss, optimizer)

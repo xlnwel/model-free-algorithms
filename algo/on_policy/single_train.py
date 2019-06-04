@@ -31,7 +31,7 @@ def train(agent, agent_args, test_agent):
                         avg_eps_len=avg_eps_len, approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
-            'ModelName': agent.args['algorithm'] + agent.model_name,
+            'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
             'AvgScore': avg_score,
@@ -53,9 +53,6 @@ def train(agent, agent_args, test_agent):
 
 def main(env_args, agent_args, buffer_args, render=False):
     utils.set_global_seed()
-
-    if 'n_workers' in agent_args:
-        del agent_args['n_workers']
 
     agent_name = 'Agent'
     agent = Agent(agent_name, agent_args, env_args, device='/gpu:0')

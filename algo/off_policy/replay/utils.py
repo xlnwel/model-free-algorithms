@@ -45,10 +45,6 @@ def copy_buffer(dest_buffer, dest_start, dest_end, orig_buffer, orig_start, orig
     assert_colorize(dest_end - dest_start == orig_end - orig_start, 'Inconsistent lengths of dest_buffer and orig_buffer.')
     if dest_end - dest_start == 0:
         return
-
-    dest_buffer['state'][dest_start: dest_end] = orig_buffer['state'][orig_start: orig_end]
-    dest_buffer['action'][dest_start: dest_end] = orig_buffer['action'][orig_start: orig_end]
-    dest_buffer['reward'][dest_start: dest_end] = orig_buffer['reward'][orig_start: orig_end]
-    dest_buffer['next_state'][dest_start: dest_end] = orig_buffer['next_state'][orig_start: orig_end]
-    dest_buffer['done'][dest_start: dest_end] = orig_buffer['done'][orig_start: orig_end]
-    dest_buffer['steps'][dest_start: dest_end] = orig_buffer['steps'][orig_start: orig_end]
+    
+    for key in dest_buffer.keys():
+        dest_buffer[key][dest_start: dest_end] = orig_buffer[key][orig_start: orig_end]
