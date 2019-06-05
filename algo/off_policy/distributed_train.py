@@ -22,7 +22,10 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     if 'n_workers' not in agent_args:
-        agent_args['n_workers'] = cpu_count() - 2
+        # 1 cpu for each worker and 2 cpus for the learner so that network update happens at a background thread
+        n_workers = cpu_count() - 2
+        agent_args['n_workers'] = n_workers
+        agent_args['env_stats']['times'] = n_workers
 
     ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
@@ -33,9 +36,9 @@ def main(env_args, agent_args, buffer_args, render=False):
     buffer_args['type'] = 'local'
     for worker_no in range(agent_args['n_workers']):
         max_episodes = 1    # np.random.randint(1, 10)
-        if agent_args['algorithm'] == 'td3':
+        if agent_args['algorithm'] == 'apex-td3':
             agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
-        elif agent_args['algorithm'] == 'sac':
+        elif agent_args['algorithm'] == 'apex-sac':
             agent_args['policy']['noisy_sigma'] = np.random.randint(3, 7) * .1
         else:
              raise NotImplementedError

@@ -8,7 +8,7 @@ agent:
     algorithm: td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: 512
+    batch_size: 128
     prefetches: 5
 
     # model path: model_root_dir/model_name
@@ -23,7 +23,7 @@ agent:
     
     actor:
         n_noisy: 2      # number of noisy layer
-        units: [512, 512, 256]
+        units: [512, 256, 128]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         layernorm: True
         # args for optimizer

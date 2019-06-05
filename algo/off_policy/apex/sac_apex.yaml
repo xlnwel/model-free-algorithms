@@ -5,11 +5,10 @@ env:
     seed: 0
 agent:
     background_learning: True
-    algorithm: sac
+    algorithm: apex-sac
     temperature: 0.01
     gamma: &gamma 0.99
     batch_size: 512
-    n_workers: &n_workers 10
     prefetches: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -51,7 +50,7 @@ agent:
         decay_steps: *decay_steps
 
     env_stats:
-        times: *n_workers
+        times: 1
         stats: [score, avg_score, eps_len, avg_eps_len]
 
 # argumennts for prioritized replay

@@ -5,11 +5,10 @@ env:
     seed: 0
 agent:
     background_learning: True
-    algorithm: td3
+    algorithm: apex-td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: 512
-    n_workers: &n_workers 10
+    batch_size: 1024
     prefetches: 5
 
     # model path: model_root_dir/model_name
@@ -42,7 +41,7 @@ agent:
         decay_steps: *decay_steps
 
     env_stats:
-        times: *n_workers
+        times: 1
         stats: [score, avg_score, eps_len, avg_eps_len]
 
 # argumennts for prioritized replay

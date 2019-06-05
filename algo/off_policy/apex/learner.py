@@ -23,6 +23,7 @@ def get_learner(BaseClass, *args, **kwargs):
                     log_params=True,
                     log_score=True,
                     device=None):
+                    
             super().__init__(name, 
                             args, 
                             env_args,
