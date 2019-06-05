@@ -9,45 +9,36 @@ class SumTree(Container):
         self.full = False
         # expect the first capacity - 1 elements in self.container are of type np.array([])
         # others are self.prio_expid if data has been filled in
-        self.container = [np.array([0.]) for _ in range(2 * capacity - 1)]
-
-    def __len__(self):
-        return self.capacity if self.full else self.prio_id
+        self.container = np.zeros((2 * capacity - 1))
 
     @property
     def total_priorities(self):
-        return self.container[0][0]
+        return self.container[0]
 
     def find(self, value):
         idx = 0                 # start from the root
 
         while idx < self.capacity - 1:
             left, right = 2 * idx + 1, 2 * idx + 2
-            if value <= self.container[left][0]:
+            if value <= self.container[left]:
                 idx = left
             else:
                 idx = right
-                value -= self.container[left][0]
+                value -= self.container[left]
 
-        return self.container[idx]
+        return self.container[idx], idx - self.capacity + 1
 
-    """ Implementation """
-    def _update(self, priority, exp_id):
-        prio_id = self.exp2prio[exp_id]
-        idx = prio_id + self.capacity - 1
-        self.container[idx] = self.prio_expid(priority, exp_id)
+    def add(self, priority, exp_id, full):        
+        self.update(priority, exp_id)
+        assert exp_id == self.prio_id, f'{exp_id} != {self.prio_id}'
+        self.prio_id = (self.prio_id + 1) % self.capacity
+        self.full = full
+
+    def update(self, priority, exp_id):
+        idx = exp_id + self.capacity - 1
+        self.container[idx] = priority
 
         self._propagate(idx)
-
-    def _add(self, priority, exp_id):
-        self._update_id_dicts(self.prio_id, exp_id)
-        self.prio_id += 1
-
-        if self.prio_id == self.capacity:
-            self.full = True
-            self.prio_id = 0
-
-        self._update(priority, exp_id)
 
     def _propagate(self, idx):
         while idx > 0:
@@ -56,4 +47,4 @@ class SumTree(Container):
             left = idx * 2 + 1
             right = idx * 2 + 2
 
-            self.container[idx][0] = self.container[left][0] + self.container[right][0]
+            self.container[idx] = self.container[left] + self.container[right]

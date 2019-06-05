@@ -23,6 +23,7 @@ def main(env_args, agent_args, buffer_args, render=False):
 
     if 'n_workers' not in agent_args:
         agent_args['n_workers'] = cpu_count() - 2
+
     ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'

@@ -34,9 +34,6 @@ def get_learner(BaseClass, *args, **kwargs):
                             log_score=log_score,
                             device=device)
             
-            # Avoid contention when using ray to implement distributed training
-            # For more details: https://ray.readthedocs.io/en/latest/example-rl-pong.html?highlight=openblas
-            os.environ["MKL_NUM_THREADS"] = "1"
             self.learning_thread = threading.Thread(target=self.background_learning, daemon=True)
             self.learning_thread.start()
             

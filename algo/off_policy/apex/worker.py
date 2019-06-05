@@ -39,9 +39,6 @@ def get_worker(BaseClass, *args, **kwargs):
                             device=device)
 
             self.max_episodes = max_episodes
-            # Avoid contention when using ray to implement distributed training
-            # For more details: https://ray.readthedocs.io/en/latest/example-rl-pong.html?highlight=openblas
-            os.environ["MKL_NUM_THREADS"] = "1"
             pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
         def sample_data(self, learner):

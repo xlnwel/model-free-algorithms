@@ -102,7 +102,7 @@ if __name__ == '__main__':
         elif algorithm == 'td3':
             gs()
         elif algorithm == 'sac':
-            gs()
+            gs(background_learning=False)
         elif algorithm == 'apex-td3':
             gs()
         elif algorithm == 'apex-sac':

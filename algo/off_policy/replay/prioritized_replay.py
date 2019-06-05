@@ -55,7 +55,7 @@ class PrioritizedReplay(Replay):
     def _merge(self, local_buffer, length, start=0):
         end_idx = self.exp_id + length
         for prio_id, exp_id in enumerate(range(self.exp_id, end_idx)):
-            self.data_structure.update(local_buffer['priority'][prio_id], exp_id % self.capacity)
+            self.data_structure.add(local_buffer['priority'][prio_id], exp_id % self.capacity, self.is_full)
             
         super()._merge(local_buffer, length, start)
         
