@@ -14,9 +14,9 @@ from algo.off_policy.apex.learner import get_learner
 
 
 def main(env_args, agent_args, buffer_args, render=False):
-    if agent_args['algorithm'] == 'td3':
+    if agent_args['algorithm'] == 'apex-td3':
         from algo.off_policy.td3.agent import Agent
-    elif agent_args['algorithm'] == 'sac':
+    elif agent_args['algorithm'] == 'apex-sac':
         from algo.off_policy.sac.agent import Agent
     else:
         raise NotImplementedError
