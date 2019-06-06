@@ -3,16 +3,18 @@ import numpy as np
 from utility.utils import assert_colorize
 
 
-def init_buffer(buffer, capacity, state_space, action_dim, has_priority):
-    dtype = np.uint8 if len(state_space) == 3 else np.float16
+def init_buffer(buffer, capacity, state_space, action_dim, has_priority, atari=False):
+    state_dtype = np.uint8 if atari else np.float16
+    action_shape = (capacity, ) if atari else (capacity, action_dim)
+    action_dtype = np.int32 if atari else np.float16
     target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
     target_buffer.update({
-        'state': np.zeros((capacity, *state_space), dtype=dtype),
-        'action': np.zeros((capacity, action_dim), dtype=dtype),
-        'reward': np.zeros((capacity, 1)),
-        'next_state': np.zeros((capacity, *state_space), dtype=dtype),
-        'done': np.zeros((capacity, 1), np.uint8),
-        'steps': np.zeros((capacity, 1), np.uint8)
+        'state': np.zeros((capacity, *state_space), dtype=state_dtype),
+        'action': np.zeros(action_shape, dtype=action_dtype),
+        'reward': np.zeros((capacity, 1), dtype=np.float16),
+        'next_state': np.zeros((capacity, *state_space), dtype=state_dtype),
+        'done': np.zeros((capacity, 1), dtype=np.uint8),
+        'steps': np.zeros((capacity, 1), dtype=np.uint8)
     })
 
     buffer.update(target_buffer)
@@ -43,7 +45,8 @@ def add_buffer(buffer, idx, state, action, reward, next_state, done, n_steps, ga
         buffer['steps'][k] += 1
 
 def copy_buffer(dest_buffer, dest_start, dest_end, orig_buffer, orig_start, orig_end):
-    assert_colorize(dest_end - dest_start == orig_end - orig_start, 'Inconsistent lengths of dest_buffer and orig_buffer.')
+    assert_colorize(dest_end - dest_start == orig_end - orig_start, 
+                    'Inconsistent lengths of dest_buffer and orig_buffer.')
     if dest_end - dest_start == 0:
         return
     

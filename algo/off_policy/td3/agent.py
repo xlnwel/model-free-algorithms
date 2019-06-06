@@ -148,7 +148,3 @@ class Agent(OffPolicyOperation):
             
             with tf.name_scope('critic'):
                 stats_summary(self.critic.Q_with_actor, 'Q_with_actor')
-
-            with tf.name_scope('actor'):
-                stats_summary(self.action, 'action')
-                

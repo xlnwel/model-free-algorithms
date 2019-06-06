@@ -13,7 +13,7 @@ from utility.debug_tools import timeit
 def train(agent, render, log_steps, print_terminal_info=True, background_learning=True):
     state = agent.env.reset()
     t = 0
-    while agent.env.get_total_steps >= 2e8:
+    while agent.env.get_total_steps() < 2e8:
         t += 1
         if render:
             agent.env.render()
@@ -23,6 +23,7 @@ def train(agent, render, log_steps, print_terminal_info=True, background_learnin
         agent.add_data(state, action, reward, next_state, done)
         if not background_learning and agent.buffer.good_to_learn:
             agent.learn()
+
         if done:
             state = agent.env.reset()
         else:

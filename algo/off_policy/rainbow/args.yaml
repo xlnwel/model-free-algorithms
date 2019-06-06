@@ -1,7 +1,7 @@
 ---
 n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    atari: True
+    atari: &atari True
     video_path: video
     name: &env_name PongNoFrameskip-v4    # LunarLanderContinuous-v2
     seed: 0
@@ -18,21 +18,22 @@ agent:
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
 
-    frame_history_len: 4
+    frame_history_len: &fhl 4
+    update_rate: 4
     n_steps: 3
     loss_type: mse   # huber or mse
     
     networks:
         polyak: .995
         distributional: False
-        duel: True
+        duel: False
         noisy_sigma: 0.5    # standard deviation for noisy layers
         n_atoms: 51
         v_min: -10
         v_max: 10
         # args for optimizer
-        learning_rate: 6.25e-5
-        epsilon: 1.5e-4
+        learning_rate: 1e-4
+        epsilon: 1e-4
 
     env_stats:
         times: 1
@@ -40,11 +41,13 @@ agent:
 
 # argumennts for prioritized replay
 buffer:
+    atari: *atari
+    frame_history_len: *fhl
     type: proportional # local or proportional
 
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e5
-    min_size: 8e4
+    min_size: 5e4
     capacity: 1e6

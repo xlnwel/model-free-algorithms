@@ -20,11 +20,9 @@ class Agent(OffPolicyOperation):
                  log_score=False, 
                  device=None):
         # optional improvements
-        options = args['networks']
         self.n_steps = args['n_steps']
-        self.distributional = options['distributional']
-        self.duel = options['duel']
         self.critic_loss_type = args['loss_type']
+        self.update_rate = args['update_rate']
 
         super().__init__(name,
                          args,
@@ -36,6 +34,16 @@ class Agent(OffPolicyOperation):
                          log_params=log_params,
                          log_score=log_score,
                          device=device)
+
+    def act(self, obs, return_q=False):
+        obs = self.buffer.encode_recent_obs(obs)
+        return super().act(obs, return_q)
+
+    def learn(self):
+        if self.update_step % self.update_rate == 0:
+            super().learn()
+        else:
+            pass # do nothing
 
     def _build_graph(self):
         if 'gpu' in self.device:
@@ -49,7 +57,7 @@ class Agent(OffPolicyOperation):
 
         self.priority, self.loss = self._loss(self.data, self.nets)
 
-        self.opt_op, self._opt_step = self.nets._optimization_op(self.loss)
+        self.opt_op, self.opt_step = self.nets._optimization_op(self.loss, opt_step=True)
 
         self._log_loss()
 
@@ -70,7 +78,7 @@ class Agent(OffPolicyOperation):
     def _loss(self, data, nets):
         with tf.name_scope('loss'):
             target_Q = n_step_target(self.data['reward'], self.data['done'],
-                                    nets.Q_next, self.gamma, self.data['steps'])
+                                    nets.target_next_Q, self.gamma, self.data['steps'])
             Q_error = tf.abs(nets.Q - target_Q)
             
             priority = self._compute_priority(Q_error)

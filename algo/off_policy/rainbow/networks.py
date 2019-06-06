@@ -40,21 +40,23 @@ class Networks(Base):
         x = self._conv_net(self.state, name='main')
         x_next = self._conv_net(self.next_state, name='main')
         x_next_target = self._conv_net(self.next_state, name='target')
-        self.Q = self._fc_net(x, self.action_dim, name='main')
-        self.Q_next = self._fc_net(x_next, self.action_dim, name='main')
-        self.Q_next_target = self._fc_net(x_next_target, self.action_dim, name='target')
+        Qs = self._fc_net(x, self.action_dim, name='main')
+        Qs_next = self._fc_net(x_next, self.action_dim, name='main')
+        Qs_next_target = self._fc_net(x_next_target, self.action_dim, name='target')
 
-        # self.Q = tf.reduce_sum(tf.one_hot(self.action, self.action_dim) * self.Q_dist, axis=1)
-        self.action = tf.argmax(self.Q, axis=1)
-        self.next_action = tf.argmax(self.Q_next, axis=1)
-        # self.target_next_Q = tf.reduce_sum(tf.one_hot(self.next_action, self.action_dim) * self.target_Q_dist, axis=1)
+        self.Q = tf.reduce_sum(tf.one_hot(self.action, self.action_dim) * Qs, axis=1, keepdims=True)
+        self.action = tf.argmax(Qs, axis=1)
+        self.next_action = tf.argmax(Qs_next, axis=1)
+        self.target_next_Q = tf.reduce_sum(tf.one_hot(self.next_action, self.action_dim) 
+                                            * Qs_next_target, axis=1, keepdims=True)
 
         # target net operations
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
     def _conv_net(self, state, name):
         # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
-        assert_colorize(state.shape.as_list()[1:] == [84, 84, 1], f'Input image should be of shape (84, 84, 1), but get {state.shape.as_list()[1:]}')
+        assert_colorize(state.shape.as_list()[1:] == [84, 84, 4], 
+                f'Input image should be of shape (84, 84, 4), but get {state.shape.as_list()[1:]}')
         x = state
 
         name = f'{name}_conv'

@@ -31,7 +31,7 @@ class OffPolicyOperation(Model, ABC):
                  log_params=False, 
                  log_score=True, 
                  device=None):
-        # hyperparameters 
+        # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99 
         self.polyak = args['polyak'] if 'polyak' in args else .995
         self.policy_delay = args['policy_delay'] if 'policy_delay' in args else 1
@@ -39,24 +39,28 @@ class OffPolicyOperation(Model, ABC):
         self.update_step = 0
 
         # environment info
+        self.atari = 'atari' in env_args and env_args['atari']
         self.env = (GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1
                     else GymEnv(env_args))
-        if 'frame_history_len' not in args:
-            self.state_space = self.env.state_space
-        else:
+        if self.atari:
             assert_colorize(len(self.env.state_space) == 3, 'Frames should be images')
             h, w, c = self.env.state_space
             self.state_space = (h, w, args['frame_history_len'] * c)
+        else:
+            self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
         
         # replay buffer
         buffer_args['n_steps'] = args['n_steps']
         buffer_args['gamma'] = args['gamma']
         buffer_args['batch_size'] = args['batch_size']
+
+        # for atari, action is discrete and has only 1 dimension
+        action_dim = 1 if self.atari else self.action_dim
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, self.action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.env.state_space, self.action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.env.state_space, action_dim)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
@@ -111,28 +115,22 @@ class OffPolicyOperation(Model, ABC):
                 lt = []
 
     def learn(self):
-        # update the main networks
-        if self.update_step % self.policy_delay != 0:
-            priority, saved_exp_ids, _ = self.sess.run([self.priority,
-                                                        self.data['saved_exp_ids'],
-                                                        self.critic_opt_op])
+        if self.log_tensorboard:
+            priority, saved_exp_ids, opt_step, _, summary = self.sess.run([self.priority, 
+                                                                            self.data['saved_exp_ids'],
+                                                                            self.opt_step, 
+                                                                            self.opt_op, 
+                                                                            self.graph_summary])
+            if opt_step % 100 == 0:
+                self.writer.add_summary(summary, opt_step)
+                self.save()
         else:
-            if self.log_tensorboard:
-                priority, saved_exp_ids, opt_step, _, summary = self.sess.run([self.priority, 
-                                                                                self.data['saved_exp_ids'],
-                                                                                self.opt_step, 
-                                                                                self.opt_op, 
-                                                                                self.graph_summary])
-                if opt_step % 100 == 0:
-                    self.writer.add_summary(summary, opt_step)
-                    self.save()
-            else:
-                priority, saved_exp_ids, _ = self.sess.run([self.priority, 
-                                                            self.data['saved_exp_ids'], 
-                                                            self.opt_op])
+            priority, saved_exp_ids, _ = self.sess.run([self.priority, 
+                                                        self.data['saved_exp_ids'], 
+                                                        self.opt_op])
 
-            # update the target networks
-            self._update_target_net()
+        # update the target networks
+        self._update_target_net()
 
         self.update_step = (self.update_step + 1) % self.policy_delay
         self.buffer.update_priorities(priority, saved_exp_ids)
@@ -144,10 +142,14 @@ class OffPolicyOperation(Model, ABC):
 
     def _prepare_data(self, buffer):
         with tf.name_scope('data'):
-            sample_types = (tf.float32, tf.int32, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32))
+            if self.atari:
+                exp_type = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32, tf.float32)
+            else:
+                exp_type = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
+            sample_types = (tf.float32, tf.int32, exp_type)
             sample_shapes =((None), (None), (
                 (None, *self.state_space),
-                (None, self.action_dim),
+                (None, ) if self.atari else (None, self.action_dim),
                 (None, 1),
                 (None, *self.state_space),
                 (None, 1),
@@ -162,6 +164,9 @@ class OffPolicyOperation(Model, ABC):
         # prepare data
         IS_ratio, saved_exp_ids, (state, action, reward, next_state, done, steps) = samples
 
+        if self.atari:
+            state = state / 255.
+            next_state = next_state / 255.
         data = {}
         data['IS_ratio'] = IS_ratio
         data['saved_exp_ids'] = saved_exp_ids

@@ -19,7 +19,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         
         segment = total_priorities / self.batch_size
 
-        priorities, exp_ids = list(zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment))
+        priorities, indexes = list(zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment))
                                         for i in range(self.batch_size)]))
 
         priorities = np.squeeze(priorities)
@@ -28,17 +28,6 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         # compute importance sampling ratios
         N = len(self)
         IS_ratios = self._compute_IS_ratios(N, probabilities)
+        samples = self._get_samples(indexes)
         
-        return IS_ratios, exp_ids, self._get_samples(exp_ids)
-
-    def _get_samples(self, exp_ids):
-        exp_ids = list(exp_ids) # convert tuple to list
-
-        return (
-            self.memory['state'][exp_ids],
-            self.memory['action'][exp_ids],
-            self.memory['reward'][exp_ids],
-            self.memory['next_state'][exp_ids],
-            self.memory['done'][exp_ids],
-            self.memory['steps'][exp_ids],
-        )
+        return IS_ratios, indexes, samples
