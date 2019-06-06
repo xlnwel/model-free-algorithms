@@ -24,7 +24,7 @@ agent:
     n_epochs: 5000
     
     policy:
-        n_noisy: 2
+        n_noisy: 0
         noisy_sigma: 0.4    # standard deviation for noisy layers
         units: [512, 256, 128]
         layernorm: True

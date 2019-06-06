@@ -7,6 +7,7 @@ import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
 from utility.logger import Logger
+from utility.utils import assert_colorize
 from basic_model.model import Model
 from env.gym_env import GymEnv, GymEnvVec
 from algo.off_policy.apex.buffer import LocalBuffer
@@ -40,7 +41,12 @@ class OffPolicyOperation(Model, ABC):
         # environment info
         self.env = (GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1
                     else GymEnv(env_args))
-        self.state_space = self.env.state_space
+        if 'frame_history_len' not in args:
+            self.state_space = self.env.state_space
+        else:
+            assert_colorize(len(self.env.state_space) == 3, 'Frames should be images')
+            h, w, c = self.env.state_space
+            self.state_space = (h, w, args['frame_history_len'] * c)
         self.action_dim = self.env.action_dim
         
         # replay buffer
@@ -48,9 +54,9 @@ class OffPolicyOperation(Model, ABC):
         buffer_args['gamma'] = args['gamma']
         buffer_args['batch_size'] = args['batch_size']
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, self.action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.env.state_space, self.action_dim)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])

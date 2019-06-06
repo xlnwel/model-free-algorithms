@@ -78,3 +78,5 @@ Bias correction for prioritized sampling helps.
 ### Ape-X
 
 Ape-X requires a larger batch size than general single-process algorithms.
+
+Do not use noisy layers in Apex-X with SAC.

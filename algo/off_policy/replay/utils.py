@@ -4,14 +4,15 @@ from utility.utils import assert_colorize
 
 
 def init_buffer(buffer, capacity, state_space, action_dim, has_priority):
+    dtype = np.uint8 if len(state_space) == 3 else np.float16
     target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
     target_buffer.update({
-        'state': np.zeros((capacity, *state_space)),
-        'action': np.zeros((capacity, action_dim)),
+        'state': np.zeros((capacity, *state_space), dtype=dtype),
+        'action': np.zeros((capacity, action_dim), dtype=dtype),
         'reward': np.zeros((capacity, 1)),
-        'next_state': np.zeros((capacity, *state_space)),
-        'done': np.zeros((capacity, 1)),
-        'steps': np.zeros((capacity, 1))
+        'next_state': np.zeros((capacity, *state_space), dtype=dtype),
+        'done': np.zeros((capacity, 1), np.uint8),
+        'steps': np.zeros((capacity, 1), np.uint8)
     })
 
     buffer.update(target_buffer)

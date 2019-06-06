@@ -68,8 +68,8 @@ def get_worker(BaseClass, *args, **kwargs):
                     if done:
                         break
 
-                score = self.env.get_episode_score()
-                eps_len = self.env.get_episode_length()
+                score = self.env.get_score()
+                eps_len = self.env.get_length()
                 episode_i += 1
                 score_deque.append(score)
                 eps_len_deque.append(eps_len)

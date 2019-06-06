@@ -19,14 +19,19 @@ class GridSearch:
 
         # add date to root directory
         now = datetime.now()
-        for root_dir in ['model_root_dir', 'log_root_dir']:
-            self.agent_args[root_dir] = (f'data/'
-                                        f'{now.month:02d}{now.day:02d}-'
-                                        f'{now.hour:02d}{now.minute:02d}-'
-                                        f'{dir_prefix}-'
-                                        f'{self.agent_args["algorithm"]}-'
-                                        f'{self.env_args["name"]}/' 
-                                        f'{self.agent_args[root_dir]}')
+        dir_fn = lambda filename: (f'data/'
+                                    f'{now.month:02d}{now.day:02d}-'
+                                    f'{now.hour:02d}{now.minute:02d}-'
+                                    f'{dir_prefix}-'
+                                    f'{self.agent_args["algorithm"]}-'
+                                    f'{self.env_args["name"]}/' 
+                                    f'{filename}')
+                                    
+        dirs = ['model_root_dir', 'log_root_dir']
+        for root_dir in dirs:
+            self.agent_args[root_dir] = dir_fn(self.agent_args[root_dir])
+        if 'video_path' in self.env_args:
+            self.env_args['video_path'] = dir_fn(self.env_args['video_path'])
 
         self.processes = []
 

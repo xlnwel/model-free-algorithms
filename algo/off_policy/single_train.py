@@ -3,7 +3,6 @@ Code for training single agent
 """
 import time
 import threading
-from pathlib import Path
 from collections import deque
 import numpy as np
 
@@ -35,8 +34,8 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
             if done:
                 break
 
-        score = agent.env.get_episode_score()
-        eps_len = agent.env.get_episode_length()
+        score = agent.env.get_score()
+        eps_len = agent.env.get_length()
         scores_deque.append(score)
         eps_len_deque.append(eps_len)
         avg_score = np.mean(scores_deque)

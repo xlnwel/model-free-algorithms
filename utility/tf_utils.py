@@ -22,7 +22,7 @@ def bn_relu(x, training):
 def layer_norm(x, name='LayerNorm'):
     with tf.variable_scope(name):
         n_dims = len(x.shape.as_list())
-        mean, var = tf.nn.moments(x, list(range(1, n_dims)), keepdims=True)
+        mean, var = tf.nn.moments(x, list(range(1, n_dims)), keep_dims=True)
         std = tf.sqrt(var)
 
         x = (x - mean) / std
@@ -67,7 +67,7 @@ def norm_activation(x, norm=None, activation=None, training=False):
 def standard_normalization(x):
     with tf.variable_scope('Normalization'):
         n_dims = len(x.shape.as_list())
-        mean, var = tf.nn.moments(x, list(range(n_dims-1)), keepdims=True)
+        mean, var = tf.nn.moments(x, list(range(n_dims-1)), keep_dims=True)
         std = tf.sqrt(var)
 
         x = (x - mean) / std

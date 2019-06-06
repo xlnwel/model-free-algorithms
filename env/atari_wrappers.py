@@ -152,3 +152,14 @@ def wrap_deepmind(env):
     env = ProcessFrame84(env)
     env = ClippedRewardsWrapper(env)
     return env
+
+def get_wrapper_by_name(env, classname):
+    currentenv = env
+    while True:
+        if classname in currentenv.__class__.__name__:
+            return currentenv
+        elif isinstance(env, gym.Wrapper):
+            currentenv = currentenv.env
+        else:
+            raise ValueError("Couldn't find wrapper named %s"%classname)
+            

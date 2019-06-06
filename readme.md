@@ -31,6 +31,7 @@ It is recommended to install Tensorflow from source following [this instruction]
 
 ```shell
 # Minimal requirements to run the algorithms. Tested on Ubuntu 18.04.2, using Tensorflow 1.13.1.
+# Forget the deprecated warnings... This project is not designed according to Tensorflow 2.X
 conda create -n gym python
 source activate gym
 pip install -r requirements.txt
@@ -43,6 +44,7 @@ pip install tensorflow-gpu
 ```shell
 # Silence tensorflow debug message
 export TF_CPP_MIN_LOG_LEVEL=3
+export OPENBLAS_NUM_THREADS=1
 
 # For full argument specification, please refer to run/train.py
 python run/train.py -a=td3

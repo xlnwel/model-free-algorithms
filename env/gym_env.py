@@ -3,7 +3,7 @@ import gym
 import ray
 
 from utility import tf_distributions
-from env import atari_wrappers
+from env.atari_wrappers import get_wrapper_by_name, wrap_deepmind
 from utility.utils import assert_colorize
 
 
@@ -29,8 +29,8 @@ class envstats:
         self.EnvType.step = self.step
         self.EnvType.early_done = self.early_done
 
-        self.EnvType.get_episode_score = lambda _: self.score
-        self.EnvType.get_episode_length = lambda _: self.eps_len
+        self.EnvType.get_score = lambda _: self.score
+        self.EnvType.get_length = lambda _: self.eps_len
 
     def __call__(self, *args, **kwargs):
         self.env = self.EnvType(*args, **kwargs)
@@ -52,40 +52,36 @@ class envstats:
 
         return next_state, reward, done, info
 
-
-@ray.remote
-class RayGymEnv:
-    def __init__(self, name):
-        self.env = gym.make(name)
-        self.__dict__ = self.env.__dict__
-
-    def reset(self):
-        return self.env.reset()
-
-    def step(self, action):
-        return self.env.step(action)
-
-
 @envstats
 class GymEnv:
-    def __init__(self, args, video_path=None):
+    def __init__(self, args):
         self.env = env = gym.make(args['name'])
 
         # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
-        if video_path:
-            self.env = gym.wrappers.Monitor(self.env, video_path, force=True)
+        if 'video_path' in args:
+            self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
         if 'atari' in args and args['atari']:
-            env = atari_wrappers.wrap_deepmind(env)
+            self.env = env = wrap_deepmind(env)
         env.seed(args['seed'])
 
         self.state_space = env.observation_space.shape
+
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = 1
-        self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
+        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
+
+    def get_episode_scores(self):
+        return get_wrapper_by_name(self.env, 'Monitor').get_episode_rewards()
+    
+    def get_episode_lengths(self):
+        return get_wrapper_by_name(self.env, 'Monitor').get_episode_lengths()
+
+    def get_total_steps(self):
+        return get_wrapper_by_name(self.env, 'Monitor').get_total_steps()
 
     def reset(self):
         return self.env.reset()
@@ -114,7 +110,7 @@ class GymEnvVec:
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = n_envs
-        self.max_episode_steps = args['max_episode_steps'] if 'max_episode_steps' in args \
+        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
 
     def reset(self):
