@@ -41,6 +41,7 @@ def train(agent, render, log_steps, print_terminal_info=True, background_learnin
 
             log_info = {
                 'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
+                'Timestep': t,
                 'Iteration': len(episode_scores),
                 'Score': score,
                 'AvgScore': avg_score,

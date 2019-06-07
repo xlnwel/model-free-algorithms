@@ -57,7 +57,7 @@ class Agent(OffPolicyOperation):
         self.nets = self._create_nets(self.data)
         self.action = self.nets.action
 
-        self.priority, self.loss = self._loss(self.data, self.nets)
+        self.priority, self.loss = self._loss()
 
         self.opt_op, self.opt_step = self.nets._optimization_op(self.loss, opt_step=True)
 
@@ -86,16 +86,16 @@ class Agent(OffPolicyOperation):
 
         return nets
 
-    def _loss(self, data, nets):
+    def _loss(self):
         with tf.name_scope('loss'):
             target_Q = n_step_target(self.data['reward'], self.data['done'],
-                                    nets.target_next_Q, self.gamma, self.data['steps'])
-            Q_error = tf.abs(nets.Q - target_Q)
+                                    self.nets.target_next_Q, self.gamma, self.data['steps'])
+            Q_error = tf.abs(self.nets.Q - target_Q)
             
             priority = self._compute_priority(Q_error)
 
             loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
-            loss = tf.reduce_mean(data['IS_ratio'] * loss_func(Q_error))
+            loss = tf.reduce_mean(data['IS_ratio'] * loss_func(Q_error), name='loss')
 
         return priority, loss
 

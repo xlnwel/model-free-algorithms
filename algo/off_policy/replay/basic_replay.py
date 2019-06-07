@@ -22,9 +22,6 @@ class Replay:
         self.atari = 'atari' in args and args['atari']
         if self.atari:
             self.frame_history_len = args['frame_history_len']
-
-            assert_colorize(self.frame_history_len == self.n_steps+1, 
-                        'Ops: encode_recent_obs will not work correctly')
         
         self.is_full = False
         self.exp_id = 0
@@ -33,10 +30,11 @@ class Replay:
 
         # Code for single agent
         if self.n_steps > 1:
-            self.temporary_buffer = {}
-            init_buffer(self.temporary_buffer, self.n_steps, state_space, action_dim, True, self.atari)
+            self.tb_capacity = self.n_steps
             self.tb_idx = 0
             self.tb_full = False
+            self.temporary_buffer = {}
+            init_buffer(self.temporary_buffer, self.tb_capacity, state_space, action_dim, True, self.atari)
         
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
@@ -53,21 +51,26 @@ class Replay:
             yield self.sample()
             
     def encode_recent_obs(self, obs):
-        assert_colorize(self.frame_history_len == self.n_steps+1, 
-                        'Ops: n_tmp will not be computed correctly')
-        # we kind of hard-code n_tmp here since it is not expected to tune n_steps and frame_history_len
-        n_tmp = self.frame_history_len - 1 if self.tb_full else self.tb_idx
-        n_missing = self.frame_history_len - 1 - n_tmp
-        if self.tb_full:
+        # to avoid complicating code, we do expect n_steps > 2 and fix frame_history_len == 4
+        assert_colorize(self.n_steps > 2 and self.frame_history_len == 4, 
+                        'Ops: encode_recent_obs will not work correctly')
+        # we kind of hard-code n_preobs here since we do not expect to tune n_steps and frame_history_len
+        required_preobs = self.frame_history_len - 1
+        n_preobs = required_preobs if self.tb_full or self.tb_idx >= required_preobs else self.tb_idx
+        n_missing = required_preobs - n_preobs
+        if self.tb_idx >= required_preobs:
+            pre_obs = self.temporary_buffer['state'][self.tb_idx - required_preobs: self.tb_idx]
+        elif self.tb_full:
+            i = required_preobs - self.tb_idx
             # restore sequential order of previous observations in temporal buffer
-            pre_obs = np.concatenate([self.temporary_buffer['state'][self.tb_idx:], 
-                                    self.temporary_buffer['state'][:self.tb_idx]], axis=0)
+            pre_obs = np.concatenate([self.temporary_buffer['state'][-i:], 
+                                self.temporary_buffer['state'][:self.tb_idx]], axis=0)
         else:
-            pre_obs = self.temporary_buffer['state'][:n_tmp]
+            pre_obs = self.temporary_buffer['state'][:self.tb_idx]
         h, w = obs.shape[0], obs.shape[1]
         pre_obs = pre_obs.transpose(1, 2, 0, 3).reshape(h, w, -1)
-        pre_obs = np.concatenate([np.zeros_like(obs) for _ in range(n_missing)] + [pre_obs], axis=2)
-        state = np.concatenate([pre_obs, obs], axis=2)
+        state = np.concatenate([np.zeros_like(obs) for _ in range(n_missing)] + [pre_obs, obs], axis=2)
+
         return state
 
     def sample(self):
@@ -96,13 +99,13 @@ class Replay:
             add_buffer(self.temporary_buffer, self.tb_idx, state, action, reward, 
                         next_state, done, self.n_steps, self.gamma)
             
-            if not self.tb_full and self.tb_idx == self.n_steps - 1:
+            if not self.tb_full and self.tb_idx == self.tb_capacity - 1:
                 self.tb_full = True
-            self.tb_idx = (self.tb_idx + 1) % self.n_steps
+            self.tb_idx = (self.tb_idx + 1) % self.tb_capacity
 
             if done:
                 # flush all elements in temporary buffer to memory if an episode is done
-                self.merge(self.temporary_buffer, self.n_steps if self.tb_full else self.tb_idx)
+                self.merge(self.temporary_buffer, self.tb_capacity if self.tb_full else self.tb_idx)
                 self.tb_full = False
                 self.tb_idx = 0
             elif self.tb_full:
@@ -140,8 +143,8 @@ class Replay:
         indexes = list(indexes) # convert tuple to list
 
         if self.atari:
-            state = np.stack([self._encode_state(idx) for idx in indexes])
-            next_state = np.stack([self._encode_state(idx) for idx in indexes])
+            state = np.stack([self._encode_state(idx, self.memory['state']) for idx in indexes])
+            next_state = np.stack([self._encode_state(idx, self.memory['next_state']) for idx in indexes])
         else:
             state = self.memory['state'][indexes] 
             next_state = self.memory['next_state'][indexes]
@@ -155,13 +158,13 @@ class Replay:
             self.memory['steps'][indexes],
         )
 
-    def _encode_state(self, idx):
+    def _encode_state(self, idx, state):
         end_idx   = idx + 1 # make noninclusive
         start_idx = end_idx - self.frame_history_len
         # this checks if we are using low-dimensional observations, such as RAM
         # state, in which case we just directly return the latest RAM.
-        if len(self.memory['state'].shape) == 2:
-            return self.memory['state'][end_idx-1]
+        if len(state.shape) == 2:
+            return state[end_idx-1]
         # if there weren't enough frames ever in the buffer for context
         if start_idx < 0 and not self.is_full:
             start_idx = 0
@@ -172,11 +175,11 @@ class Replay:
         # if zero padding is needed for missing context
         # or we are on the boundry of the buffer
         if start_idx < 0 or missing_context > 0:
-            frames = [np.zeros_like(self.memory['state'][0]) for _ in range(missing_context)]
+            frames = [np.zeros_like(state[0]) for _ in range(missing_context)]
             for idx in range(start_idx, end_idx):
-                frames.append(self.memory['state'][idx % self.capacity])
+                frames.append(state[idx % self.capacity])
             return np.concatenate(frames, 2)
         else:
             # this optimization has potential to saves about 30% compute time \o/
-            h, w = self.memory['state'].shape[1], self.memory['state'].shape[2]
-            return self.memory['state'][start_idx:end_idx].transpose(1, 2, 0, 3).reshape(h, w, -1)
+            h, w = state.shape[1], state.shape[2]
+            return state[start_idx:end_idx].transpose(1, 2, 0, 3).reshape(h, w, -1)
