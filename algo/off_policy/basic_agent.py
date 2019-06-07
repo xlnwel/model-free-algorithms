@@ -32,9 +32,7 @@ class OffPolicyOperation(Model, ABC):
                  log_score=True, 
                  device=None):
         # hyperparameters
-        self.gamma = args['gamma'] if 'gamma' in args else .99 
-        self.polyak = args['polyak'] if 'polyak' in args else .995
-        self.policy_delay = args['policy_delay'] if 'policy_delay' in args else 1
+        self.gamma = args['gamma'] if 'gamma' in args else .99
         self.prefetches = args['prefetches'] if 'prefetches' in args else 0
         self.update_step = 0
 
@@ -116,13 +114,12 @@ class OffPolicyOperation(Model, ABC):
 
     def learn(self):
         if self.log_tensorboard:
-            priority, saved_exp_ids, opt_step, _, summary = self.sess.run([self.priority, 
-                                                                            self.data['saved_exp_ids'],
-                                                                            self.opt_step, 
-                                                                            self.opt_op, 
-                                                                            self.graph_summary])
-            if opt_step % 100 == 0:
-                self.writer.add_summary(summary, opt_step)
+            priority, saved_exp_ids, _, summary = self.sess.run([self.priority, 
+                                                                self.data['saved_exp_ids'], 
+                                                                self.opt_op, 
+                                                                self.graph_summary])
+            if self.update_step % 100 == 0:
+                self.writer.add_summary(summary, self.update_step)
                 self.save()
         else:
             priority, saved_exp_ids, _ = self.sess.run([self.priority, 
@@ -132,7 +129,7 @@ class OffPolicyOperation(Model, ABC):
         # update the target networks
         self._update_target_net()
 
-        self.update_step = (self.update_step + 1) % self.policy_delay
+        self.update_step = self.update_step + 1
         self.buffer.update_priorities(priority, saved_exp_ids)
     
     """ Implementation """
@@ -164,9 +161,6 @@ class OffPolicyOperation(Model, ABC):
         # prepare data
         IS_ratio, saved_exp_ids, (state, action, reward, next_state, done, steps) = samples
 
-        if self.atari:
-            state = state / 255.
-            next_state = next_state / 255.
         data = {}
         data['IS_ratio'] = IS_ratio
         data['saved_exp_ids'] = saved_exp_ids

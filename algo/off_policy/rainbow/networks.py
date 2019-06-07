@@ -18,7 +18,6 @@ class Networks(Base):
         self.action = data['action']
         self.next_state = data['next_state']
         self.reward = data['reward']
-        self.polyak = args['polyak']
         self.action_dim = action_dim
         super().__init__(name, 
                          args, 
@@ -38,10 +37,10 @@ class Networks(Base):
     """ Implementation """
     def _build_graph(self):
         x = self._conv_net(self.state, name='main')
-        x_next = self._conv_net(self.next_state, name='main')
+        x_next = self._conv_net(self.next_state, name='main', reuse=True)
         x_next_target = self._conv_net(self.next_state, name='target')
         Qs = self._fc_net(x, self.action_dim, name='main')
-        Qs_next = self._fc_net(x_next, self.action_dim, name='main')
+        Qs_next = self._fc_net(x_next, self.action_dim, name='main', reuse=True)
         Qs_next_target = self._fc_net(x_next_target, self.action_dim, name='target')
 
         self.Q = tf.reduce_sum(tf.one_hot(self.action, self.action_dim) * Qs, axis=1, keepdims=True)
@@ -50,17 +49,14 @@ class Networks(Base):
         self.target_next_Q = tf.reduce_sum(tf.one_hot(self.next_action, self.action_dim) 
                                             * Qs_next_target, axis=1, keepdims=True)
 
-        # target net operations
-        self.init_target_op, self.update_target_op = self._target_net_ops()
-
-    def _conv_net(self, state, name):
+    def _conv_net(self, state, name, reuse=None):
         # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
         assert_colorize(state.shape.as_list()[1:] == [84, 84, 4], 
                 f'Input image should be of shape (84, 84, 4), but get {state.shape.as_list()[1:]}')
         x = state
 
         name = f'{name}_conv'
-        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(name, reuse=reuse):
             x = self.conv_norm_activation(x, 32, 8, 4, padding='same', norm=None)      # (21, 21, 32)
             x = self.conv_norm_activation(x, 64, 4, 2, padding='same', norm=None)      # (11, 11, 64)
             x = self.conv_norm_activation(x, 64, 3, 1, padding='same', norm=None)      # (11, 11, 64)
@@ -68,18 +64,10 @@ class Networks(Base):
 
         return x
 
-    def _fc_net(self, x, out_dim, name):
+    def _fc_net(self, x, out_dim, name, reuse=None):
         name = f'{name}_fc'
-        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
-            x = self.noisy_norm_activation(x, 512, norm=None)
-            x = self.noisy(x, out_dim)
+        with tf.variable_scope(name, reuse=reuse):
+            x = self.noisy_norm_activation(x, 512, norm=None, name='noisy_relu')
+            x = self.noisy(x, out_dim, name='noisy')
 
         return x
-
-    def _target_net_ops(self):
-        with tf.name_scope('target_net_op'):
-            target_main_var_pairs = list(zip(self.target_variables, self.main_variables))
-            init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
-            update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
-
-        return init_target_op, update_target_op

@@ -21,6 +21,7 @@ class Agent(OffPolicyOperation):
                  device=None):
         self.n_steps = args['n_steps']
         self.critic_loss_type = args['critic']['loss_type']
+        self.polyak = args['polyak'] if 'polyak' in args else .995
         
         super().__init__(name,
                          args,

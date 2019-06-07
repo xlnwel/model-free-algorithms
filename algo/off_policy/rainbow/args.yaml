@@ -19,12 +19,12 @@ agent:
     model_name: baseline
 
     frame_history_len: &fhl 4
-    update_rate: 4
+    update_freq: 4
     n_steps: 3
     loss_type: mse   # huber or mse
+    target_update_freq: 10000
     
     networks:
-        polyak: .995
         distributional: False
         duel: False
         noisy_sigma: 0.5    # standard deviation for noisy layers

@@ -22,7 +22,8 @@ class Agent(OffPolicyOperation):
         # optional improvements
         self.n_steps = args['n_steps']
         self.critic_loss_type = args['loss_type']
-        self.update_rate = args['update_rate']
+        self.update_freq = args['update_freq']
+        self.target_update_freq = args['target_update_freq']
 
         super().__init__(name,
                          args,
@@ -40,7 +41,7 @@ class Agent(OffPolicyOperation):
         return super().act(obs, return_q)
 
     def learn(self):
-        if self.update_step % self.update_rate == 0:
+        if self.update_step % self.update_freq == 0:
             super().learn()
         else:
             pass # do nothing
@@ -52,6 +53,7 @@ class Agent(OffPolicyOperation):
         else:
             self.data = self._prepare_data(self.buffer)
 
+        self.observation_preprocessing()
         self.nets = self._create_nets(self.data)
         self.action = self.nets.action
 
@@ -59,7 +61,16 @@ class Agent(OffPolicyOperation):
 
         self.opt_op, self.opt_step = self.nets._optimization_op(self.loss, opt_step=True)
 
+        # target net operations
+        self.init_target_op, self.update_target_op = self._target_net_ops()
+
         self._log_loss()
+
+    def observation_preprocessing(self):
+        if self.atari:
+            with tf.variable_scope('obs_preprocessing'):
+                self.data['state'] = self.data['state'] / 255.
+                self.data['next_state'] = self.data['next_state'] / 255.
 
     def _create_nets(self, data):
         scope_prefix = self.name
@@ -88,11 +99,20 @@ class Agent(OffPolicyOperation):
 
         return priority, loss
 
+    def _target_net_ops(self):
+        with tf.name_scope('target_net_op'):
+            target_main_var_pairs = list(zip(self.nets.target_variables, self.nets.main_variables))
+            init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
+            update_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='update_target_op'), target_main_var_pairs))
+
+        return init_target_op, update_target_op
+
     def _initialize_target_net(self):
-        self.sess.run(self.nets.init_target_op)
+        self.sess.run(self.init_target_op)
 
     def _update_target_net(self):
-        self.sess.run(self.nets.update_target_op)
+        if self.update_step % self.target_update_freq == 0:
+            self.sess.run(self.update_target_op)
 
     def _log_loss(self):
         if self.log_tensorboard:
