@@ -27,16 +27,16 @@ def train(agent, render, log_steps, print_terminal_info=True, background_learnin
         if not agent.buffer.good_to_learn:
             acttime, action = timeit(lambda: agent.env.random_action())
         else:
-            acttime, action = timeit(lambda:agent.atari_act(state))
+            acttime, action = timeit(lambda: agent.atari_act(state))
         acttimes.append(acttime)
 
-        envtime, (next_state, reward, done, _) = timeit(lambda:agent.env.step(action))
+        envtime, (next_state, reward, done, _) = timeit(lambda: agent.env.step(action))
         envtimes.append(envtime)
         
-        addtime, _ = timeit(lambda:agent.add_data(state, action, reward, next_state, done))
+        addtime, _ = timeit(lambda: agent.add_data(state, action, reward, next_state, done))
         addtimes.append(addtime)
         if not background_learning and agent.buffer.good_to_learn:
-            learntime, _ = timeit(lambda:agent.atari_learn(t))
+            learntime, _ = timeit(lambda: agent.atari_learn(t))
             learntimes.append(learntime)
 
         state = agent.env.reset() if done else next_state
