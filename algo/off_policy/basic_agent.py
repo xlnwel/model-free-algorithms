@@ -54,7 +54,7 @@ class OffPolicyOperation(Model, ABC):
         buffer_args['batch_size'] = args['batch_size']
 
         # for atari, action is discrete and has only 1 dimension
-        action_dim = 1 if self.atari else self.action_dim
+        action_dim = 1 if self.env.is_action_discrete else self.action_dim
         if buffer_args['type'] == 'proportional':
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, action_dim)
         elif buffer_args['type'] == 'local':
@@ -120,7 +120,7 @@ class OffPolicyOperation(Model, ABC):
                                                                 self.graph_summary])
             if self.update_step % 100 == 0:
                 self.writer.add_summary(summary, self.update_step)
-                self.save()
+                # self.save()
         else:
             priority, saved_exp_ids, _ = self.sess.run([self.priority, 
                                                         self.data['saved_exp_ids'], 
@@ -129,7 +129,7 @@ class OffPolicyOperation(Model, ABC):
         # update the target networks
         self._update_target_net()
 
-        self.update_step = self.update_step + 1
+        self.update_step += 1
         self.buffer.update_priorities(priority, saved_exp_ids)
     
     """ Implementation """
@@ -139,14 +139,15 @@ class OffPolicyOperation(Model, ABC):
 
     def _prepare_data(self, buffer):
         with tf.name_scope('data'):
-            if self.atari:
+            if self.env.is_action_discrete:
                 exp_type = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32, tf.float32)
             else:
                 exp_type = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
             sample_types = (tf.float32, tf.int32, exp_type)
+            action_shape =(None, ) if self.env.is_action_discrete else (None, self.action_dim)
             sample_shapes =((None), (None), (
                 (None, *self.state_space),
-                (None, ) if self.atari else (None, self.action_dim),
+                action_shape,
                 (None, 1),
                 (None, *self.state_space),
                 (None, 1),

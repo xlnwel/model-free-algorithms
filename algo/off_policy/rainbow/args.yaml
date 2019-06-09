@@ -1,15 +1,16 @@
 ---
 n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    atari: &atari True
-    video_path: video
-    name: &env_name PongNoFrameskip-v4    # LunarLanderContinuous-v2
+    atari: &atari False
+    # video_path: video
+    name: &env_name CartPole-v0    # PongNoFrameskip-v4
+    max_episode_steps: 1000
     seed: 0
 agent:
     background_learning: False
     gamma: &gamma 0.99
     algorithm: rainbow
-    batch_size: &batch_size 32
+    batch_size: 512
     prefetches: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -19,22 +20,28 @@ agent:
     model_name: baseline
 
     frame_history_len: &fhl 4
+    n_epochs: 50000
     update_freq: 4
     n_steps: 3
     loss_type: mse   # huber or mse
     target_update_freq: 10000
+    delta: 1
     
-    networks:
-        distributional: False
+    Qnets:
         duel: False
         noisy_sigma: 0.5    # standard deviation for noisy layers
-        n_atoms: 51
-        v_min: -10
-        v_max: 10
+        iqn: True
+        N: 8                # N in paper, num of quantiles for online quantile network
+        N_prime: 8          # N' in paper, num of quantiles for target quantile network
+        K: 32               # K in paper, num of quantiles for action selection
+        delta: 1            # kappa in paper, used in huber loss
+        quantile_embedding_dim: 64
         # args for optimizer
         learning_rate: 1e-4
+        decay_rate: .95
+        decay_steps: 1e3
         epsilon: 1e-4
-
+        h_dim: 64
     env_stats:
         times: 1
         stats: [score, avg_score, eps_len, avg_eps_len]
@@ -45,9 +52,9 @@ buffer:
     frame_history_len: *fhl
     type: proportional # local or proportional
 
-    alpha: 0.4
+    alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e5
-    min_size: 5e4
+    min_size: 5e2
     capacity: 1e6

@@ -16,7 +16,7 @@ class Agent(OffPolicyOperation):
                  sess_config=None, 
                  save=True, 
                  log_tensorboard=True, 
-                 log_params=True, 
+                 log_params=False, 
                  log_score=True, 
                  device=None):
         self.temperature = args['temperature']

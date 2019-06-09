@@ -218,10 +218,13 @@ class Model(Module):
             super().build_graph()
 
     def restore(self, model_file=None):
-        """ To restore the most recent model, simply leave filename None
+        """
         To restore a specific version of model, set filename to the model stored in saved_models
         """
-        model_file = model_file if model_file else self.model_file
+        if not model_file:
+            pwc('No model file is specified. Restore failed and ignored implicitly.', 'magenta')
+            pass
+        model_file = model_file
         try:
             self.saver.restore(self.sess, self.model_file)
         except:

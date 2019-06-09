@@ -23,7 +23,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
         for _ in range(agent.max_path_length):
             if render:
                 agent.env.render()
-            t, action = timeit(lambda: agent.act(state))
+            t, action = timeit(lambda: agent.act(state) if agent.buffer.good_to_learn else agent.env.random_action())
             action_time += t
             next_state, reward, done, _ = agent.env.step(action)
 
@@ -45,8 +45,8 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
         log_info = {
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
             'Iteration': i,
-            'Time': f'{time.time() - start:3.2f}s',
-            'AvgActionTime': action_time / eps_len,
+            'Time': utils.timeformat(time.time() - start) + 's',
+            'AvgActionTime': utils.timeformat(action_time / eps_len) + 's',
             'Score': score,
             'AvgScore': avg_score,
             'EpsLen': eps_len,
@@ -64,15 +64,19 @@ def main(env_args, agent_args, buffer_args, render=False):
         from algo.off_policy.td3.agent import Agent
     elif algorithm == 'sac':
         from algo.off_policy.sac.agent import Agent
+    elif algorithm == 'rainbow':
+        from algo.off_policy.rainbow.agent import Agent
     else:
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
     agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
     if agent_args['background_learning']:
-        utils.pwc('Background learning')
+        utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)
         lt.start()
+    else:
+        utils.pwc('Foreground Learning...')
     model = agent_args['model_name']
     utils.pwc(f'Model {model} starts training')
     

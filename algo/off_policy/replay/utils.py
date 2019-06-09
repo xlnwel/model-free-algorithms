@@ -5,7 +5,7 @@ from utility.utils import assert_colorize
 
 def init_buffer(buffer, capacity, state_space, action_dim, has_priority, atari=False):
     state_dtype = np.uint8 if atari else np.float16
-    action_shape = (capacity, ) if atari else (capacity, action_dim)
+    action_shape = (capacity, ) if action_dim == 1 else (capacity, action_dim)
     action_dtype = np.int32 if atari else np.float16
     target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
     target_buffer.update({

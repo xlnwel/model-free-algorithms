@@ -32,7 +32,10 @@ class Layer():
     def l2_loss(self):
         return tf.losses.get_regularization_loss(scope=self.name, name=self.name + 'l2_loss')
 
-    """ Layers """
+    """ Layers
+    The main reason why we define layers as member functions is 
+    that we want to  automatically handle l2 regularization.
+    """
     def dense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None, return_layer=False):
         return tf.layers.dense(x, units, kernel_initializer=kernel_initializer, 
                                kernel_regularizer=self.l2_regularizer, 

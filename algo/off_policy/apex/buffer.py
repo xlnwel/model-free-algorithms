@@ -1,6 +1,6 @@
 import numpy as np
 
-from replay.utils import init_buffer, add_buffer, copy_buffer
+from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 
 class LocalBuffer(dict):

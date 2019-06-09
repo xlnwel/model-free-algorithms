@@ -3,7 +3,8 @@ import gym
 import ray
 
 from utility import tf_distributions
-from env.atari_wrappers import get_wrapper_by_name, wrap_deepmind
+from env.wrappers import TimeLimit
+from env.atari_wrappers import wrap_deepmind, get_wrapper_by_name
 from utility.utils import assert_colorize
 
 
@@ -31,7 +32,6 @@ class envstats:
 
         self.EnvType.get_score = lambda _: self.score
         self.EnvType.get_length = lambda _: self.eps_len
-
     def __call__(self, *args, **kwargs):
         self.env = self.EnvType(*args, **kwargs)
 
@@ -55,13 +55,17 @@ class envstats:
 @envstats
 class GymEnv:
     def __init__(self, args):
-        self.env = env = gym.make(args['name'])
-
-        # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
-        if 'video_path' in args:
-            self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
         if 'atari' in args and args['atari']:
+            # self.env = env = self._make_atari(args)
+            self.env = env = gym.make(args['name'])
+            self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
             self.env = env = wrap_deepmind(env)
+        else:
+            self.env = env = gym.make(args['name'])
+            # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
+            if 'video_path' in args:
+                self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
+
         env.seed(args['seed'])
 
         self.state_space = env.observation_space.shape
@@ -86,12 +90,23 @@ class GymEnv:
     def reset(self):
         return self.env.reset()
 
+    def random_action(self):
+        return self.env.action_space.sample()
+        
     def step(self, action):
         action = np.squeeze(action)
         return self.env.step(action)
         
     def render(self):
         return self.env.render()
+
+    def _make_atari(self, args):
+        env = make_atari(args['name'], max_episode_steps=1000)
+        if 'video_path' in args:
+            env = gym.wrappers.Monitor(env, args['video_path'], force=True)
+        if 'atari' in args and args['atari']:
+            env = wrap_deepmind(env)
+        return env
 
 
 @envstats

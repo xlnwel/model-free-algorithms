@@ -54,7 +54,7 @@ class Replay:
         # to avoid complicating code, we do expect n_steps > 2 and fix frame_history_len == 4
         assert_colorize(self.n_steps > 2 and self.frame_history_len == 4, 
                         'Ops: encode_recent_obs will not work correctly')
-        # we kind of hard-code n_preobs here since we do not expect to tune n_steps and frame_history_len
+        
         required_preobs = self.frame_history_len - 1
         n_preobs = required_preobs if self.tb_full or self.tb_idx >= required_preobs else self.tb_idx
         n_missing = required_preobs - n_preobs
