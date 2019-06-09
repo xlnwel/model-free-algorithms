@@ -52,9 +52,9 @@ class Networks(Base):
                                         n_quantiles, 
                                         batch_size, 
                                         self.n_actions,
-                                        self._atari_phi_net if else self._cartpole_phi_net,
+                                        self._atari_phi_net if self.atari else self._cartpole_phi_net,
                                         self._psi_net,
-                                        self._cartpole_f_net,
+                                        self._atari_f_net if self.atari else self._cartpole_f_net,
                                         name=name, 
                                         reuse=reuse))
             # online IQN network
@@ -77,6 +77,7 @@ class Networks(Base):
                                                                                     quantile_values_next_target, 
                                                                                     Qs_next_target)
         else:
+            atari_net 
             net_fn = self._atari_net if self.atari else self._duel_net
             net_wrapper = lambda name, reuse=False: net_fn(x, self.n_actions, name=name, reuse=reuse)
             Qs = net_wrapper('main')
@@ -112,7 +113,7 @@ class Networks(Base):
         # Combine outputs of phi and psi
         y = x_tiled * x_quantiles
         # f function in the paper
-        quantile_values, q = self.cartpole_f_net(y, out_dim, n_quantiles, batch_size, name, reuse)
+        quantile_values, q = self._cartpole_f_net(y, out_dim, n_quantiles, batch_size, name, reuse)
 
         return quantiles_reformed, quantile_values, q
 
@@ -152,11 +153,10 @@ class Networks(Base):
         return q
 
     """ IQN for atari """
-    def _atari_phi_net(self, state, out_dim, name, reuse=None):
+    def _atari_phi_net(self, x, n_quantiles, name, reuse=None):
         # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
-        assert_colorize(state.shape.as_list()[1:] == [84, 84, 4], 
-                f'Input image should be of shape (84, 84, 4), but get {state.shape.as_list()[1:]}')
-        x = state
+        assert_colorize(x.shape.as_list()[1:] == [84, 84, 4], 
+                f'Input image should be of shape (84, 84, 4), but get {x.shape.as_list()[1:]}')
 
         name = f'{name}_net'
         with tf.variable_scope(f'{name}_phi_net', reuse=reuse):
@@ -164,8 +164,9 @@ class Networks(Base):
             x = tf.layers.conv2d(x, 64, 4, 2, activation=tf.nn.relu)      # (9, 9, 64)
             x = tf.layers.conv2d(x, 64, 3, 1, activation=tf.nn.relu)      # (7, 7, 64)
             x = tf.layers.flatten(x)
+            x_tiled = tf.tile(x, [n_quantiles, 1])
 
-        return x
+        return x_tiled
         
     def _psi_net(self, quantiles_tiled, quantile_embedding_dim, h_dim, name, reuse):
         with tf.variable_scope(f'{name}_psi_net', reuse=reuse):

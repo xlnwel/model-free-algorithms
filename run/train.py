@@ -38,7 +38,7 @@ def import_main(algorithm):
     if algorithm == 'td3' or algorithm == 'sac':
         from algo.off_policy.single_train import main
     elif algorithm == 'rainbow':
-        from algo.off_policy.single_train import main
+        from algo.off_policy.atari_train import main
     elif algorithm.startswith('apex'):
         from algo.off_policy.distributed_train import main
     elif algorithm == 'ppo':
@@ -109,7 +109,7 @@ if __name__ == '__main__':
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow':
-            gs(Qnets=dict(iqn=True, h_dim=[64, 128]))
+            gs()
         elif algorithm == 'apex-td3':
             gs()
         elif algorithm == 'apex-sac':

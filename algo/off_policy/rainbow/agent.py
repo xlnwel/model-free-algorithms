@@ -113,7 +113,7 @@ class Agent(OffPolicyOperation):
 
         def quantile_regression_loss(u):
             abs_part = tf.abs(self.Qnets.quantiles - tf.where(u < 0, tf.ones_like(u), tf.zeros_like(u)))
-            huber = huber_loss(u, delta=self.args['delta'])
+            huber = huber_loss(u, delta=self.args['Qnets']['delta'])
             
             qr_loss = tf.reduce_sum(tf.reduce_mean(abs_part * huber, axis=2), axis=1)   # [B]
             loss = tf.reduce_mean(qr_loss)

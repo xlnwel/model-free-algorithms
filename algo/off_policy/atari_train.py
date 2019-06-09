@@ -17,11 +17,17 @@ def train(agent, render, log_steps, print_terminal_info=True, background_learnin
     envtimes = deque(maxlen=log_steps)
     addtimes = deque(maxlen=log_steps)
     learntimes = deque(maxlen=log_steps)
+    episode_lengths = deque(maxlen = 100)
+    el = 0
     while agent.env.get_total_steps() < 2e8:
+        el += 1
         t += 1
         if render:
             agent.env.render()
-        acttime, action = timeit(lambda:agent.atari_act(state))
+        if not agent.buffer.good_to_learn:
+            acttime, action = timeit(lambda: agent.env.random_action())
+        else:
+            acttime, action = timeit(lambda:agent.atari_act(state))
         acttimes.append(acttime)
 
         envtime, (next_state, reward, done, _) = timeit(lambda:agent.env.step(action))
@@ -33,19 +39,19 @@ def train(agent, render, log_steps, print_terminal_info=True, background_learnin
             learntime, _ = timeit(lambda:agent.atari_learn(t))
             learntimes.append(learntime)
 
+        state = agent.env.reset() if done else next_state
         if done:
-            state = agent.env.reset()
-        else:
-            state = next_state
+            episode_lengths.append(el)
+            el = 0
 
         if t % log_steps == 0:
             episode_scores = agent.env.get_episode_scores()
-            episode_lengths = agent.env.get_episode_lengths()
+            # episode_lengths = agent.env.get_episode_lengths()
             eps_len = agent.env.get_length()
             score = episode_scores[-1]
             avg_score = np.mean(episode_scores[-100:])
             eps_len = episode_lengths[-1]
-            avg_eps_len = np.mean(episode_lengths[-100:])
+            avg_eps_len = np.mean(episode_lengths)
             agent.log_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
 
             log_info = {

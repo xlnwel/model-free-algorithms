@@ -1,16 +1,16 @@
 ---
 n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    atari: &atari False
-    # video_path: video
-    name: &env_name CartPole-v0    # PongNoFrameskip-v4
+    atari: &atari True
+    video_path: video
+    name: &env_name PongNoFrameskip-v4    # PongNoFrameskip-v4
     max_episode_steps: 1000
     seed: 0
 agent:
     background_learning: False
     gamma: &gamma 0.99
     algorithm: rainbow
-    batch_size: 512
+    batch_size: 32
     prefetches: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -20,12 +20,10 @@ agent:
     model_name: baseline
 
     frame_history_len: &fhl 4
-    n_epochs: 50000
     update_freq: 4
     n_steps: 3
     loss_type: mse   # huber or mse
     target_update_freq: 10000
-    delta: 1
     
     Qnets:
         duel: False
@@ -38,10 +36,8 @@ agent:
         quantile_embedding_dim: 64
         # args for optimizer
         learning_rate: 1e-4
-        decay_rate: .95
-        decay_steps: 1e3
         epsilon: 1e-4
-        h_dim: 64
+
     env_stats:
         times: 1
         stats: [score, avg_score, eps_len, avg_eps_len]
@@ -56,5 +52,5 @@ buffer:
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e5
-    min_size: 5e2
+    min_size: 5e4
     capacity: 1e6
