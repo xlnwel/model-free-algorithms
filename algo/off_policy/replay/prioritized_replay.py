@@ -10,8 +10,8 @@ class PrioritizedReplay(Replay):
     """ Interface """
     def __init__(self, args, state_space, action_dim):
         super().__init__(args, state_space, action_dim)
-        # self.memory                           # exp_id    -->     exp
-        self.data_structure = None              # prio_id   -->     priority, exp_id
+        # self.memory                           # mem_idx    -->     exp
+        self.data_structure = None              # prio_id   -->     priority, mem_idx
 
         # params for prioritized replay
         self.alpha = float(args['alpha']) if 'alpha' in args else .5
@@ -42,10 +42,10 @@ class PrioritizedReplay(Replay):
             self.tb['priority'][self.tb_idx] = self.top_priority
         super()._add(state, action, reward, next_state, done)
 
-    def update_priorities(self, priorities, saved_exp_ids):
+    def update_priorities(self, priorities, saved_mem_idxs):
         with self.locker:
-            for priority, exp_id in zip(priorities, saved_exp_ids):
-                self.data_structure.update(priority, exp_id)
+            for priority, mem_idx in zip(priorities, saved_mem_idxs):
+                self.data_structure.update(priority, mem_idx)
 
     """ Implementation """
     def _update_beta(self):
@@ -53,9 +53,9 @@ class PrioritizedReplay(Replay):
 
     @override(Replay)
     def _merge(self, local_buffer, length, start=0):
-        end_idx = self.exp_id + length
-        for prio_id, exp_id in enumerate(range(self.exp_id, end_idx)):
-            self.data_structure.add(local_buffer['priority'][prio_id], exp_id % self.capacity, self.is_full)
+        end_idx = self.mem_idx + length
+        for prio_id, mem_idx in enumerate(range(self.mem_idx, end_idx)):
+            self.data_structure.add(local_buffer['priority'][prio_id], mem_idx % self.capacity, self.is_full)
             
         super()._merge(local_buffer, length, start)
         

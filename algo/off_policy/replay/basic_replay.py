@@ -19,7 +19,7 @@ class Replay:
         self.gamma = args['gamma']
         
         self.is_full = False
-        self.exp_id = 0
+        self.mem_idx = 0
 
         init_buffer(self.memory, self.capacity, state_space, action_dim, False)
 
@@ -39,7 +39,7 @@ class Replay:
         return len(self) >= self.min_size
 
     def __len__(self):
-        return self.capacity if self.is_full else self.exp_id
+        return self.capacity if self.is_full else self.mem_idx
 
     def __call__(self):
         while True:
@@ -85,31 +85,31 @@ class Replay:
                 self.merge(self.tb, 1, self.tb_idx)
         else:
             with self.locker:
-                add_buffer(self.memory, self.exp_id, state, action, reward,
+                add_buffer(self.memory, self.mem_idx, state, action, reward,
                             next_state, done, self.n_steps, self.gamma)
-                self.exp_id += 1
+                self.mem_idx += 1
 
     def _sample(self):
         raise NotImplementedError
 
     def _merge(self, local_buffer, length, start=0):
-        end_idx = self.exp_id + length
+        end_idx = self.mem_idx + length
 
         if end_idx > self.capacity:
-            first_part = self.capacity - self.exp_id
+            first_part = self.capacity - self.mem_idx
             second_part = length - first_part
             
-            copy_buffer(self.memory, self.exp_id, self.capacity, local_buffer, start, start + first_part)
+            copy_buffer(self.memory, self.mem_idx, self.capacity, local_buffer, start, start + first_part)
             copy_buffer(self.memory, 0, second_part, local_buffer, start + first_part, start + length)
         else:
-            copy_buffer(self.memory, self.exp_id, end_idx, local_buffer, start, start + length)
+            copy_buffer(self.memory, self.mem_idx, end_idx, local_buffer, start, start + length)
 
         # memory is full, recycle buffer via FIFO
         if not self.is_full and end_idx >= self.capacity:
             print('Memory is fulll')
             self.is_full = True
         
-        self.exp_id = end_idx % self.capacity
+        self.mem_idx = end_idx % self.capacity
 
     def _get_samples(self, indexes):
         indexes = list(indexes) # convert tuple to list

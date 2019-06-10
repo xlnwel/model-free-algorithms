@@ -10,7 +10,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
     """ Interface """
     def __init__(self, args, state_space, action_dim):
         super().__init__(args, state_space, action_dim)
-        self.data_structure = SumTree(self.capacity)                   # prio_id   -->     priority, exp_id
+        self.data_structure = SumTree(self.capacity)                   # prio_id   -->     priority, mem_idx
 
     """ Implementation """
     @override(PrioritizedReplay)

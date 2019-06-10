@@ -6,10 +6,10 @@ class Container():
         self.capacity = capacity
         self.container = []
 
-    def add(self, priority, exp_id, full):
+    def add(self, priority, mem_idx, full):
         raise NotImplementedError
 
-    def update(self, priority, exp_id):
+    def update(self, priority, mem_idx):
         raise NotImplementedError
 
     def find(self, value):

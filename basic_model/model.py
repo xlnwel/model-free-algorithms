@@ -198,7 +198,6 @@ class Model(Module):
                                              allow_soft_placement=True)
             else:
                 sess_config = tf.ConfigProto(allow_soft_placement=True)
-            # sess_config = tf.ConfigProto(allow_soft_placement=True)
             # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         sess_config.gpu_options.allow_growth=True
         self.sess = tf.Session(graph=self.graph, config=sess_config)

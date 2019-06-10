@@ -28,14 +28,14 @@ class SumTree(Container):
 
         return self.container[idx], idx - self.capacity + 1
 
-    def add(self, priority, exp_id, full):        
-        self.update(priority, exp_id)
-        assert exp_id == self.prio_id, f'{exp_id} != {self.prio_id}'
+    def add(self, priority, mem_idx, full):        
+        self.update(priority, mem_idx)
+        assert mem_idx == self.prio_id, f'{mem_idx} != {self.prio_id}'
         self.prio_id = (self.prio_id + 1) % self.capacity
         self.full = full
 
-    def update(self, priority, exp_id):
-        idx = exp_id + self.capacity - 1
+    def update(self, priority, mem_idx):
+        idx = mem_idx + self.capacity - 1
         self.container[idx] = priority
 
         self._propagate(idx)

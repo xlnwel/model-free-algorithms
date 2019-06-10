@@ -8,7 +8,7 @@ import tensorflow as tf
 import ray
 
 from utility.yaml_op import load_args
-from replay.proportional_replay import ProportionalPrioritizedReplay
+from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
 from algo.off_policy.apex.worker import get_worker
 from algo.off_policy.apex.learner import get_learner
 

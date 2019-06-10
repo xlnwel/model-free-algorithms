@@ -70,7 +70,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_score=True, device='/gpu:0')
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_score=True)
     if agent_args['background_learning']:
         utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)

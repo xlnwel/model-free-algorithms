@@ -19,8 +19,8 @@ def get_learner(BaseClass, *args, **kwargs):
                     buffer_args,
                     sess_config=None, 
                     save=True, 
-                    log_tensorboard=True, 
-                    log_params=True,
+                    log_tensorboard=False, 
+                    log_params=False,
                     log_score=True,
                     device=None):
                     

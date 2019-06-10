@@ -108,23 +108,23 @@ class OffPolicyOperation(Model, ABC):
 
     def learn(self):
         if self.log_tensorboard:
-            priority, saved_exp_ids, _, summary = self.sess.run([self.priority, 
-                                                                self.data['saved_exp_ids'], 
+            priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
+                                                                self.data['saved_mem_idxs'], 
                                                                 self.opt_op, 
                                                                 self.graph_summary])
             if self.update_step % 100 == 0:
                 self.writer.add_summary(summary, self.update_step)
                 # self.save()
         else:
-            priority, saved_exp_ids, _ = self.sess.run([self.priority, 
-                                                        self.data['saved_exp_ids'], 
+            priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
+                                                        self.data['saved_mem_idxs'], 
                                                         self.opt_op])
 
         # update the target networks
         self._update_target_net()
 
         self.update_step += 1
-        self.buffer.update_priorities(priority, saved_exp_ids)
+        self.buffer.update_priorities(priority, saved_mem_idxs)
     
     """ Implementation """
     @abstractmethod
@@ -154,11 +154,11 @@ class OffPolicyOperation(Model, ABC):
             samples = iterator.get_next(name='samples')
         
         # prepare data
-        IS_ratio, saved_exp_ids, (state, action, reward, next_state, done, steps) = samples
+        IS_ratio, saved_mem_idxs, (state, action, reward, next_state, done, steps) = samples
 
         data = {}
         data['IS_ratio'] = IS_ratio
-        data['saved_exp_ids'] = saved_exp_ids
+        data['saved_mem_idxs'] = saved_mem_idxs
         data['state'] = state
         data['action'] = action
         data['reward'] = reward
