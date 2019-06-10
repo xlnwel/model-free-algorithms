@@ -39,7 +39,7 @@ class PrioritizedReplay(Replay):
     @override(Replay)
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
-            self.temporary_buffer['priority'][self.tb_idx] = self.top_priority
+            self.tb['priority'][self.tb_idx] = self.top_priority
         super()._add(state, action, reward, next_state, done)
 
     def update_priorities(self, priorities, saved_exp_ids):

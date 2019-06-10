@@ -65,7 +65,7 @@ def display_var_info(vars, name='trainable'):
         v_params = np.prod(v.shape.as_list())
         count_params += v_params
         if '/b:' in name or '/biases' in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
-        pwc(f'   {name}{" "*(55-len(name))} {v_params:d} params {v.shape}', 'yellow')
+        pwc(f'   {name}{" "*(100-len(name))} {v_params:d} params {v.shape}', 'yellow')
 
     pwc(f'Total model parameters: {count_params*1e-6:0.2f} million', 'yellow')
 

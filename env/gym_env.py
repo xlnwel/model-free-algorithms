@@ -3,8 +3,6 @@ import gym
 import ray
 
 from utility import tf_distributions
-from env.wrappers import TimeLimit
-from env.atari_wrappers import wrap_deepmind, get_wrapper_by_name
 from utility.utils import assert_colorize
 
 
@@ -55,16 +53,10 @@ class envstats:
 @envstats
 class GymEnv:
     def __init__(self, args):
-        if 'atari' in args and args['atari']:
-            # self.env = env = self._make_atari(args)
-            self.env = env = gym.make(args['name'])
+        self.env = env = gym.make(args['name'])
+        # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
+        if 'video_path' in args:
             self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
-            self.env = env = wrap_deepmind(env)
-        else:
-            self.env = env = gym.make(args['name'])
-            # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
-            if 'video_path' in args:
-                self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
 
         env.seed(args['seed'])
 
@@ -78,15 +70,6 @@ class GymEnv:
         self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
 
-    def get_episode_scores(self):
-        return get_wrapper_by_name(self.env, 'Monitor').get_episode_rewards()
-    
-    def get_episode_lengths(self):
-        return get_wrapper_by_name(self.env, 'Monitor').get_episode_lengths()
-
-    def get_total_steps(self):
-        return get_wrapper_by_name(self.env, 'Monitor').get_total_steps()
-
     def reset(self):
         return self.env.reset()
 
@@ -99,15 +82,6 @@ class GymEnv:
         
     def render(self):
         return self.env.render()
-
-    def _make_atari(self, args):
-        env = make_atari(args['name'], max_episode_steps=1000)
-        if 'video_path' in args:
-            env = gym.wrappers.Monitor(env, args['video_path'], force=True)
-        if 'atari' in args and args['atari']:
-            env = wrap_deepmind(env)
-        return env
-
 
 @envstats
 class GymEnvVec:

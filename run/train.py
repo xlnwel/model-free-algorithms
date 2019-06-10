@@ -14,7 +14,7 @@ def parse_cmd_args():
     parser.add_argument('--algorithm', '-a',
                         type=str,
                         choices=['td3', 'sac', 'apex-td3', 'apex-sac', 'ppo', 'a2c',
-                                 'rainbow'])
+                                 'rainbow-iqn'])
     parser.add_argument('--render', '-r',
                         type=str,
                         choices=['true', 'false'],
@@ -37,8 +37,8 @@ def parse_cmd_args():
 def import_main(algorithm):
     if algorithm == 'td3' or algorithm == 'sac':
         from algo.off_policy.single_train import main
-    elif algorithm == 'rainbow':
-        from algo.off_policy.atari_train import main
+    elif algorithm == 'rainbow-iqn':
+        from algo.off_policy.single_train import main
     elif algorithm.startswith('apex'):
         from algo.off_policy.distributed_train import main
     elif algorithm == 'ppo':
@@ -55,8 +55,8 @@ def get_arg_file(algorithm):
         arg_file = 'algo/off_policy/td3/args.yaml'
     elif algorithm == 'sac':
         arg_file = 'algo/off_policy/sac/args.yaml'
-    elif algorithm == 'rainbow':
-        arg_file = 'algo/off_policy/rainbow/args.yaml'
+    elif algorithm == 'rainbow-iqn':
+        arg_file = 'algo/off_policy/rainbow_iqn/args.yaml'
     elif algorithm == 'apex-td3':
         arg_file = 'algo/off_policy/apex/td3_args.yaml'
     elif algorithm == 'apex-sac':
@@ -74,8 +74,8 @@ if __name__ == '__main__':
     cmd_args = parse_cmd_args()
     algorithm = cmd_args.algorithm
     
-    main = import_main(algorithm)
     arg_file = get_arg_file(algorithm)
+    main = import_main(algorithm)
     
     render = True if cmd_args.render == 'true' else False
 
@@ -108,8 +108,8 @@ if __name__ == '__main__':
             gs()
         elif algorithm == 'sac':
             gs()
-        elif algorithm == 'rainbow':
-            gs()
+        elif algorithm == 'rainbow-iqn':
+            gs(Qnets=dict(iqn=[True, False], psi_units=[[128]], f_units=[[128], [64]]))
         elif algorithm == 'apex-td3':
             gs()
         elif algorithm == 'apex-sac':

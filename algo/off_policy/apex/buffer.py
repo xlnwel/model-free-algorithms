@@ -18,8 +18,8 @@ class LocalBuffer(dict):
         self.reset()
 
         if self.n_steps > 1:
-            self.temporary_buffer = {}
-            init_buffer(self.temporary_buffer, self.n_steps, state_space, action_dim, False)
+            self.tb = {}
+            init_buffer(self.tb, self.n_steps, state_space, action_dim, False)
             self.tb_idx = 0
             self.tb_full = False
 
@@ -37,7 +37,7 @@ class LocalBuffer(dict):
         
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
-            add_buffer(self.temporary_buffer, self.tb_idx, state, action, reward, 
+            add_buffer(self.tb, self.tb_idx, state, action, reward, 
                         next_state, done, self.n_steps, self.gamma)
             
             if not self.tb_full and self.tb_idx == self.n_steps - 1:
@@ -45,7 +45,7 @@ class LocalBuffer(dict):
             self.tb_idx = (self.tb_idx + 1) % self.n_steps
 
             if self.tb_full:
-                copy_buffer(self, self.idx, self.idx+1, self.temporary_buffer, self.tb_idx, self.tb_idx+1)
+                copy_buffer(self, self.idx, self.idx+1, self.tb, self.tb_idx, self.tb_idx+1)
                 self.idx += 1
         else:
             add_buffer(self, self.idx, state, action, reward,

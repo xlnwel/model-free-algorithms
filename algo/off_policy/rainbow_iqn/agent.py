@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from algo.off_policy.basic_agent import OffPolicyOperation
-from algo.off_policy.rainbow.networks import Networks
+from algo.off_policy.rainbow_iqn.networks import Networks
 from utility.losses import huber_loss
 from utility.utils import pwc
 from utility.tf_utils import n_step_target, stats_summary
@@ -37,16 +37,6 @@ class Agent(OffPolicyOperation):
                          log_score=log_score,
                          device=device)
 
-    def atari_act(self, obs, return_q=False):
-        obs = self.buffer.encode_recent_obs(obs)
-        return super().act(obs, return_q)
-
-    def atari_learn(self, t):
-        if t % self.update_freq == 0:
-            self.learn()
-        else:
-            pass # do nothing
-
     """ Implementation """
     def _build_graph(self):
         if 'gpu' in self.device:
@@ -55,7 +45,6 @@ class Agent(OffPolicyOperation):
         else:
             self.data = self._prepare_data(self.buffer)
 
-        self._observation_preprocessing()
         self.Qnets = self._create_nets()
         self.action = self.Qnets.best_action
 
@@ -70,15 +59,8 @@ class Agent(OffPolicyOperation):
 
         self._log_loss()
 
-    def _observation_preprocessing(self):
-        if self.atari:
-            with tf.name_scope('obs_preprocessing'):
-                self.data['state'] = self.data['state'] / 255.
-                self.data['next_state'] = self.data['next_state'] / 255.
-
     def _create_nets(self):
         scope_prefix = self.name
-        self.args['Qnets']['atari'] = self.atari
         self.args['Qnets']['batch_size'] = self.args['batch_size']
         Qnets = Networks('Nets', 
                         self.args['Qnets'], 

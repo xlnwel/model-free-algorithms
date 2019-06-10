@@ -64,13 +64,13 @@ def main(env_args, agent_args, buffer_args, render=False):
         from algo.off_policy.td3.agent import Agent
     elif algorithm == 'sac':
         from algo.off_policy.sac.agent import Agent
-    elif algorithm == 'rainbow':
-        from algo.off_policy.rainbow.agent import Agent
+    elif algorithm == 'rainbow-iqn':
+        from algo.off_policy.rainbow_iqn.agent import Agent
     else:
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_score=True, device='/gpu:0')
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_score=True, device='/gpu:0')
     if agent_args['background_learning']:
         utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)

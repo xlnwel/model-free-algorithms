@@ -37,15 +37,9 @@ class OffPolicyOperation(Model, ABC):
         self.update_step = 0
 
         # environment info
-        self.atari = 'atari' in env_args and env_args['atari']
         self.env = (GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1
                     else GymEnv(env_args))
-        if self.atari:
-            assert_colorize(len(self.env.state_space) == 3, 'Frames should be images')
-            h, w, c = self.env.state_space
-            self.state_space = (h, w, args['frame_history_len'] * c)
-        else:
-            self.state_space = self.env.state_space
+        self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
         
         # replay buffer
@@ -53,7 +47,7 @@ class OffPolicyOperation(Model, ABC):
         buffer_args['gamma'] = args['gamma']
         buffer_args['batch_size'] = args['batch_size']
 
-        # for atari, action is discrete and has only 1 dimension
+        # if action is discrete, then it has only 1 dimension
         action_dim = 1 if self.env.is_action_discrete else self.action_dim
         if buffer_args['type'] == 'proportional':
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, action_dim)

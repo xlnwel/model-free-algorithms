@@ -180,14 +180,16 @@ class Model(Module):
 
         self.model_name = args['model_name']
         if self.log_tensorboard:
-            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
-            self.graph_summary, self.writer = self._setup_tensorboard_summary(args['log_root_dir'], self.model_name)
+            self.graph_summary= self._setup_tensorboard_summary()
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_score:
-            assert_colorize(self.log_tensorboard, 'Must set up tensorboard writer beforehand')
+            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
             self.stats = self._setup_stats_logs(args['env_stats'])
 
+        if log_tensorboard or log_score:
+            self.writer = self._setup_writer(args['log_root_dir'], self.model_name)
+            
         # initialize session and global variables
         if sess_config is None:
             if 'n_workers' in args and args['n_workers'] > 1:
@@ -250,6 +252,24 @@ class Model(Module):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
     """ Implementation """
+    def _setup_saver(self, save):
+        return tf.train.Saver(self.global_variables) if save else None
+
+    def _setup_model_path(self, root_dir, model_name):
+        model_dir = Path(root_dir) / model_name
+
+        if not model_dir.is_dir():
+            model_dir.mkdir(parents=True)
+
+        model_file = str(model_dir / 'ckpt')
+        return model_file
+
+    def _setup_tensorboard_summary(self):
+        with self.graph.as_default():
+            graph_summary = tf.summary.merge_all()
+
+        return graph_summary
+
     def _setup_stats_logs(self, env_stats):
         times = env_stats['times'] if 'times' in env_stats else 1
         stats_info = env_stats['stats']
@@ -274,31 +294,18 @@ class Model(Module):
 
         return stats
 
-    def _setup_saver(self, save):
-        return tf.train.Saver(self.global_variables) if save else None
-
-    def _setup_model_path(self, root_dir, model_name):
-        model_dir = Path(root_dir) / model_name
-
-        if not model_dir.is_dir():
-            model_dir.mkdir(parents=True)
-
-        model_file = str(model_dir / 'ckpt')
-        return model_file
-
-    def _setup_tensorboard_summary(self, root_dir, model_name):
-        with self.graph.as_default():
-            graph_summary = tf.summary.merge_all()
-            filename = os.path.join(root_dir, model_name)
-            writer = tf.summary.FileWriter(filename, self.graph)
-            atexit.register(writer.close)
-        save_args(self.args, filename=filename + '/args.yaml')
-        return graph_summary, writer
-
+    def _setup_writer(self, root_dir, model_name):
+        writer_dir = os.path.join(root_dir, model_name)
+        writer = tf.summary.FileWriter(writer_dir, self.graph)
+        atexit.register(writer.close)
+        
+        return writer
+    
     def _setup_logger(self, root_dir, model_name):
         log_dir = os.path.join(root_dir, model_name)
         
         logger = Logger(log_dir, exp_name=model_name)
+        save_args(self.args, filename=log_dir + '/args.yaml')
 
         return logger
 
