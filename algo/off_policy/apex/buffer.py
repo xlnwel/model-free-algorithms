@@ -15,7 +15,9 @@ class LocalBuffer(dict):
         self.gamma = args['gamma']
 
         init_buffer(self, self.capacity, state_space, action_dim, True)
-        self.reset()
+        
+        self.idx = 0
+        self.is_full = False
 
         if self.n_steps > 1:
             self.tb_capacity = args['tb_capacity']
@@ -25,10 +27,6 @@ class LocalBuffer(dict):
             self.tb = {}
             init_buffer(self.tb, self.tb_capacity, state_space, action_dim, False)
 
-    @property
-    def is_full(self):
-        return self.idx == self.capacity
-
     def __call__(self):
         while True:
             yield self.fake_ratio, self.fake_ids, (self['state'], self['action'], self['reward'], 
@@ -36,6 +34,7 @@ class LocalBuffer(dict):
 
     def reset(self):
         self.idx = 0
+        self.is_full = False
         
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
@@ -47,30 +46,28 @@ class LocalBuffer(dict):
             self.tb_idx = (self.tb_idx + 1) % self.n_steps
 
             if done:
-                self._merge(self.tb_capacity if self.tb_full else self.tb_idx)
+                self._merge(self.tb, self.tb_capacity if self.tb_full else self.tb_idx)
+                self.tb_idx = 0
             elif self.tb_full:
-                copy_buffer(self, self.idx, self.idx+1, self.tb, self.tb_idx, self.tb_idx+1)
-                self.idx += 1
+                self._merge(self.tb, 1, self.tb_idx)
         else:
             add_buffer(self, self.idx, state, action, reward,
                         next_state, done, self.n_steps, self.gamma)
             self.idx += 1
 
-    def _merge(self, length, start=0):
-        end_idx = self.mem_idx + length
+    def _merge(self, local_buffer, length, start=0):
+        assert_colorize(length < self.capacity, 'Temporary buffer is too large')
+        end_idx = self.idx + length
 
         if end_idx > self.capacity:
-            first_part = self.capacity - self.mem_idx
-            second_part = length - first_part
+            first_part = self.capacity - self.idx
             
-            copy_buffer(self.memory, self.mem_idx, self.capacity, local_buffer, start, start + first_part)
-            copy_buffer(self.memory, 0, second_part, local_buffer, start + first_part, start + length)
+            copy_buffer(self, self.idx, self.capacity, self.tb, start, start + first_part, dest_keys=False)
+            # drop the excessive experiences
         else:
-            copy_buffer(self.memory, self.mem_idx, end_idx, local_buffer, start, start + length)
-
-        # memory is full, recycle buffer via FIFO
-        if not self.is_full and end_idx >= self.capacity:
-            print('Memory is fulll')
-            self.is_full = True
+            copy_buffer(self, self.idx, end_idx, self.tb, start, start + length, dest_keys=False)
         
-        self.mem_idx = end_idx % self.capacity
+        if end_idx >= self.capacity:
+            self.is_full = True
+
+        self.idx = end_idx

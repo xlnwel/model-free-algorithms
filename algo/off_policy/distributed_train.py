@@ -30,7 +30,7 @@ def main(env_args, agent_args, buffer_args, render=False):
     ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'
-    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, device='/gpu: 0')
+    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, device='/GPU:0')
 
     workers = []
     buffer_args['type'] = 'local'
@@ -44,7 +44,7 @@ def main(env_args, agent_args, buffer_args, render=False):
              raise NotImplementedError
         env_args['seed'] = worker_no * 10
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
-                            max_episodes, device='/cpu: {}'.format(worker_no + 1))
+                            max_episodes, device='/CPU:{}'.format(worker_no + 1))
         workers.append(worker)
 
     pids = [worker.sample_data.remote(learner) for worker in workers]

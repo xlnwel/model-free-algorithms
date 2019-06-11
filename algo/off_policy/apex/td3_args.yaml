@@ -8,7 +8,7 @@ agent:
     algorithm: apex-td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: 1024
+    batch_size: 256
     prefetches: 5
 
     # model path: model_root_dir/model_name
