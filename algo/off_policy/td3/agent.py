@@ -17,9 +17,8 @@ class Agent(OffPolicyOperation):
                  save=True, 
                  log_tensorboard=False, 
                  log_params=False, 
-                 log_score=False, 
+                 log_stats=False, 
                  device=None):
-        self.n_steps = args['n_steps']
         self.critic_loss_type = args['critic']['loss_type']
         self.polyak = args['polyak'] if 'polyak' in args else .995
         
@@ -31,7 +30,7 @@ class Agent(OffPolicyOperation):
                          save=save,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params,
-                         log_score=log_score,
+                         log_stats=log_stats,
                          device=device)
 
     @property

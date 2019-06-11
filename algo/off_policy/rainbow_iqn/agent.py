@@ -18,7 +18,7 @@ class Agent(OffPolicyOperation):
                  save=True, 
                  log_tensorboard=False, 
                  log_params=True, 
-                 log_score=False, 
+                 log_stats=False, 
                  device=None):
         # optional improvements
         self.n_steps = args['n_steps']
@@ -34,7 +34,7 @@ class Agent(OffPolicyOperation):
                          save=save,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params,
-                         log_score=log_score,
+                         log_stats=log_stats,
                          device=device)
 
     """ Implementation """

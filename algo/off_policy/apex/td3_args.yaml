@@ -56,3 +56,5 @@ buffer:
     capacity: 1e6
 
     local_capacity: 100
+    tb_capacity: 10
+    

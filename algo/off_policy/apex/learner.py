@@ -21,7 +21,7 @@ def get_learner(BaseClass, *args, **kwargs):
                     save=True, 
                     log_tensorboard=False, 
                     log_params=False,
-                    log_score=True,
+                    log_stats=True,
                     device=None):
                     
             super().__init__(name, 
@@ -32,7 +32,7 @@ def get_learner(BaseClass, *args, **kwargs):
                             save=save,
                             log_tensorboard=log_tensorboard,
                             log_params=log_params,
-                            log_score=log_score,
+                            log_stats=log_stats,
                             device=device)
             
             self.learning_thread = threading.Thread(target=self.background_learning, daemon=True)
@@ -48,8 +48,8 @@ def get_learner(BaseClass, *args, **kwargs):
         def merge_buffer(self, local_buffer, length):
             self.buffer.merge(local_buffer, length)
 
-        def log_stats(self, kwargs):
+        def record_stats(self, kwargs):
             assert isinstance(kwargs, dict)
-            super()._log_stats_impl(kwargs)
+            super()._record_stats_impl(kwargs)
 
     return Learner.remote(*args, **kwargs)

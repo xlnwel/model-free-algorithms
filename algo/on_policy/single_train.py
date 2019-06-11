@@ -27,7 +27,7 @@ def train(agent, agent_args, test_agent):
 
         approx_kl = np.mean(approx_kl)
         clip_frac = np.mean(clip_frac)
-        agent.log_stats(avg_score=avg_score, std_score=std_score, max_score=max_score, min_score=min_score,
+        agent.record_stats(avg_score=avg_score, std_score=std_score, max_score=max_score, min_score=min_score,
                         avg_eps_len=avg_eps_len, approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
@@ -65,6 +65,6 @@ def main(env_args, agent_args, buffer_args, render=False):
         env_args['n_envs'] = 1
         del env_args['max_episode_steps']
         test_agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=False, 
-                            log_params=False, log_score=False, device='/gpu:0', reuse=True, graph=agent.graph)
+                            log_params=False, log_stats=False, device='/gpu:0', reuse=True, graph=agent.graph)
 
     train(agent, agent_args, test_agent)

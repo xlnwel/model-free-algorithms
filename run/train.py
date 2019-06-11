@@ -105,11 +105,11 @@ if __name__ == '__main__':
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs()
+            gs(tb_capacity=[3, 10, 100])
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow-iqn':
-            gs(Qnets=dict(iqn=[True, False], psi_units=[[128]], f_units=[[128], [64]]))
+            gs(Qnets=dict(iqn=[True, False], psi_units=[[64]], f_units=[[64]]))
         elif algorithm == 'apex-td3':
             gs()
         elif algorithm == 'apex-sac':

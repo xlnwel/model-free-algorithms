@@ -29,7 +29,7 @@ class OffPolicyOperation(Model, ABC):
                  save=True, 
                  log_tensorboard=True, 
                  log_params=False, 
-                 log_score=True, 
+                 log_stats=True, 
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99
@@ -63,7 +63,7 @@ class OffPolicyOperation(Model, ABC):
                          save=save, 
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params, 
-                         log_score=log_score, 
+                         log_stats=log_stats, 
                          device=device)
 
         self._initialize_target_net()
@@ -157,8 +157,9 @@ class OffPolicyOperation(Model, ABC):
         IS_ratio, saved_mem_idxs, (state, action, reward, next_state, done, steps) = samples
 
         data = {}
-        data['IS_ratio'] = IS_ratio
-        data['saved_mem_idxs'] = saved_mem_idxs
+        data['IS_ratio'] = IS_ratio                 # Importance sampling ratio for PER
+        # saved indexes used to index the experience in the buffer when updating priorities
+        data['saved_mem_idxs'] = saved_mem_idxs     
         data['state'] = state
         data['action'] = action
         data['reward'] = reward

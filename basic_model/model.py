@@ -151,7 +151,7 @@ class Model(Module):
                  save=True,
                  log_tensorboard=False,
                  log_params=False,
-                 log_score=False,
+                 log_stats=False,
                  device=None,
                  reuse=None,
                  graph=None):
@@ -167,7 +167,7 @@ class Model(Module):
             save {bool} -- Option for saving model (default: {True})
             log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
             log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
-            log_score {bool} -- Option for logging score to tensorboard (default: {False})
+            log_stats {bool} -- Option for logging score to tensorboard (default: {False})
             device {[str or None]} -- Device where graph build upon {default: {None}}
         """
 
@@ -183,11 +183,11 @@ class Model(Module):
             self.graph_summary= self._setup_tensorboard_summary()
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
-        if log_score:
+        if log_stats:
             self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
             self.stats = self._setup_stats_logs(args['env_stats'])
 
-        if log_tensorboard or log_score:
+        if log_tensorboard or log_stats:
             self.writer = self._setup_writer(args['log_root_dir'], self.model_name)
             
         # initialize session and global variables
@@ -241,8 +241,8 @@ class Model(Module):
             # no intention to treat no saver as an error, just print a warning message
             pwc('No saver is available')
 
-    def log_stats(self, **kwargs):
-        self._log_stats_impl(kwargs)
+    def record_stats(self, **kwargs):
+        self._record_stats_impl(kwargs)
 
     def log_tabular(self, key, value):
         self.logger.log_tabular(key, value)
@@ -308,7 +308,7 @@ class Model(Module):
 
         return logger
 
-    def _log_stats_impl(self, kwargs):
+    def _record_stats_impl(self, kwargs):
         if 'worker_no' not in kwargs:
             assert_colorize(len(self.stats) == 1, 'Specify worker_no for multi-worker logs')
             no = 0

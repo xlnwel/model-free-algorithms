@@ -17,10 +17,9 @@ class Agent(OffPolicyOperation):
                  save=True, 
                  log_tensorboard=True, 
                  log_params=False, 
-                 log_score=True, 
+                 log_stats=True, 
                  device=None):
         self.temperature = args['temperature']
-        self.n_steps = args['n_steps']
         self.critic_loss_type = args['loss_type']
         self.priority_type = args['priority']
 
@@ -32,7 +31,7 @@ class Agent(OffPolicyOperation):
                          save=save,
                          log_tensorboard=log_tensorboard,
                          log_params=log_params,
-                         log_score=log_score,
+                         log_stats=log_stats,
                          device=device)
 
     def _build_graph(self):

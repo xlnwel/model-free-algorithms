@@ -25,7 +25,7 @@ class Replay:
 
         # Code for single agent
         if self.n_steps > 1:
-            self.tb_capacity = self.n_steps
+            self.tb_capacity = args['tb_capacity']
             self.tb_idx = 0
             self.tb_full = False
             self.tb = {}

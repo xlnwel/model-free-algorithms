@@ -43,10 +43,9 @@ class Networks(Base):
 
     """ Implementation """
     def _build_graph(self):
-        x = self.state
         if self.args['iqn']:
-            net_fn = (lambda n_quantiles, batch_size, name, reuse=False: 
-                            self._iqn_net(x, 
+            net_fn = (lambda state, n_quantiles, batch_size, name, reuse=False: 
+                            self._iqn_net(state, 
                                         n_quantiles, 
                                         batch_size, 
                                         self.n_actions,
@@ -56,12 +55,13 @@ class Networks(Base):
                                         name=name, 
                                         reuse=reuse))
             # online IQN network
-            quantiles, quantile_values, Qs = net_fn(self.N, self.batch_size, 'main')
+            quantiles, quantile_values, Qs = net_fn(self.state, self.N, self.batch_size, 'main')
             # Qs for online action selection
-            _, _, Qs_online = net_fn(self.K, 1, 'main', reuse=True)      
+            _, _, Qs_online = net_fn(self.state, self.K, 1, 'main', reuse=True)      
             # target IQN network
-            _, quantile_values_next_target, Qs_next_target = net_fn(self.N_prime, self.batch_size, 'target')
-            _, _, Qs_next = net_fn(self.K, self.batch_size, 'main', reuse=True)
+            _, quantile_values_next_target, Qs_next_target = net_fn(self.next_state, self.N_prime, self.batch_size, 'target')
+            # next online Qs for double Q action selection
+            _, _, Qs_next = net_fn(self.next_state, self.K, self.batch_size, 'main', reuse=True)
             
             self.quantiles = quantiles                                              # [B, N, 1]
             self.best_action = self._iqn_action(Qs_online, 'best_action')           # [1]
@@ -75,10 +75,10 @@ class Networks(Base):
                                                                                     quantile_values_next_target, 
                                                                                     Qs_next_target)
         else: 
-            net_fn = lambda name, reuse=False: self._duel_net(x, self.n_actions, name=name, reuse=reuse)
-            Qs = net_fn('main')
-            Qs_next = net_fn(name='main', reuse=True)
-            Qs_next_target = net_fn(name='target')
+            net_fn = lambda state, name, reuse=False: self._duel_net(state, self.n_actions, name=name, reuse=reuse)
+            Qs = net_fn(self.state, 'main')
+            Qs_next = net_fn(self.next_state, name='main', reuse=True)
+            Qs_next_target = net_fn(self.next_state, name='target')
 
             with tf.name_scope('q_values'):
                 self.Q = tf.reduce_sum(tf.one_hot(self.action, self.n_actions) * Qs, axis=1, keepdims=True)
@@ -88,11 +88,10 @@ class Networks(Base):
                                                     * Qs_next_target, axis=1, keepdims=True)
 
     def _iqn_net(self, state, n_quantiles, batch_size, out_dim, psi_net, phi_net, f_net, name, reuse=None):
-        x = state
         quantile_embedding_dim = self.args['quantile_embedding_dim']
 
         # psi function in the paper
-        x_tiled = psi_net(x, n_quantiles, name, reuse)
+        x_tiled = psi_net(state, n_quantiles, name, reuse)
             
         with tf.name_scope(f'{name}_quantiles'):
             quantile_shape = [n_quantiles * batch_size, 1]

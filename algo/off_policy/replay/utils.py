@@ -5,8 +5,9 @@ from utility.utils import assert_colorize
 
 def init_buffer(buffer, capacity, state_space, action_dim, has_priority):
     state_dtype = np.float16
-    action_shape = np.squeeze((capacity, action_dim))
-    action_dtype = np.float16
+    action_shape = (capacity, ) if action_dim == 1 else (capacity, action_dim)
+    action_dtype = np.int8 if action_dim == 1 else np.float16
+
     target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
     target_buffer.update({
         'state': np.zeros((capacity, *state_space), dtype=state_dtype),
@@ -44,11 +45,11 @@ def add_buffer(buffer, idx, state, action, reward, next_state, done, n_steps, ga
         buffer['done'][k] = done
         buffer['steps'][k] += 1
 
-def copy_buffer(dest_buffer, dest_start, dest_end, orig_buffer, orig_start, orig_end):
+def copy_buffer(dest_buffer, dest_start, dest_end, orig_buffer, orig_start, orig_end, dest_keys=True):
     assert_colorize(dest_end - dest_start == orig_end - orig_start, 
                     'Inconsistent lengths of dest_buffer and orig_buffer.')
     if dest_end - dest_start == 0:
         return
     
-    for key in dest_buffer.keys():
+    for key in (dest_buffer if dest_keys else orig_buffer).keys():
         dest_buffer[key][dest_start: dest_end] = orig_buffer[key][orig_start: orig_end]

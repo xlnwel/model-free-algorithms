@@ -34,8 +34,8 @@ agent:
         quantile_embedding_dim: 64
         # args for optimizer
         learning_rate: 1e-4
-        decay_rate: .95
-        decay_steps: 1e3
+        # decay_rate: .95
+        # decay_steps: 1e3
         epsilon: 1e-4
         psi_units: [128]
         f_units: [64]

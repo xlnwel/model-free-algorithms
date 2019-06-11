@@ -40,7 +40,8 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
         eps_len_deque.append(eps_len)
         avg_score = np.mean(scores_deque)
         avg_eps_len = np.mean(eps_len_deque)
-        agent.log_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
+        if hasattr(agent, 'stats'):
+            agent.record_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
 
         log_info = {
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
@@ -70,7 +71,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_score=True)
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_stats=True)
     if agent_args['background_learning']:
         utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)
