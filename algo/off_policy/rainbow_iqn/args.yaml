@@ -1,14 +1,14 @@
 ---
 n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    name: &env_name CartPole-v0    # PongNoFrameskip-v4
+    name: &env_name LunarLander-v2    # PongNoFrameskip-v4
     max_episode_steps: 1000
     seed: 0
 agent:
     background_learning: False
     gamma: &gamma 0.99
     algorithm: rainbow-iqn
-    batch_size: 128
+    batch_size: 512
     prefetches: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -17,8 +17,7 @@ agent:
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
 
-    n_epochs: 50000
-    update_freq: 1
+    n_epochs: 5000
     n_steps: 3
     loss_type: mse   # huber or mse
     target_update_freq: 10000
@@ -53,3 +52,5 @@ buffer:
     beta_steps: 1e5
     min_size: 5e4
     capacity: 1e6
+
+    tb_capacity: 10
