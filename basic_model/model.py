@@ -4,7 +4,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as tk
 
-from utility.utils import pwc, assert_colorize, display_var_info
+from utility.utils import pwc
+from utility.debug_tools import assert_colorize, display_var_info
 from utility.logger import Logger
 from utility.yaml_op import save_args
 from basic_model.layer import Layer

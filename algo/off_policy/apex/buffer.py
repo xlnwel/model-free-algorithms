@@ -1,7 +1,7 @@
 import numpy as np
 
 from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 
 class LocalBuffer(dict):
     def __init__(self, args, state_space, action_dim):

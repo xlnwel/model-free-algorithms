@@ -7,7 +7,7 @@ import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
 from utility.logger import Logger
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 from basic_model.model import Model
 from env.gym_env import GymEnv, GymEnvVec
 from algo.off_policy.apex.buffer import LocalBuffer

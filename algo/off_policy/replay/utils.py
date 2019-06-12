@@ -1,6 +1,6 @@
 import numpy as np
 
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 
 
 def init_buffer(buffer, capacity, state_space, action_dim, has_priority):

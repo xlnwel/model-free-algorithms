@@ -53,22 +53,6 @@ def set_global_seed(seed=42):
     np.random.seed(seed)
     tf.set_random_seed(seed)
 
-def assert_colorize(cond, err_msg=''):
-    assert cond, colorize(err_msg, 'red')
-
-def display_var_info(vars, name='trainable'):
-    pwc(f'Print {name} variables', 'yellow')
-    count_params = 0
-    for v in vars:
-        name = v.name
-        if '/Adam' in name or 'beta1_power' in name or 'beta2_power' in name: continue
-        v_params = np.prod(v.shape.as_list())
-        count_params += v_params
-        if '/b:' in name or '/biases' in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
-        pwc(f'   {name}{" "*(100-len(name))} {v_params:d} params {v.shape}', 'yellow')
-
-    pwc(f'Total model parameters: {count_params*1e-6:0.2f} million', 'yellow')
-
 def get_available_gpus():
     # recipe from here:
     # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa

@@ -23,8 +23,7 @@ class Agent(OffPolicyOperation):
         # optional improvements
         self.n_steps = args['n_steps']
         self.critic_loss_type = args['loss_type']
-        self.update_freq = args['update_freq']
-        self.target_update_freq = args['target_update_freq']
+        self.polyak = args['polyak'] if 'polyak' in args else .995
 
         super().__init__(name,
                          args,
@@ -131,7 +130,7 @@ class Agent(OffPolicyOperation):
         with tf.name_scope('target_net_op'):
             target_main_var_pairs = list(zip(self.Qnets.target_variables, self.Qnets.main_variables))
             init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
-            update_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='update_target_op'), target_main_var_pairs))
+            update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op
 
@@ -139,9 +138,7 @@ class Agent(OffPolicyOperation):
         self.sess.run(self.init_target_op)
 
     def _update_target_net(self):
-        if self.update_step % self.target_update_freq == 0:
-            pwc('Target net synchronized.', color='green')
-            self.sess.run(self.update_target_op)
+        self.sess.run(self.update_target_op)
 
     def _log_loss(self):
         if self.log_tensorboard:

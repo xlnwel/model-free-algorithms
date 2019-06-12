@@ -3,7 +3,7 @@ import gym
 import ray
 
 from utility import tf_distributions
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 
 
 def action_dist_type(env):

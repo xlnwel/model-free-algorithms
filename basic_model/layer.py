@@ -4,7 +4,8 @@ import tensorflow.contrib as tc
 import tensorflow.keras as tk
 
 from utility import tf_utils
-from utility.utils import assert_colorize, pwc
+from utility.utils import pwc
+from utility.debug_tools import assert_colorize
 
 # TODO: return layer object for TF V2
 class Layer():

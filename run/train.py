@@ -6,7 +6,7 @@ from copy import deepcopy
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from run.grid_search import GridSearch
 from utility.yaml_op import load_args
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 
 
 def parse_cmd_args():
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs(tb_capacity=[3, 10, 100])
+            gs(actor=dict(units=[[64, 64]]), critic=dict(units=[[64, 64]]), batch_size=512)
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow-iqn':

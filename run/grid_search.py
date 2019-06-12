@@ -4,7 +4,7 @@ from copy import deepcopy
 from multiprocessing import Process
 
 from utility.yaml_op import load_args
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 
 
 class GridSearch:

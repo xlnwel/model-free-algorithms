@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from utility.utils import assert_colorize, pwc
+from utility.debug_tools import assert_colorize, pwc
 
 
 def plot_data(data, value="AvgScore"):

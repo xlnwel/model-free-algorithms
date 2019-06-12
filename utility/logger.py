@@ -10,7 +10,8 @@ Adapted by S.C.
 import os.path as osp
 import os, time, atexit
 
-from utility.utils import pwc, assert_colorize
+from utility.utils import pwc
+from utility.debug_tools import assert_colorize
 
 
 class Logger:

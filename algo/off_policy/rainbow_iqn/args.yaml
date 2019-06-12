@@ -5,8 +5,9 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
-    background_learning: False
+    background_learning: True
     gamma: &gamma 0.99
+    polyak: 0.995
     algorithm: rainbow-iqn
     batch_size: 512
     prefetches: 5
@@ -32,7 +33,7 @@ agent:
         delta: 1            # kappa in paper, used in huber loss
         quantile_embedding_dim: 64
         # args for optimizer
-        learning_rate: 1e-4
+        learning_rate: 1e-3
         # decay_rate: .95
         # decay_steps: 1e3
         epsilon: 1e-4
@@ -50,7 +51,7 @@ buffer:
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e5
-    min_size: 5e4
+    min_size: 1e3
     capacity: 1e6
 
     tb_capacity: 10

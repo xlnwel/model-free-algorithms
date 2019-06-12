@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from basic_model.basic_nets import Base
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 
 class Networks(Base):
     """ Interface """

@@ -1,7 +1,7 @@
 import threading
 import numpy as np
 
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 

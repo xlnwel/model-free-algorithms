@@ -1,7 +1,7 @@
 import numpy as np
 
 from utility.decorators import override
-from utility.utils import assert_colorize
+from utility.debug_tools import assert_colorize
 from algo.off_policy.replay.basic_replay import Replay
 from algo.off_policy.replay.utils import add_buffer, copy_buffer
 
