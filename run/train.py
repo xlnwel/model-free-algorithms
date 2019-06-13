@@ -105,11 +105,11 @@ if __name__ == '__main__':
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs(actor=dict(units=[[64, 64]]), critic=dict(units=[[64, 64]]), batch_size=512)
+            gs()
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow-iqn':
-            gs(Qnets=dict(iqn=[True, False], psi_units=[[64]], f_units=[[64]]))
+            gs(Qnets=dict(algo=['double', 'duel', 'iqn'], psi_units=[[128], [64]]))
         elif algorithm == 'apex-td3':
             gs()
         elif algorithm == 'apex-sac':

@@ -1,6 +1,6 @@
 ---
 env:
-    name: &env_name LunarLanderContinuous-v2    # LunarLanderContinuous-v2
+    name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
     max_episode_steps: 1000
     seed: 0
 agent:
@@ -27,8 +27,8 @@ agent:
         noisy_sigma: 0.4    # standard deviation for noisy layers
         layernorm: True
         # args for optimizer
-        learning_rate: 1e-3
-        decay_rate: &decay_rate 1
+        learning_rate: 1e-4
+        decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
         
     critic:
@@ -36,7 +36,7 @@ agent:
         loss_type: mse   # huber or mse
         layernorm: True
         # args for optimizer
-        learning_rate: 3e-3
+        learning_rate: 3e-4
         decay_rate: *decay_rate
         decay_steps: *decay_steps
 

@@ -1,0 +1,45 @@
+---
+n_experiments: 1 # 1 run the following configuration, otherwise, run test code in parallel see train.py
+env:
+    name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
+    max_episode_steps: &seq_len 1000
+    n_envs: 8
+    seed: 0
+agent:
+    algorithm: a2c
+    n_workers: 8
+
+    gamma: 0.99
+    lam: 0.97
+    seq_len: *seq_len
+    n_minibatches: 1        # number of minibatches a sequence is divided into 
+    # batch size = seq_len * n_envs / n_minibatches
+    n_updates: 5            # number of updates per epoch
+    n_epochs: 5000
+    max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
+    mask: False
+
+    advantage_type: norm      # norm or gae
+
+    # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
+    # tensorboard path: log_root_dir/model_name
+    model_root_dir: saved_models            # root path for savinng models
+    log_root_dir: logs  # root path for tensorboard logs
+    model_name: baseline
+
+    ac:
+        learning_rate: 3e-4
+        common: True           # if share initial dense and lstm layers, if false common* are treated separately
+        common_dense_units: [512, 512]
+        common_lstm_units: [256]
+        use_rnn: True
+        actor_units: [256]
+        clip_range: 0.2        # clip range for ppo
+        entropy_coef: 0.0
+        critic_units: [256]
+        value_coef: .5
+        value_loss_type: clip    # mse or clip
+
+    env_stats:
+        times: 1
+        stats: [avg_score, std_score, max_score, min_score, avg_eps_len, approx_kl, clip_frac]

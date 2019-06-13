@@ -24,6 +24,7 @@ class Agent(OffPolicyOperation):
         self.n_steps = args['n_steps']
         self.critic_loss_type = args['loss_type']
         self.polyak = args['polyak'] if 'polyak' in args else .995
+        self.algo = args['Qnets']['algo']
 
         super().__init__(name,
                          args,
@@ -69,7 +70,7 @@ class Agent(OffPolicyOperation):
         return Qnets
 
     def _loss(self):
-        if self.args['Qnets']['iqn']:
+        if self.algo == 'iqn':
             return self._iqn_loss()
         else:
             return self._q_loss()

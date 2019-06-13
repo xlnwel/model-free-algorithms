@@ -8,8 +8,8 @@ import gym
 import ray
 
 from utility import yaml_op
-from ppo.a2c.worker import Worker
-from ppo.a2c.learner import Learner
+from algo.on_policy.a2c.worker import Worker
+from algo.on_policy.a2c.learner import Learner
 
 
 def main(env_args, agent_args, buffer_args, render=False):
@@ -18,8 +18,8 @@ def main(env_args, agent_args, buffer_args, render=False):
 
     ray.init(num_cpus=n_workers+1, num_gpus=1)
 
-    learner = Learner.remote('Agent', agent_args, env_args)
-    workers = [Worker.remote('Agent', i, agent_args, env_args) for i in range(n_workers)]
+    learner = Learner.remote('Agent', agent_args, env_args, device='/gpu: 0')
+    workers = [Worker.remote('Agent', i, agent_args, env_args, device='/gpu: 0') for i in range(n_workers)]
     
     weights_id = learner.get_weights.remote()
     score_deque = deque(maxlen=100)
@@ -51,7 +51,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         eps_len = np.mean(eps_lens)
         score_deque.append(score)
         eps_len_deque.append(eps_len)
-        logs_ids = [learner.log_stats.remote(score=score, avg_score=np.mean(score_deque),
+        logs_ids = [learner.record_stats.remote(score=score, avg_score=np.mean(score_deque),
                                             eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque))]
         
         # data logging

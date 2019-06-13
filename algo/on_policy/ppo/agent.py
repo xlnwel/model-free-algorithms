@@ -22,7 +22,7 @@ class Agent(Model):
                  save=True,
                  log_tensorboard=True,
                  log_params=False,
-                 log_score=True,
+                 log_stats=True,
                  device=None,
                  reuse=None,
                  graph=None):
@@ -49,7 +49,7 @@ class Agent(Model):
                          save=save, 
                          log_tensorboard=log_tensorboard,
                          log_params=log_params, 
-                         log_score=log_score,
+                         log_stats=log_stats,
                          device=device,
                          reuse=reuse,
                          graph=graph)
@@ -94,8 +94,8 @@ class Agent(Model):
             if done:
                 break
 
-        print(f'Demonstration score:\t{self.env_vec.get_episode_score()}')
-        print(f'Demonstration length:\t{self.env_vec.get_episode_length()}')
+        print(f'Demonstration score:\t{self.env_vec.get_score()}')
+        print(f'Demonstration length:\t{self.env_vec.get_length()}')
 
     def shuffle_buffer(self):
         if not self.use_rnn:
@@ -198,7 +198,7 @@ class Agent(Model):
             last_value = np.where(self.env_vec.early_done, 0, last_value)
         self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount)
         
-        return self.env_vec.get_episode_score(), self.env_vec.get_episode_length()
+        return self.env_vec.get_score(), self.env_vec.get_length()
 
     def _optimize(self):
         # construct fetches

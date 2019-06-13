@@ -1,14 +1,16 @@
 ## Algorithms Implemented
 
-- [x] TD3
-- [x] SAC
-- [x] PPO
-- [x] A2C
-- [x] Apex
-- [x] Noisy Nets
-- [x] PER
-- [x] GAE
-- [x] NAE
+- [x] TD3       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/td3)]
+- [x] SAC       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/sac)]
+- [x] IQN       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/rainbow_iqn)]
+- [x] Rainbow   [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/rainbow_iqn)]
+- [x] PPO       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
+- [x] A2C       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/a2c)]
+- [x] Apex      [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/apex)]
+- [x] Noisy Nets[[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/rainbow_iqn)]
+- [x] PER       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/replay)]
+- [x] GAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
+- [x] NAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
 
 ## Overall Architecture
 
@@ -24,7 +26,7 @@ Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en
 
 Due to the lack of a Mujoco license, all algorithms for continuous control are tested on the [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2) and [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environments from OpenAI's Gym and solve them. In particular, our TD3 and SAC solve BipedalWalker-v2 in 2-4 hours, significantly faster than the best one on the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2). On the other hand, PPO, which runs in 32-environment vector, steadily solves it in 5-8 hours. TD3 is further tested on `BipedalWalkerHardcore-v2` with resNets and other modifications, achieving about 200+ scores averaged over 100 episodes after 15-hour training.
 
-Rainbow-IQN is tested on CartPole-v0 and steadily solves it.
+Rainbow, IQN() is tested on CartPole-v0 and and steadily solves it.
 
 Performance figures and some further experimental results are recorded in [on-policy algorithms](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy) and [off-policy algorithms](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy).
 
@@ -78,6 +80,10 @@ Tuomas Haarnoja et al. Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinfo
 
 Dan Horgan et al. Distributed Prioritized Experience Replay 
 
+Ziyu Wang et la. Dueling Network Architectures for Deep Reinforcement Learning
+
+Will Dabney et al. Implicit Quantile Networks for Distributional Reinforcement Learning
+
 Berkeley cs294-112
 
 ## Code References
@@ -85,3 +91,5 @@ Berkeley cs294-112
 OpenAI Baselines
 
 Homework of Berkeley CS291-112
+
+[Google Dopamine](https://github.com/google/dopamine)

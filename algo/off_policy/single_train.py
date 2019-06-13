@@ -15,21 +15,23 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
     scores_deque = deque(maxlen=interval)
     eps_len_deque = deque(maxlen=interval)
     
+    acttimes = deque(maxlen=1000)
+    learntimes = deque(maxlen=1000)
     for i in range(1, n_epochs + 1):
         state = agent.env.reset()
         start = time.time()
-        action_time = 0
 
         for _ in range(agent.max_path_length):
             if render:
                 agent.env.render()
-            t, action = timeit(lambda: agent.act(state) if agent.buffer.good_to_learn else agent.env.random_action())
-            action_time += t
+            at, action = timeit(lambda: agent.act(state) if agent.buffer.good_to_learn else agent.env.random_action())
+            acttimes.append(at)
             next_state, reward, done, _ = agent.env.step(action)
 
             agent.add_data(state, action, reward, next_state, done)
             if not background_learning and agent.buffer.good_to_learn:
-                agent.learn()
+                lt, _ = timeit(lambda: agent.learn())
+                learntimes.append(lt)
             state = next_state
             if done:
                 break
@@ -47,7 +49,8 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
             'Iteration': i,
             'Time': utils.timeformat(time.time() - start) + 's',
-            'AvgActionTime': utils.timeformat(action_time / eps_len) + 's',
+            'ActionTime': utils.timeformat(np.mean(acttimes)) + 's',
+            'LearnTime': (utils.timeformat(np.mean(learntimes)) if learntimes else '0') + 's',
             'Score': score,
             'AvgScore': avg_score,
             'EpsLen': eps_len,
@@ -71,7 +74,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_stats=True)
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_stats=True, save=False, device='/GPU:0')
     if agent_args['background_learning']:
         utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)

@@ -6,7 +6,7 @@ from utility.utils import normalize
 from algo.on_policy.ppo.agent import Agent
 
 
-@ray.remote(num_cpus=1, num_gpus=0.09)
+@ray.remote(num_cpus=1, num_gpus=0.1)
 class Learner(Agent):
     def __init__(self,
                  name,
@@ -16,7 +16,7 @@ class Learner(Agent):
                  save=True,
                  log_tensorboard=True,
                  log_params=False,
-                 log_score=True,
+                 log_stats=True,
                  device=None):
         super().__init__(name, 
                          args, 
@@ -25,13 +25,13 @@ class Learner(Agent):
                          save=save, 
                          log_tensorboard=log_tensorboard,
                          log_params=log_params, 
-                         log_score=log_score,
+                         log_stats=log_stats,
                          device=device)
     
     def apply_gradients(self, *grads):
         grads = np.mean(grads, axis=0)
         
-        feed_dict = {grad_and_var[0]: grad for grad_and_var, grad in zip(self.ac.grads_and_vars, grads)}
+        feed_dict = {g_var: g for g_var, g in zip(self.ac.grads, grads)}
         
         if self.graph_summary is not None:
             learn_step, _, summary = self.sess.run([self.ac.opt_step, self.ac.opt_op, self.graph_summary], feed_dict=feed_dict)
@@ -48,7 +48,7 @@ class Learner(Agent):
     def get_weights(self):
         return self.variables.get_flat()
 
-    def log_stats(self, score, avg_score, eps_len, avg_eps_len, worker_no):
-        super().log_stats(score=score, avg_score=avg_score, 
+    def record_stats(self, score, avg_score, eps_len, avg_eps_len, worker_no):
+        super().record_stats(score=score, avg_score=avg_score, 
                           eps_len=eps_len, avg_eps_len=avg_eps_len, 
                           worker_no=worker_no)

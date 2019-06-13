@@ -1,7 +1,7 @@
 ---
 n_experiments: 0 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    name: &env_name LunarLander-v2    # PongNoFrameskip-v4
+    name: &env_name LunarLander-v2  # CartPole-v0 or LunarLander-v2
     max_episode_steps: 1000
     seed: 0
 agent:
@@ -20,22 +20,21 @@ agent:
 
     n_epochs: 5000
     n_steps: 3
-    loss_type: mse   # huber or mse
+    loss_type: huber   # huber or mse
     target_update_freq: 10000
     
     Qnets:
-        duel: False
         noisy_sigma: 0.5    # standard deviation for noisy layers
-        iqn: True
+        algo: iqn           # double, duel, iqn
         N: 8                # N in paper, num of quantiles for online quantile network
         N_prime: 8          # N' in paper, num of quantiles for target quantile network
         K: 32               # K in paper, num of quantiles for action selection
         delta: 1            # kappa in paper, used in huber loss
         quantile_embedding_dim: 64
         # args for optimizer
-        learning_rate: 1e-3
-        # decay_rate: .95
-        # decay_steps: 1e3
+        learning_rate: 3e-3
+        decay_rate: 1
+        decay_steps: 1e4
         epsilon: 1e-4
         psi_units: [128]
         f_units: [64]
