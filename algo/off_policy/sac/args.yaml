@@ -60,8 +60,8 @@ buffer:
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 1e5
-    min_size: 1e3
+    beta_steps: 5e4
+    min_size: 5e4
     capacity: 1e6
 
     tb_capacity: 100

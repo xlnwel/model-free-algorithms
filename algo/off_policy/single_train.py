@@ -17,6 +17,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
     
     acttimes = deque(maxlen=1000)
     learntimes = deque(maxlen=1000)
+    itrtimes = deque(maxlen=1000)
     for i in range(1, n_epochs + 1):
         state = agent.env.reset()
         start = time.time()
@@ -36,8 +37,11 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
             if done:
                 break
 
+        eps_time = time.time() - start
         score = agent.env.get_score()
         eps_len = agent.env.get_length()
+        itr_time = eps_time / eps_len
+        itrtimes.append(itr_time)
         scores_deque.append(score)
         eps_len_deque.append(eps_len)
         avg_score = np.mean(scores_deque)
@@ -48,7 +52,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
         log_info = {
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
             'Iteration': i,
-            'Time': utils.timeformat(time.time() - start) + 's',
+            'IterationTime': utils.timeformat(np.mean(itrtimes)) + 's',
             'ActionTime': utils.timeformat(np.mean(acttimes)) + 's',
             'LearnTime': (utils.timeformat(np.mean(learntimes)) if learntimes else '0') + 's',
             'Score': score,
@@ -74,7 +78,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=True, log_stats=True, save=False, device='/GPU:0')
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_stats=True, save=False, device='/GPU:0')
     if agent_args['background_learning']:
         utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)

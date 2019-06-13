@@ -51,7 +51,7 @@ buffer:
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4
-    min_size: 1e3
+    min_size: 5e4
     capacity: 1e6
 
     local_capacity: 100

@@ -82,7 +82,13 @@ class Replay:
                 self.tb_idx = 0
             elif self.tb_full:
                 # add the ready experience in temporary buffer to memory
-                self.merge(self.tb, 1, self.tb_idx)
+                # this implementation speeds up the 
+                n_not_ready = self.n_steps - 1
+                n_ready = self.tb_capacity - n_not_ready
+                self.merge(self.tb, n_ready, self.tb_idx)
+                copy_buffer(self.tb, self.tb_idx, n_not_ready, self.tb, self.tb_capacity - n_not_ready, self.tb_capacity)
+                self.tb_idx = n_not_ready
+                self.tb_full = False
         else:
             with self.locker:
                 add_buffer(self.memory, self.mem_idx, state, action, reward,

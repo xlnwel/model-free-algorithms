@@ -18,7 +18,6 @@ agent:
     model_name: baseline
 
     n_steps: 3
-    policy_delay: 1     # policy will be updated once every policy_delay steps
     n_epochs: 5000
     
     actor:
@@ -51,8 +50,8 @@ buffer:
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 5e4
-    min_size: 1e3
+    beta_steps: 1e4     # number of sampling steps taken beta to reach 1
+    min_size: 5e4
     capacity: 1e6
 
     tb_capacity: 100

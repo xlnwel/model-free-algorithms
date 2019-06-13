@@ -29,7 +29,7 @@ def layer_norm(x, name='LayerNorm'):
 
         shape = x.shape.as_list[1:]
         gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
-        beta = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(0))
+        beta = tf.get_variable('beta', shape=shape, initializer=constant_initializer(0))
         x = gamma * x + beta
 
     return x
