@@ -13,10 +13,10 @@ class Learner(Agent):
                  args,
                  env_args,
                  sess_config=None,
-                 save=True,
-                 log_tensorboard=True,
+                 save=False,
+                 log_tensorboard=False,
                  log_params=False,
-                 log_stats=True,
+                 log_stats=False,
                  device=None):
         super().__init__(name, 
                          args, 

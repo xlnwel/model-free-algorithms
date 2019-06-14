@@ -15,9 +15,9 @@ class Agent(OffPolicyOperation):
                  env_args, 
                  buffer_args, 
                  sess_config=None, 
-                 save=True, 
+                 save=False, 
                  log_tensorboard=False, 
-                 log_params=True, 
+                 log_params=False, 
                  log_stats=False, 
                  device=None):
         # optional improvements

@@ -14,10 +14,10 @@ class Agent(OffPolicyOperation):
                  env_args, 
                  buffer_args, 
                  sess_config=None, 
-                 save=True, 
-                 log_tensorboard=True, 
+                 save=False, 
+                 log_tensorboard=False, 
                  log_params=False, 
-                 log_stats=True, 
+                 log_stats=False, 
                  device=None):
         self.temperature = args['temperature']
         self.critic_loss_type = args['loss_type']

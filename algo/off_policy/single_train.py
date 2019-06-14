@@ -38,10 +38,9 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
                 break
 
         # bookkeeping
-        eps_time = time.time() - start
         score = agent.env.get_score()
         eps_len = agent.env.get_length()
-        itr_time = eps_time / eps_len
+        itr_time = (time.time() - start) / eps_len
         itrtimes.append(itr_time)
         scores_deque.append(score)
         eps_len_deque.append(eps_len)

@@ -55,7 +55,8 @@ def main(env_args, agent_args, buffer_args, render=False):
     utils.set_global_seed()
 
     agent_name = 'Agent'
-    agent = Agent(agent_name, agent_args, env_args, device='/gpu:0')
+    agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=False, 
+                            log_params=False, log_stats=True, device='/gpu:0')
 
     model = agent_args['model_name']
     print(f'Model {model} starts training')

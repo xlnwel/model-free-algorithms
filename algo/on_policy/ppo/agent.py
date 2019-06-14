@@ -19,10 +19,10 @@ class Agent(Model):
                  args,
                  env_args,
                  sess_config=None,
-                 save=True,
+                 save=False,
                  log_tensorboard=True,
                  log_params=False,
-                 log_stats=True,
+                 log_stats=False,
                  device=None,
                  reuse=None,
                  graph=None):
