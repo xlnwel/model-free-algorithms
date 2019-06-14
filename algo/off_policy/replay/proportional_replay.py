@@ -10,7 +10,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
     """ Interface """
     def __init__(self, args, state_space, action_dim):
         super().__init__(args, state_space, action_dim)
-        self.data_structure = SumTree(self.capacity)                   # prio_id   -->     priority, mem_idx
+        self.data_structure = SumTree(self.capacity)        # mem_idx    -->     priority
 
     """ Implementation """
     @override(PrioritizedReplay)
@@ -22,7 +22,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         priorities, indexes = list(zip(*[self.data_structure.find(np.random.uniform(i * segment, (i+1) * segment))
                                         for i in range(self.batch_size)]))
 
-        priorities = np.squeeze(priorities)
+        priorities = np.array(priorities)
         probabilities = priorities / total_priorities
 
         # compute importance sampling ratios

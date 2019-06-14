@@ -55,11 +55,13 @@ class Replay:
         return samples
 
     def merge(self, local_buffer, length, start=0):
+        """ Merge a local buffer to the replay buffer, useful for distributed algorithms """
         assert_colorize(length < self.capacity, 'Local buffer is too large')
         with self.locker:
             self._merge(local_buffer, length, start)
 
     def add(self):
+        """ Add a single transition to the replay buffer """
         # locker should be handled in implementation
         raise NotImplementedError
 

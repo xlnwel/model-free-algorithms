@@ -37,6 +37,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
             if done:
                 break
 
+        # bookkeeping
         eps_time = time.time() - start
         score = agent.env.get_score()
         eps_len = agent.env.get_length()
