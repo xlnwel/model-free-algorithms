@@ -66,12 +66,12 @@ class Replay:
         raise NotImplementedError
 
     """ Implementation """
-    def _add(self, state, action, reward, next_state, done):
+    def _add(self, state, action, reward, done):
         """ add is only used for single agent, no multiple adds are expected to run at the same time
             but it may fight for resource with self.sample if background learning is enabled """
         if self.n_steps > 1:
             add_buffer(self.tb, self.tb_idx, state, action, reward, 
-                        next_state, done, self.n_steps, self.gamma)
+                        done, self.n_steps, self.gamma)
             
             if not self.tb_full and self.tb_idx == self.tb_capacity - 1:
                 self.tb_full = True
@@ -84,7 +84,6 @@ class Replay:
                 self.tb_idx = 0
             elif self.tb_full:
                 # add the ready experience in temporary buffer to memory
-                # this implementation speeds up the 
                 n_not_ready = self.n_steps - 1
                 n_ready = self.tb_capacity - n_not_ready
                 self.merge(self.tb, n_ready, self.tb_idx)
@@ -95,7 +94,7 @@ class Replay:
         else:
             with self.locker:
                 add_buffer(self.memory, self.mem_idx, state, action, reward,
-                            next_state, done, self.n_steps, self.gamma)
+                            done, self.n_steps, self.gamma)
                 self.mem_idx += 1
 
     def _sample(self):
@@ -121,10 +120,14 @@ class Replay:
         self.mem_idx = end_idx % self.capacity
 
     def _get_samples(self, indexes):
-        indexes = list(indexes) # convert tuple to list
+        indexes = np.array(indexes) # convert tuple to array
 
         state = self.memory['state'][indexes] 
-        next_state = self.memory['next_state'][indexes]
+        # squeeze steps since it is of shape [None, 1]
+        next_indexes = indexes + np.squeeze(self.memory['steps'][indexes])
+        assert indexes.shape == next_indexes.shape
+        # using zero state as the terminal state
+        next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
 
         return (
             state,

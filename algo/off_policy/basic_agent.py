@@ -7,6 +7,7 @@ import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
 from utility.logger import Logger
+from utility.utils import pwc
 from utility.debug_tools import assert_colorize
 from basic_model.model import Model
 from env.gym_env import GymEnv, GymEnvVec
@@ -86,14 +87,14 @@ class OffPolicyOperation(Model, ABC):
         
         return np.squeeze(action)
 
-    def add_data(self, state, action, reward, next_state, done):
-        self.buffer.add(state, action, reward, next_state, done)
+    def add_data(self, state, action, reward, done):
+        self.buffer.add(state, action, reward, done)
 
     def background_learning(self):
         from utility.debug_tools import timeit
         while not self.buffer.good_to_learn:
             time.sleep(1)
-        print('Start Learning...')
+        pwc('Start Learning...', color='green')
         
         i = 0
         lt = []
@@ -102,7 +103,7 @@ class OffPolicyOperation(Model, ABC):
             duration, _ = timeit(self.learn)
             lt.append(duration)
             if i % 1000 == 0:
-                print(f'{self.model_name}:\tTakes {np.sum(lt):3.2f}s to learn 1000 times')
+                pwc(f'{self.model_name}:\tTakes {np.sum(lt):3.2f}s to learn 1000 times', color='green')
                 i = 0
                 lt = []
 

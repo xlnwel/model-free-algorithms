@@ -37,12 +37,12 @@ class PrioritizedReplay(Replay):
         return samples
 
     @override(Replay)
-    def add(self, state, action, reward, next_state, done):
+    def add(self, state, action, reward, done):
         if self.n_steps > 1:
             self.tb['priority'][self.tb_idx] = self.top_priority
         else:
             self.memory['priority'][self.mem_idx] = self.top_priority
-        super()._add(state, action, reward, next_state, done)
+        super()._add(state, action, reward, done)
 
     def update_priorities(self, priorities, saved_mem_idxs):
         with self.locker:

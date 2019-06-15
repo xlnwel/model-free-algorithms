@@ -29,7 +29,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
             acttimes.append(at)
             next_state, reward, done, _ = agent.env.step(action)
 
-            agent.add_data(state, action, reward, next_state, done)
+            agent.add_data(state, action, reward, done)
             if not background_learning and agent.buffer.good_to_learn:
                 lt, _ = timeit(lambda: agent.learn())
                 learntimes.append(lt)

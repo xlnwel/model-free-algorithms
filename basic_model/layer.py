@@ -37,13 +37,13 @@ class Layer():
     The main reason why we define layers as member functions is 
     that we want to  automatically handle l2 regularization.
     """
-    def dense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None, return_layer=False):
+    def dense(self, x, units, kernel_initializer=tf_utils.xavier_initializer(), name=None):
         return tf.layers.dense(x, units, kernel_initializer=kernel_initializer, 
                                kernel_regularizer=self.l2_regularizer, 
                                name=name)
 
     def dense_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
-                               norm=tc.layers.layer_norm, activation=tf.nn.relu, name=None, return_layer=False):
+                               norm=tc.layers.layer_norm, activation=tf.nn.relu, name=None):
         def layer_imp():
             y = self.dense(x, units, kernel_initializer=kernel_initializer)
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
@@ -56,7 +56,7 @@ class Layer():
         return x
 
     def dense_resnet(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(), 
-                      norm=tc.layers.layer_norm, name=None, return_layer=False):
+                      norm=tc.layers.layer_norm, name=None):
         """
         kernel_initializer specifies the initialization of the last layer in the residual module
         relu is used as the default activation and no designation is allowed
@@ -76,7 +76,7 @@ class Layer():
 
     def dense_resnet_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer() ,
                                       norm=tc.layers.layer_norm, 
-                                      activation=tf.nn.relu, name=None, return_layer=False):
+                                      activation=tf.nn.relu, name=None):
         """
         normalization is used in both the last layer in the residual module and 
         the layer immediately following the residual module
@@ -95,7 +95,7 @@ class Layer():
         return x
 
     def conv(self, x, filters, kernel_size, strides=1, padding='same', 
-              kernel_initializer=tf_utils.xavier_initializer(), name=None, return_layer=False): 
+              kernel_initializer=tf_utils.xavier_initializer(), name=None): 
         return tf.layers.conv2d(x, filters, kernel_size, 
                                 strides=strides, padding=padding, 
                                 kernel_initializer=kernel_initializer, 
@@ -105,7 +105,7 @@ class Layer():
     def conv_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                               kernel_initializer=tf_utils.kaiming_initializer(), 
                               norm=tf.layers.batch_normalization, 
-                              activation=tf.nn.relu, name=None, return_layer=False):
+                              activation=tf.nn.relu, name=None):
         def layer_imp():
             y = self.conv(x, filters, kernel_size, 
                             strides=strides, padding=padding, 
@@ -121,7 +121,7 @@ class Layer():
     
     def conv_resnet(self, x, filters, kernel_size, strides=1, padding='same', 
                      kernel_initializer=tf_utils.kaiming_initializer(),
-                     norm=tf.layers.batch_normalization, name=None, return_layer=False):
+                     norm=tf.layers.batch_normalization, name=None):
         """
         kernel_initializer specifies the initialization of the last layer in the residual module
         relu is used as the default activation and no designation is allowed
@@ -143,7 +143,7 @@ class Layer():
     
     def conv_resnet_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                                      kernel_initializer=tf_utils.kaiming_initializer(),
-                                     norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None, return_layer=False):
+                                     norm=tf.layers.batch_normalization, activation=tf.nn.relu, name=None):
         """
         normalization is used in both the last layer in the residual module and 
         the layer immediately following the residual module
@@ -166,7 +166,7 @@ class Layer():
         return x
 
     def convtrans(self, x, filters, kernel_size, strides=1, padding='same', 
-                   kernel_initializer=tf_utils.xavier_initializer(), name=None, return_layer=False): 
+                   kernel_initializer=tf_utils.xavier_initializer(), name=None): 
         return tf.layers.conv2d_transpose(x, filters, kernel_size, 
                                           strides=strides, padding=padding, 
                                           kernel_initializer=kernel_initializer, 
@@ -176,7 +176,7 @@ class Layer():
     def convtrans_norm_activation(self, x, filters, kernel_size, strides=1, padding='same', 
                                    kernel_initializer=tf_utils.kaiming_initializer(), 
                                    norm=tf.layers.batch_normalization, 
-                                   activation=tf.nn.relu, name=None, return_layer=False):
+                                   activation=tf.nn.relu, name=None):
         def layer_imp():
             y = self.convtrans(x, filters, kernel_size, 
                                 strides=strides, padding=padding, 
