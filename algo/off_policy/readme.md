@@ -70,7 +70,7 @@ Double DQN, Deuling DQN, IQN are implemented and tested on CartPole-v0 and Lunar
 
 Distributional DQN(aka., c51) is not included since it is extremely hard to fine-tune, and IQN could be a perfect replacement of it.
 
-For these algorithms in atari, please refer to my [another project](https://github.com/xlnwel/atari_rl)
+For these algorithms on atari, please refer to my [another project](https://github.com/xlnwel/atari_rl)
 
 ### TD3
 

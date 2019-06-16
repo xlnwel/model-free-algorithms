@@ -12,7 +12,7 @@
 - [x] GAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
 - [x] NAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
 
-For Rainbow and IQN in Atari games, please refer to my [another project](https://github.com/xlnwel/atari_rl)
+For Rainbow and IQN on Atari games, please refer to my [another project](https://github.com/xlnwel/atari_rl)
 
 ## Overall Architecture
 
