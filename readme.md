@@ -42,7 +42,7 @@ It is recommended to install Tensorflow from source following [this instruction]
 # Minimal requirements to run the algorithms. Tested on Ubuntu 18.04.2, using Tensorflow 1.13.1.
 # Forget the deprecated warnings... This project is not designed according to Tensorflow 2.X
 conda create -n gym python
-source activate gym
+conda activate gym
 pip install -r requirements.txt
 # Install tensorflow-gpu or install it from scratch as the above instruction suggests
 pip install tensorflow-gpu
@@ -92,6 +92,6 @@ Berkeley cs294-112
 
 OpenAI Baselines
 
-Homework of Berkeley CS291-112
+[Homework of Berkeley CS291-112](http://rail.eecs.berkeley.edu/deeprlcourse/)
 
 [Google Dopamine](https://github.com/google/dopamine)
