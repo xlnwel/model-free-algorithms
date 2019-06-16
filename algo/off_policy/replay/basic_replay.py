@@ -83,7 +83,7 @@ class Replay:
                 self.tb_full = False
                 self.tb_idx = 0
             elif self.tb_full:
-                # add the ready experience in temporary buffer to memory
+                # add ready experiences in temporary buffer to memory
                 n_not_ready = self.n_steps - 1
                 n_ready = self.tb_capacity - n_not_ready
                 self.merge(self.tb, n_ready, self.tb_idx)

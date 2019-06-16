@@ -50,8 +50,6 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
     - This makes the algorithm unstable at the convergence, which, however, could be mitigated by learning rate decay and a larger batch size.
     - This causes loss of control of the number of updates per environment step, which is sometimes required when doing research experiments, but we do not concern it here. 
 
-3. I've tried to remove next_state from replay buffer, and use indexes + n_steps as the next state to save some memory. But this impair the final performance 
-
 ## Experimental Results
 
 ## Common
