@@ -64,6 +64,14 @@ Training networks in a background thread may cause learning unstable at the conv
 
 Adding noisy layers at the last two dense layers significantly helps to do exploration.
 
+### Rainbow-IQN
+
+Double DQN, Deuling DQN, IQN are implemented and tested on CartPole-v0 and LunarLander-v2 from OpenAI's GYM. Algorithms could be specified in [args.yaml](https://github.com/xlnwel/model-free-algorithms/blob/master/algo/off_policy/rainbow_iqn/args.yaml)(by changing the value of `algo` in `Qnets`.
+
+Distributional DQN(aka., c51) is not included since it is extremely hard to fine-tune, and IQN could be a perfect replacement of it.
+
+For these algorithms in atari, please refer to my [another project](https://github.com/xlnwel/atari_rl)
+
 ### TD3
 
 Applying bias correction for prioritized sampling to actor loss improves the performance.

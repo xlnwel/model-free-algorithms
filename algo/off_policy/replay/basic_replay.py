@@ -124,7 +124,7 @@ class Replay:
 
         state = self.memory['state'][indexes] 
         # squeeze steps since it is of shape [None, 1]
-        next_indexes = indexes + np.squeeze(self.memory['steps'][indexes])
+        next_indexes = (indexes + np.squeeze(self.memory['steps'][indexes])) % self.capacity
         assert indexes.shape == next_indexes.shape
         # using zero state as the terminal state
         next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
