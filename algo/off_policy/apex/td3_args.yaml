@@ -53,7 +53,3 @@ buffer:
     beta_steps: 5e4
     min_size: 5e4
     capacity: 1e6
-
-    local_capacity: 100
-    tb_capacity: 10
-    

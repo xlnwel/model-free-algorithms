@@ -15,7 +15,7 @@
 ## Overall Architecture
 
 <p align="center">
-<img src="/results/Architecture.png" alt="average score in tensorboard" height="650">
+<img src="/results/Architecture.png" alt="Architectureg" height="650">
 </p>
 
 Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo)

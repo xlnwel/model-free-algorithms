@@ -76,14 +76,9 @@ class OffPolicyOperation(Model, ABC):
     def max_path_length(self):
         return self.env.max_episode_steps
     
-    def act(self, state, return_q=False):
+    def act(self, state):
         state = state.reshape((-1, *self.state_space))
-        if return_q:
-            action, q = self.sess.run([self.action, self.critic.Q_with_action], 
-                                        feed_dict={self.data['state']: state})
-            return np.squeeze(action), q
-        else:
-            action = self.sess.run(self.action, feed_dict={self.data['state']: state})
+        action = self.sess.run(self.action, feed_dict={self.data['state']: state})
         
         return np.squeeze(action)
 
@@ -158,7 +153,7 @@ class OffPolicyOperation(Model, ABC):
         IS_ratio, saved_mem_idxs, (state, action, reward, next_state, done, steps) = samples
 
         data = {}
-        data['IS_ratio'] = IS_ratio                 # Importance sampling ratio for PER
+        data['IS_ratio'] = IS_ratio[:, None]                 # Importance sampling ratio for PER
         # saved indexes used to index the experience in the buffer when updating priorities
         data['saved_mem_idxs'] = saved_mem_idxs     
         data['state'] = state

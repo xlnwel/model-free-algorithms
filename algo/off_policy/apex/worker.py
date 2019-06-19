@@ -26,6 +26,9 @@ def get_worker(BaseClass, *args, **kwargs):
                     log_stats=False,
                     device=None):
             self.no = worker_no
+            buffer_args['type'] = 'local'
+            buffer_args['local_capacity'] = env_args['max_episode_steps']
+            self.max_episodes = max_episodes
 
             super().__init__(name, 
                             args, 
@@ -38,7 +41,6 @@ def get_worker(BaseClass, *args, **kwargs):
                             log_stats=log_stats,
                             device=device)
 
-            self.max_episodes = max_episodes
             pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
         def sample_data(self, learner):
@@ -46,34 +48,32 @@ def get_worker(BaseClass, *args, **kwargs):
             score_deque = deque(maxlen=100)
             eps_len_deque = deque(maxlen=100)
             episode_i = 0
+            t = 0
             
             while True:
                 state = self.env.reset()
 
                 for _ in range(self.max_path_length):
+                    t += 1
                     action = self.act(state)
                     next_state, reward, done, _ = self.env.step(action)
                     
-                    self.buffer.add(state, action, reward, next_state, done)
-
-                    if self.buffer.is_full:
-                        priority = self.sess.run(self.priority)
-                        self.buffer['priority'] = priority
-
-                        learner.merge_buffer.remote(dict(self.buffer), self.buffer.capacity)
-                        self.buffer.reset()
+                    self.buffer.add(state, action, reward, done)
 
                     state = next_state
 
                     if done:
                         break
 
+                learner.merge_buffer.remote(dict(self.buffer), self.buffer.idx)
+                self.buffer.reset()
+
                 score = self.env.get_score()
                 eps_len = self.env.get_length()
                 episode_i += 1
                 score_deque.append(score)
                 eps_len_deque.append(eps_len)
-                stats = dict(score=score, avg_score=np.mean(score_deque), 
+                stats = dict(t=t, score=score, avg_score=np.mean(score_deque), 
                             eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque), 
                             worker_no=self.no)
                             

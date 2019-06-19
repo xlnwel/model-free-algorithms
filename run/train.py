@@ -105,7 +105,7 @@ if __name__ == '__main__':
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs(tb_capacity=[100], beta_steps=[1e4, 1e5])
+            gs()
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow-iqn':

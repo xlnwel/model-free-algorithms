@@ -39,7 +39,7 @@ class LocalBuffer(dict):
     def add(self, state, action, reward, next_state, done):
         if self.n_steps > 1:
             add_buffer(self.tb, self.tb_idx, state, action, reward, 
-                        next_state, done, self.n_steps, self.gamma)
+                        done, self.n_steps, self.gamma)
             
             if not self.tb_full and self.tb_idx == self.n_steps - 1:
                 self.tb_full = True
@@ -52,7 +52,7 @@ class LocalBuffer(dict):
                 self._merge(self.tb, 1, self.tb_idx)
         else:
             add_buffer(self, self.idx, state, action, reward,
-                        next_state, done, self.n_steps, self.gamma)
+                        done, self.n_steps, self.gamma)
             self.idx += 1
 
     def _merge(self, local_buffer, length, start=0):
