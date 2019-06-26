@@ -15,6 +15,10 @@ def parse_cmd_args():
                         type=str,
                         choices=['td3', 'sac', 'apex-td3', 'apex-sac', 'ppo', 'a2c',
                                  'rainbow-iqn'])
+    parser.add_argument('--background', '-b',
+                        type=str,
+                        choices=['true', 'false', ''],
+                        default='')
     parser.add_argument('--render', '-r',
                         type=str,
                         choices=['true', 'false'],
@@ -78,6 +82,7 @@ if __name__ == '__main__':
     main = import_main(algorithm)
     
     render = True if cmd_args.render == 'true' else False
+    background_learning = cmd_args.background
 
     if cmd_args.file != '':
         args = load_args(arg_file)
@@ -89,6 +94,8 @@ if __name__ == '__main__':
         agent_args['model_root_dir'], agent_args['model_name'] = os.path.split(model_file)
         agent_args['log_root_dir'], _ = os.path.split(agent_args['model_root_dir'])
         agent_args['log_root_dir'] += '/logs'
+        if cmd_args.background != '':
+            background_learning = True if cmd_args.background == 'true' else False
 
         main(env_args, agent_args, buffer_args, render=render)
     else:
@@ -98,6 +105,8 @@ if __name__ == '__main__':
         # Although random parameter search is in general better than grid search, 
         # we here continue to go with grid search since it is easier to deal with architecture search
         gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
+        if background_learning:
+            gs.agent_args['background_learning'] = background_learning
 
         # Grid search happens here
         if algorithm == 'ppo':

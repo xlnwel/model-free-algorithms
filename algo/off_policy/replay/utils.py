@@ -10,7 +10,7 @@ def init_buffer(buffer, capacity, state_space, action_dim, has_priority):
 
     target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
     target_buffer.update({
-        'state': np.zeros((capacity, *state_space), dtype=state_dtype),
+        'state': np.zeros((capacity + 1, *state_space), dtype=state_dtype),
         'action': np.zeros(action_shape, dtype=action_dtype),
         'reward': np.zeros((capacity, 1), dtype=np.float16),
         'done': np.zeros((capacity, 1), dtype=np.bool),

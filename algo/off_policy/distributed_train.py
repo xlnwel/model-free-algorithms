@@ -30,7 +30,9 @@ def main(env_args, agent_args, buffer_args, render=False):
     ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'
-    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, device='/GPU:0')
+    sess_config = tf.ConfigProto(allow_soft_placement=True)
+    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, 
+                            log_stats=True, sess_config=sess_config, device='/GPU: 0')
 
     workers = []
     buffer_args['type'] = 'local'

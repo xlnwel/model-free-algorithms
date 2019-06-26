@@ -5,6 +5,7 @@ import time
 import threading
 from collections import deque
 import numpy as np
+import tensorflow as tf
 
 from utility import utils
 from utility.debug_tools import timeit
@@ -77,8 +78,11 @@ def main(env_args, agent_args, buffer_args, render=False):
     else:
         raise NotImplementedError
 
+    sess_config = tf.ConfigProto(allow_soft_placement=True)
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log_tensorboard=False, log_stats=True, save=False, device='/GPU:0')
+    agent = Agent('Agent', agent_args, env_args, buffer_args, 
+                    log_tensorboard=False, log_stats=True, save=False, 
+                    sess_config=sess_config, device='/GPU: 0')
     if agent_args['background_learning']:
         utils.pwc('Background Learning...')
         lt = threading.Thread(target=agent.background_learning, daemon=True)

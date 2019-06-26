@@ -26,9 +26,9 @@ def get_worker(BaseClass, *args, **kwargs):
                     log_stats=False,
                     device=None):
             self.no = worker_no
+            self.max_episodes = max_episodes
             buffer_args['type'] = 'local'
             buffer_args['local_capacity'] = env_args['max_episode_steps']
-            self.max_episodes = max_episodes
 
             super().__init__(name, 
                             args, 
@@ -42,6 +42,9 @@ def get_worker(BaseClass, *args, **kwargs):
                             device=device)
 
             pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
+
+        def compute_priorities(self):
+            return self.sess.run(self.priority)
 
         def sample_data(self, learner):
             # I intend not to synchronize the worker's weights at the beginning for initial exploration 
@@ -65,6 +68,9 @@ def get_worker(BaseClass, *args, **kwargs):
                     if done:
                         break
 
+                last_state = np.zeros_like(state) if done else next_state
+                self.buffer.add_last_state(last_state)
+                self.buffer['priority'] = self.compute_priorities()
                 learner.merge_buffer.remote(dict(self.buffer), self.buffer.idx)
                 self.buffer.reset()
 
@@ -73,7 +79,7 @@ def get_worker(BaseClass, *args, **kwargs):
                 episode_i += 1
                 score_deque.append(score)
                 eps_len_deque.append(eps_len)
-                stats = dict(t=t, score=score, avg_score=np.mean(score_deque), 
+                stats = dict(score=score, avg_score=np.mean(score_deque), 
                             eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque), 
                             worker_no=self.no)
                             

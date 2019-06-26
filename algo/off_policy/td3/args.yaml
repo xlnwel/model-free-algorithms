@@ -51,7 +51,7 @@ buffer:
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e4     # number of sampling steps taken beta to reach 1
-    min_size: 5e4
+    min_size: 5e3
     capacity: 1e6
 
     tb_capacity: 100

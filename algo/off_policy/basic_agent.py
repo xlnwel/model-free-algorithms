@@ -155,7 +155,7 @@ class OffPolicyOperation(Model, ABC):
         data = {}
         data['IS_ratio'] = IS_ratio[:, None]                 # Importance sampling ratio for PER
         # saved indexes used to index the experience in the buffer when updating priorities
-        data['saved_mem_idxs'] = saved_mem_idxs     
+        data['saved_mem_idxs'] = saved_mem_idxs
         data['state'] = state
         data['action'] = action
         data['reward'] = reward

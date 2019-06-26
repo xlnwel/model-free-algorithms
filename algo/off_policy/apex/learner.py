@@ -20,8 +20,8 @@ def get_learner(BaseClass, *args, **kwargs):
                     sess_config=None, 
                     save=False, 
                     log_tensorboard=False, 
-                    log_params=False,
-                    log_stats=False,
+                    log_params=False, 
+                    log_stats=False, 
                     device=None):
                     
             super().__init__(name, 

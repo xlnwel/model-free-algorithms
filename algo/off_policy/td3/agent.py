@@ -43,8 +43,8 @@ class Agent(OffPolicyOperation):
 
     """ Implementation """
     def _build_graph(self):
-        if self.device and 'gpu' in self.device:
-            with tf.device('/cpu: 0'):
+        if self.device and 'GPU' in self.device:
+            with tf.device('/CPU: 0'):
                 self.data = self._prepare_data(self.buffer)
         else:
             self.data = self._prepare_data(self.buffer)

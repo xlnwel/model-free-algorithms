@@ -8,7 +8,7 @@ agent:
     algorithm: apex-td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: 256
+    batch_size: 128
     prefetches: 5
 
     # model path: model_root_dir/model_name
@@ -47,9 +47,11 @@ agent:
 buffer:
     type: proportional # local or proportional
 
-    alpha: 0.4
+    alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4
     min_size: 5e4
     capacity: 1e6
+
+    tb_capacity: 100
