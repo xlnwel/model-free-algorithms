@@ -3,64 +3,69 @@ import tensorflow as tf
 import tensorflow.contrib as tc
 import tensorflow.keras as tk
 
+from utility.debug_tools import assert_colorize
 
-# kaiming initializer
 def kaiming_initializer(distribution='truncated_normal', seed=None):
+    """ kaiming initializer """
     return tk.initializers.VarianceScaling(scale=2., mode='fan_in', distribution=distribution, seed=seed)
 
-# xavier initializer
 def xavier_initializer(distribution='truncated_normal', seed=None):
+    """ xavier initializer """
     return tk.initializers.VarianceScaling(scale=1., mode='fan_avg', distribution=distribution, seed=seed)
 
 def constant_initializer(val):
     return tk.initializers.Constant(val)
 
-# batch normalization and relu
 def bn_relu(x, training): 
+    """ batch normalization and relu """
     return tf.nn.relu(tf.layers.batch_normalization(x, training=training))
 
-def layer_norm(x, name='LayerNorm'):
+def layer_norm(x, name='LayerNorm', epsilon=1e-5):
+    """ Layer normalization """
     with tf.variable_scope(name):
         n_dims = len(x.shape.as_list())
         mean, var = tf.nn.moments(x, list(range(1, n_dims)), keep_dims=True)
-        std = tf.sqrt(var)
+        std = tf.sqrt(var + epsilon)
 
         x = (x - mean) / std
 
-        shape = x.shape.as_list[1:]
+        shape = (1,)
         gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
         beta = tf.get_variable('beta', shape=shape, initializer=constant_initializer(0))
         x = gamma * x + beta
 
     return x
 
-# layer normalization and relu
-def ln_relu(x):
-    return tf.nn.relu(tc.layers.layer_norm(x))
+def instance_norm(x, name='InstanceNorm', epsilon=1e-5):
+    """ Instance normalization """
+    with tf.variable_scope(name):
+        mean, var = tf.nn.moments(x, [1, 2], keep_dims=True)
+        std = tf.sqrt(var + epsilon)
 
-def bn_activation(x, training, activation=None, return_layer_obj=False):
-    x = tc.layers.batch_normalization(x, training=training)
+        x = (x - mean) / std
 
-    if activation:
-        x = activation(x)
+        shape = x.shape.as_list()[-1]
+        gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
+        beta = tf.get_variable('beta', shape=shape, initializer=constant_initializer(0))
 
-    return x
-
-def ln_activation(x, activation=None, return_layer_obj=False):
-    x = tc.layers.layer_norm(x)
-
-    if activation:
-        x = activation(x)
+        x = gamma * x + beta
 
     return x
 
-def norm_activation(x, norm=None, activation=None, training=False):
-    if norm:
-        x = (norm(x, training=training) if
-                'batch_normalization' in str(norm) else
-                norm(x))
-    if activation:
-        x = activation(x)
+def norm_activation(x, norm=None, activation=None, training=False, name=None):
+    def fn(x):
+        if norm:
+            x = (norm(x, training=training) if
+                    'batch_normalization' in str(norm) else
+                    norm(x))
+        if activation:
+            x = activation(x)
+
+    if name:
+        with tf.variable_scope(name):
+            fn(x)
+    else:
+        fn(x)
 
     return x
 
@@ -73,14 +78,6 @@ def standard_normalization(x):
         x = (x - mean) / std
     
     return x
-
-def range_normalization(images, normalizing=True):
-    if normalizing:
-        processed_images = tf.cast(images, tf.float32) / 128 - 1
-    else:
-        processed_images = tf.cast((tf.clip_by_value(images, -1, 1) + 1) * 128, tf.uint8)
-
-    return processed_images
 
 def logsumexp(value, axis=None, keepdims=False):
     if axis is not None:
@@ -127,3 +124,8 @@ def get_vars(scope, graph=tf.get_default_graph()):
 def count_vars(scope, graph=tf.get_default_graph()):
     v = get_vars(scope, graph=graph)
     return sum([np.prod(var.shape.as_list()) for var in v])
+
+def padding(x, height, width, mode='constant', name=None):
+    assert_colorize(mode.lower() == 'constant' or mode.lower() == 'reflect' or mode.lower() == 'symmetric', 
+        f'Padding should be "constant", "reflect", or "symmetric", but got {mode}.')
+    return tf.pad(x, [[0, 0], [height, height], [width, width], [0, 0]], mode, name=name)

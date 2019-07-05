@@ -10,7 +10,6 @@ agent:
     polyak: 0.995
     algorithm: rainbow-iqn
     batch_size: 512
-    prefetches: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name

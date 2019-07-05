@@ -9,7 +9,6 @@ agent:
     temperature: 0.01
     gamma: &gamma 0.99
     batch_size: 128
-    prefetches: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name

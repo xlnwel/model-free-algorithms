@@ -34,7 +34,6 @@ class OffPolicyOperation(Model, ABC):
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99
-        self.prefetches = args['prefetches'] if 'prefetches' in args else 0
         self.update_step = 0
 
         # environment info
@@ -144,8 +143,7 @@ class OffPolicyOperation(Model, ABC):
                 (None, 1)
             ))
             ds = tf.data.Dataset.from_generator(buffer, sample_types, sample_shapes)
-            if self.prefetches > 0:
-                ds = ds.prefetch(self.prefetches)
+            ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
             iterator = ds.make_one_shot_iterator()
             samples = iterator.get_next(name='samples')
         
