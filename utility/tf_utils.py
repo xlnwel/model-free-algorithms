@@ -60,12 +60,13 @@ def norm_activation(x, norm=None, activation=None, training=False, name=None):
                     norm(x))
         if activation:
             x = activation(x)
+        return x
 
     if name:
         with tf.variable_scope(name):
-            fn(x)
+            x = fn(x)
     else:
-        fn(x)
+        x = fn(x)
 
     return x
 
