@@ -62,11 +62,7 @@ def norm_activation(x, norm=None, activation=None, training=False, name=None):
             x = activation(x)
         return x
 
-    if name:
-        with tf.variable_scope(name):
-            x = fn(x)
-    else:
-        x = fn(x)
+    x = wrap_layer(name, fn)
 
     return x
 
@@ -130,3 +126,12 @@ def padding(x, height, width, mode='constant', name=None):
     assert_colorize(mode.lower() == 'constant' or mode.lower() == 'reflect' or mode.lower() == 'symmetric', 
         f'Padding should be "constant", "reflect", or "symmetric", but got {mode}.')
     return tf.pad(x, [[0, 0], [height, height], [width, width], [0, 0]], mode, name=name)
+
+def wrap_layer(name, layer_imp):
+    if name:
+        with tf.variable_scope(name):
+            x = layer_imp()
+    else:
+        x = layer_imp()
+
+    return x
