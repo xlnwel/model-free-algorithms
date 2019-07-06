@@ -29,7 +29,7 @@ def layer_norm(x, name='LayerNorm', epsilon=1e-5):
 
         x = (x - mean) / std
 
-        shape = (1,)
+        shape = x.shape[1:]
         gamma = tf.get_variable('gamma', shape=shape, initializer=constant_initializer(1))
         beta = tf.get_variable('beta', shape=shape, initializer=constant_initializer(0))
         x = gamma * x + beta
@@ -53,14 +53,15 @@ def instance_norm(x, name='InstanceNorm', epsilon=1e-5):
     return x
 
 def norm_activation(x, norm=None, activation=None, training=False, name=None):
-    def fn(x):
+    def fn():
+        y = x
         if norm:
-            x = (norm(x, training=training) if
+            y = (norm(y, training=training) if
                     'batch_normalization' in str(norm) else
-                    norm(x))
+                    norm(y))
         if activation:
-            x = activation(x)
-        return x
+            y = activation(y)
+        return y
 
     x = wrap_layer(name, fn)
 
