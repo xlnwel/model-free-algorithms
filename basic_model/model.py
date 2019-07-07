@@ -173,7 +173,17 @@ class Model(Module):
         """
 
         self.graph = graph if graph else tf.Graph()
-
+    
+        # initialize session and global variables
+        if sess_config is None:
+            sess_config = tf.ConfigProto(intra_op_parallelism_threads=2,
+                                            inter_op_parallelism_threads=2,
+                                            allow_soft_placement=True)
+            # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+        sess_config.gpu_options.allow_growth=True
+        self.sess = tf.Session(graph=self.graph, config=sess_config)
+        atexit.register(self.sess.close)
+    
         super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device, reuse=reuse)
 
@@ -191,16 +201,6 @@ class Model(Module):
         if log_tensorboard or log_stats:
             self.writer = self._setup_writer(args['log_root_dir'], self.model_name)
             
-        # initialize session and global variables
-        if sess_config is None:
-            sess_config = tf.ConfigProto(intra_op_parallelism_threads=2,
-                                            inter_op_parallelism_threads=2,
-                                            allow_soft_placement=True)
-            # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
-        sess_config.gpu_options.allow_growth=True
-        self.sess = tf.Session(graph=self.graph, config=sess_config)
-        atexit.register(self.sess.close)
-    
         self.sess.run(tf.variables_initializer(self.global_variables))
             
         if save:
@@ -234,8 +234,8 @@ class Model(Module):
 
     def save(self):
         if hasattr(self, 'saver'):
-            return self.saver.save(self.sess, self.model_file)
             pwc('Model saved', 'magenta')
+            return self.saver.save(self.sess, self.model_file)
         else:
             # no intention to treat no saver as an error, just print a warning message
             pwc('No saver is available', 'magenta')
