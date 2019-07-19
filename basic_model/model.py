@@ -2,7 +2,6 @@ import os, atexit, time
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras as tk
 
 from utility.utils import pwc
 from utility.debug_tools import assert_colorize, display_var_info
@@ -82,39 +81,39 @@ class Module(Layer):
     def _build_graph(self):
         raise NotImplementedError
         
-    def _optimization_op(self, loss, tvars=None, opt_step=None):
+    def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False):
         with tf.variable_scope(self.name + '_optimizer'):
-            optimizer, opt_step = self._adam_optimizer(opt_step=opt_step)
+            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
             opt = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
-        return opt, opt_step
+        return opt, learning_rate, opt_step
 
-    def _adam_optimizer(self, opt_step=None):
+    def _adam_optimizer(self, opt_step=None, schedule_lr=False):
         # params for optimizer
-        learning_rate = float(self.args['learning_rate'])
+        if not schedule_lr:
+            learning_rate = float(self.args['learning_rate'])
+            decay_rate = float(self.args['decay_rate']) if 'decay_rate' in self.args else 1.
+            decay_steps = float(self.args['decay_steps']) if 'decay_steps' in self.args else 1e6
         beta1 = float(self.args['beta1']) if 'beta1' in self.args else 0.9
         beta2 = float(self.args['beta2']) if 'beta2' in self.args else 0.999
-        decay_rate = float(self.args['decay_rate']) if 'decay_rate' in self.args else 1.
-        decay_steps = float(self.args['decay_steps']) if 'decay_steps' in self.args else 1e6
         epsilon = float(self.args['epsilon']) if 'epsilon' in self.args else 1e-8
 
         # setup optimizer
-        if opt_step or decay_rate != 1.:
+        if opt_step or 'decay_steps' in self.args:
             opt_step = tf.Variable(0, trainable=False, name='opt_step')
         else:
             opt_step = None
 
-        if decay_rate == 1.:
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2)
-        else:
+        if schedule_lr:
+            learning_rate = tf.placeholder(tf.float32, (), name='learning_rate')
+        elif decay_rate != 1.:
             learning_rate = tf.train.exponential_decay(learning_rate, opt_step, decay_steps, decay_rate, staircase=True)
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
+        if self.log_tensorboard and not isinstance(learning_rate, float):
+            tf.summary.scalar('learning_rate_', learning_rate)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
 
-            if self.log_tensorboard:
-                tf.summary.scalar('learning_rate_', learning_rate)
-
-        return optimizer, opt_step
+        return optimizer, learning_rate, opt_step
 
     def _compute_gradients(self, loss, optimizer, tvars=None):
         clip_norm = self.args['clip_norm'] if 'clip_norm' in self.args else 5.
@@ -123,10 +122,18 @@ class Module(Layer):
         with tf.name_scope(self.name + '_gradients'):
             with self.graph.control_dependencies(update_ops):
                 tvars = tvars if tvars else self.trainable_variables
-                grads, tvars = list(zip(*optimizer.compute_gradients(loss, var_list=tvars)))
+                grads_vars = optimizer.compute_gradients(loss, var_list=tvars)
+                # clip by global norm
+                grads, tvars = zip(*grads_vars)
                 grads, _ = tf.clip_by_global_norm(grads, clip_norm)
+                
+                return list(zip(grads, tvars))
+                # clip by norm
+                # for i, (grad, var) in enumerate(grads_vars):
+                #     if grad is not None:
+                #         grads_vars[i] = (tf.clip_by_norm(grad, clip_norm), var)
         
-        return list(zip(grads, tvars))
+                # return grads_vars
 
     def _apply_gradients(self, optimizer, grads_and_vars, opt_step=None):
         opt_op = optimizer.apply_gradients(grads_and_vars, global_step=opt_step, name=self.name + '_apply_gradients')
@@ -142,6 +149,9 @@ class Module(Layer):
 
         return opt_op
 
+    def _get_variable_scope(self, scope_prefix, name):
+        return f'{scope_prefix}/{name}'
+
 
 class Model(Module):
     """ Interface """
@@ -149,7 +159,7 @@ class Model(Module):
                  name, 
                  args,
                  sess_config=None, 
-                 save=True,
+                 save=False, 
                  log_tensorboard=False,
                  log_params=False,
                  log_stats=False,
@@ -173,17 +183,17 @@ class Model(Module):
         """
 
         self.graph = graph if graph else tf.Graph()
-    
+
         # initialize session and global variables
         if sess_config is None:
-            sess_config = tf.ConfigProto(intra_op_parallelism_threads=2,
-                                            inter_op_parallelism_threads=2,
-                                            allow_soft_placement=True)
+            sess_config = tf.ConfigProto(#intra_op_parallelism_threads=2,
+                                        #inter_op_parallelism_threads=2,
+                                        allow_soft_placement=True)
             # sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
-        sess_config.gpu_options.allow_growth=True
+            sess_config.gpu_options.allow_growth = True
         self.sess = tf.Session(graph=self.graph, config=sess_config)
         atexit.register(self.sess.close)
-    
+
         super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device, reuse=reuse)
 
@@ -202,11 +212,10 @@ class Model(Module):
             self.writer = self._setup_writer(args['log_root_dir'], self.model_name)
             
         self.sess.run(tf.variables_initializer(self.global_variables))
-            
+
         if save:
-            self.saver = self._setup_saver(save)
+            self.saver = self._setup_saver()
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
-            self.restore(self.model_file)
     
     @property
     def global_variables(self):
@@ -220,21 +229,25 @@ class Model(Module):
         """
         To restore a specific version of model, set filename to the model stored in saved_models
         """
-        if not model_file:
-            pwc('No model file is specified. Restore failed and ignored implicitly.', 'magenta')
-            pass
-        model_file = model_file
+        self.model_file = model_file
+        if not hasattr(self, 'saver'):
+            self.saver = self._setup_saver()
         try:
-            self.saver.restore(self.sess, self.model_file)
+            if os.path.isdir(self.model_file):
+                ckpt = tf.train.get_checkpoint_state(self.model_file)
+                self.saver.restore(self.sess, ckpt.model_checkpoint_path)
+            else:
+                self.saver.restore(self.sess, self.model_file)
         except:
             pwc(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',
                 'magenta')
         else:
             pwc(f"Model {self.model_name}: Params for {self.name} are restored.", 'magenta')
 
-    def save(self):
+    def save(self, print_terminal_info=True):
         if hasattr(self, 'saver'):
-            pwc('Model saved', 'magenta')
+            if print_terminal_info:
+                pwc('Model saved', 'magenta')
             return self.saver.save(self.sess, self.model_file)
         else:
             # no intention to treat no saver as an error, just print a warning message
@@ -250,8 +263,8 @@ class Model(Module):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
     """ Implementation """
-    def _setup_saver(self, save):
-        return tf.train.Saver(self.global_variables) if save else None
+    def _setup_saver(self):
+        return tf.train.Saver(self.global_variables)
 
     def _setup_model_path(self, root_dir, model_name):
         model_dir = Path(root_dir) / model_name
@@ -325,3 +338,6 @@ class Model(Module):
                                             feed_dict=feed_dict)
 
         self.writer.add_summary(summary, score_count)
+
+    def _time_to_save(self, train_steps, interval=100):
+        return train_steps % interval == 0

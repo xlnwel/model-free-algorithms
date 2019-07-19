@@ -5,6 +5,7 @@ from copy import deepcopy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from run.grid_search import GridSearch
+from utility.utils import str2bool
 from utility.yaml_op import load_args
 from utility.debug_tools import assert_colorize
 
@@ -16,13 +17,13 @@ def parse_cmd_args():
                         choices=['td3', 'sac', 'apex-td3', 'apex-sac', 'ppo', 'a2c',
                                  'rainbow-iqn'])
     parser.add_argument('--background', '-b',
-                        type=str,
-                        choices=['true', 'false', ''],
-                        default='')
+                        type=str2bool,
+                        choices=[True, False],
+                        default=False)
     parser.add_argument('--render', '-r',
-                        type=str,
-                        choices=['true', 'false'],
-                        default='false')
+                        type=str2bool,
+                        choices=[True, False],
+                        default=False)
     parser.add_argument('--trials', '-t',
                         type=int,
                         default=1,

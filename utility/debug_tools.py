@@ -18,7 +18,7 @@ def timeit(func, name=None, to_print=False):
 													 		 end - start))
 
 	return end - start, result
-	
+
 def assert_colorize(cond, err_msg=''):
     assert cond, colorize(err_msg, 'red')
 

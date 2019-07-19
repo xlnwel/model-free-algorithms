@@ -16,11 +16,25 @@ class GridSearch:
         self.train_func = train_func
         self.render = render
         self.n_trials = n_trials
+        self.dir_prefix = dir_prefix
 
+        self.processes = []
+
+    def __call__(self, **kwargs):
+        self._dir_setup()
+        if kwargs == {} and self.n_trials == 1:
+            # if no argument is passed in, run the default setting
+            self.train_func(self.env_args, self.agent_args, self.buffer_args, self.render)        
+        else:
+            # do grid search
+            self.agent_args['model_name'] = 'GS'
+            self._change_args(**kwargs)
+            [p.join() for p in self.processes]
+
+    def _dir_setup(self):
         # add date to root directory
         now = datetime.now()
-        if dir_prefix:
-            dir_prefix = f'{dir_prefix}-'
+        dir_prefix = f'{self.dir_prefix}-' if self.dir_prefix else self.dir_prefix
         dir_fn = lambda filename: (f'logs/'
                                     f'{now.month:02d}{now.day:02d}-'
                                     f'{now.hour:02d}{now.minute:02d}-'
@@ -34,18 +48,6 @@ class GridSearch:
             self.agent_args[root_dir] = dir_fn(self.agent_args[root_dir])
         if 'video_path' in self.env_args:
             self.env_args['video_path'] = dir_fn(self.env_args['video_path'])
-
-        self.processes = []
-
-    def __call__(self, **kwargs):
-        if kwargs == {} and self.n_trials == 1:
-            # if no argument is passed in, run the default setting
-            self.train_func(self.env_args, self.agent_args, self.buffer_args, self.render)        
-        else:
-            # do grid search
-            self.agent_args['model_name'] = 'GS'
-            self._change_args(**kwargs)
-            [p.join() for p in self.processes]
 
     def _change_args(self, **kwargs):
         if kwargs == {}:

@@ -97,3 +97,30 @@ class DiagGaussian(Distribution):
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5
                              + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std + EPSILON)**2, axis=-1)
+
+def compute_sample_mean_variance(samples, name='sample_mean_var'):
+    sample_size = samples.shape.as_list()[0]
+    with tf.name_scope(name):
+        samples = tf.reshape(samples, [sample_size, -1])
+        mean = tf.reduce_mean(samples, axis=0)
+        samples_shifted = samples - mean
+        # Following https://en.wikipedia.org/wiki/Estimation_of_covariance_matrices
+        covariance = 1 / (sample_size - 1.) * tf.matmul(samples_shifted, samples_shifted, transpose_a=True)
+
+        # Take into account case of zero covariance
+        almost_zero_covariance = tf.fill(tf.shape(covariance), 1e-8)
+        is_zero = tf.equal(tf.reduce_sum(tf.abs(covariance)), 0)
+        covariance = tf.where(is_zero, almost_zero_covariance, covariance)
+
+        return mean, covariance
+
+def compute_kl_with_standard_gaussian(mean, covariance, vec_dim, name='kl_with_standard_gaussian'):
+    # compute KL(N(mean, covariance) || N(0, I))
+    # Following https://en.wikipedia.org/wiki/Multivariate_normal_distribution#Kullback%E2%80%93Leibler_divergence
+    with tf.name_scope(name):
+        trace = tf.trace(covariance)
+        squared_term = tf.reduce_sum(tf.square(mean))
+        logdet = tf.linalg.logdet(covariance)
+        result = 0.5 * (trace + squared_term - vec_dim - logdet)
+
+    return result
