@@ -1,10 +1,10 @@
 import numpy as np
 import tensorflow as tf
 
-from basic_model.basic_nets import Base
+from basic_model.model import Module
 from utility.debug_tools import assert_colorize
 
-class Networks(Base):
+class Networks(Module):
     """ Interface """
     def __init__(self, 
                  name, 

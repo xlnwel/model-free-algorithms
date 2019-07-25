@@ -21,4 +21,5 @@ class AdaIN:
 
 def adaptive_instance_norm(content_inputs, style_inputs, name='AdaIN'):
     adain = AdaIN(name)
+
     return adain(content_inputs, style_inputs)

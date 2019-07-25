@@ -21,6 +21,7 @@ class Module(Layer):
                  name, 
                  args, 
                  graph=tf.get_default_graph(),
+                 scope_prefix='',
                  log_tensorboard=False, 
                  log_params=False,
                  device=None,
@@ -45,6 +46,8 @@ class Module(Layer):
         self.log_params = log_params
         self.device = device
         self.reuse = reuse
+
+        self.variable_scope = self._get_variable_scope(scope_prefix, name)
 
         super().__init__(name, args)
 
@@ -196,6 +199,9 @@ class Model(Module):
 
         super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device, reuse=reuse)
+
+        # reset variable scope for model
+        self.variable_scope = self.name
 
         display_var_info(self.trainable_variables)
 

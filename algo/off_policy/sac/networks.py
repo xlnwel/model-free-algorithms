@@ -1,10 +1,10 @@
 import tensorflow as tf
 from tensorflow.contrib.layers import layer_norm
 
-from basic_model.basic_nets import Base
+from basic_model.model import Module
 
 
-class SoftPolicy(Base):
+class SoftPolicy(Module):
     """ Interface """
     def __init__(self,
                  name,
@@ -61,7 +61,7 @@ class SoftPolicy(Base):
 
         return action_new, logpi
 
-class SoftV(Base):
+class SoftV(Module):
     """ Interface """
     def __init__(self, 
                  name, 
@@ -93,8 +93,8 @@ class SoftV(Base):
         return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.variable_scope + '/target')
 
     def _build_graph(self):
-        self.V = self._V_net(self.state, self.args['units'], self.norm, 'main')
-        self.V_next = self._V_net(self.next_state, self.args['units'], self.norm, 'target')  # target V use next state as input
+        self.V = self._v_net(self.state, self.args['units'], self.norm, 'main')
+        self.V_next = self._v_net(self.next_state, self.args['units'], self.norm, 'target')  # target V use next state as input
 
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
@@ -105,9 +105,18 @@ class SoftV(Base):
             update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op   
+    
+    def _v_net(self, state, units, norm, name='V_net'):
+        x = state
+        with tf.variable_scope(name):
+            for u in units:
+                x = self.dense_norm_activation(x, u, norm=norm)
+            x = self.dense(x, 1, name='V')
+
+        return x
 
 
-class SoftQ(Base):
+class SoftQ(Module):
     """ Interface """
     def __init__(self, 
                  name, 
@@ -135,7 +144,7 @@ class SoftQ(Base):
 
     """ Implementation """
     def _build_graph(self):
-        Q_net = lambda action, reuse, name: self._Q_net(self.state, self.args['units'], action, 
+        Q_net = lambda action, reuse, name: self._q_net(self.state, self.args['units'], action, 
                                                         self.norm, reuse, name=name)
 
         self.Q1 = Q_net(self.action, False, 'Qnet1')
@@ -144,3 +153,15 @@ class SoftQ(Base):
         self.Q2_with_actor = Q_net(self.actor_action, True, 'Qnet2')
         self.Q = tf.minimum(self.Q1, self.Q2, 'Q')
         self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
+
+    def _q_net(self, state, units, action, norm, reuse, name='Q_net'):
+        x = state
+        with tf.variable_scope(name, reuse=reuse):
+            for i, u in enumerate(units):
+                if i < 2:
+                    x = tf.concat([x, action], 1)
+                x = self.dense_norm_activation(x, u, norm=norm)
+
+            x = self.dense(x, 1, name='Q')
+
+        return x

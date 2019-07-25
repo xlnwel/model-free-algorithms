@@ -2,11 +2,11 @@ import numpy as np
 import tensorflow as tf
 import gym
 
-from basic_model.basic_nets import Base
+from basic_model.model import Module
 from utility import tf_utils, tf_distributions
 
 
-class ActorCritic(Base):
+class ActorCritic(Module):
     """ Interface """
     def __init__(self, 
                  name, 
@@ -46,7 +46,7 @@ class ActorCritic(Base):
                                             self.env_vec.action_dim, 
                                             discrete=self.env_vec.is_action_discrete)
 
-            self.V = self._V_net(x, self.args['critic_units'])
+            self.V = self._v_net(x, self.args['critic_units'])
             if self.use_rnn:
                 self.initial_state = [*self.actor_init_state, *self.critic_init_state]
                 self.final_state = [*self.actor_final_state, *self.critic_final_state]
@@ -114,7 +114,7 @@ class ActorCritic(Base):
             
             return output
 
-    def _V_net(self, x, units, name='V_net'):
+    def _v_net(self, x, units, name='V_net'):
         with tf.variable_scope(name):
             x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_rnn, name='dense')
             if self.use_rnn:
