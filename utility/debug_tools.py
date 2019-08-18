@@ -4,10 +4,10 @@ import numpy as np
 from utility.utils import colorize, pwc
 
 
-def timeit(func, name=None, to_print=False):
+def timeit(func, args=[], name=None, to_print=False):
 	start_time = gmtime()
 	start = time()
-	result = func()
+	result = func(*args)
 	end = time()
 	end_time = gmtime()
 
