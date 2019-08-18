@@ -19,6 +19,7 @@ def read_image(image_path, image_shape=None, preserve_range=True):
     return image
 
 def norm_image(image, norm_range=[0, 1]):
+    image = tf.cast(image, tf.float32)
     if norm_range == [0, 1]:
         return image / 255.0
     elif norm_range == [-1, 1]:
@@ -56,10 +57,11 @@ def merge(images, size):
     else:
         NotImplementedError
 
-def image_dataset(ds_dir, image_size, batch_size, norm_range=None):
+def image_dataset(ds_dir, batch_size, image_size=None, norm_range=None, shuffle=True):
     def preprocess_image(image):
         image = tf.image.decode_jpeg(image, channels=3)
-        image = tf.image.resize(image, image_size)
+        if image_size:
+            image = tf.image.resize(image, image_size)
         if norm_range:
             image = norm_image(image, norm_range)
         return image
@@ -68,12 +70,16 @@ def image_dataset(ds_dir, image_size, batch_size, norm_range=None):
         image = tf.read_file(path)
         return preprocess_image(image)
 
-    ds_dir = Path(ds_dir)
-    assert_colorize(ds_dir.is_dir(), f'Not a valid directory {ds_dir}')
-    all_image_paths = [str(f) for f in Path(ds_dir).glob('*')]
+    if isinstance(ds_dir, list):
+        all_image_paths = ds_dir
+    else:
+        ds_dir = Path(ds_dir)
+        assert_colorize(ds_dir.is_dir(), f'Not a valid directory {ds_dir}')
+        all_image_paths = [str(f) for f in Path(ds_dir).glob('*')]
     pwc(f'Total Images: {len(all_image_paths)}', 'magenta')
     ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
-    ds = ds.shuffle(buffer_size = len(all_image_paths))
+    if shuffle:
+        ds = ds.shuffle(buffer_size = len(all_image_paths))
     ds = ds.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     ds = ds.repeat()
     ds = ds.batch(batch_size)
@@ -108,4 +114,3 @@ class ImageGenerator:
             self.idx = 0
 
         return batch_image
-    
