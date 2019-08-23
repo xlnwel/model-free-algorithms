@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from random import shuffle
 import numpy as np
+from skimage import img_as_ubyte
 from skimage.data import imread
 from skimage.transform import resize
 from skimage.io import imsave
@@ -39,16 +40,23 @@ def save_image(images, path, size=None):
 def merge(images, size):
     assert_colorize(len(images.shape) == 4, f'images should be 4D, but get shape {images.shape}')
     h, w = images.shape[1], images.shape[2]
+    image_type = images.dtype
     if (images.shape[3] in (3,4)):
         c = images.shape[3]
-        img = np.zeros((h * size[0], w * size[1], c))
+        img = np.zeros((h * size[0], w * size[1], c), dtype=image_type)
         for idx, image in enumerate(images):
             i = idx % size[1]
             j = idx // size[1]
             img[j * h:j * h + h, i * w:i * w + w, :] = image
+        if np.issubdtype(image_type, np.uint8):
+            return img
+        if np.min(img) < 0:
+            # for image in range [-1, 1], make it in range [0, 1]
+            img = (img + 1) / 2
+        img = img_as_ubyte(img)
         return img
     elif images.shape[3]==1:
-        img = np.zeros((h * size[0], w * size[1]))
+        img = np.zeros((h * size[0], w * size[1]), dtype=image_type)
         for idx, image in enumerate(images):
             i = idx % size[1]
             j = idx // size[1]

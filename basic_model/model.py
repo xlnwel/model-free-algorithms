@@ -153,7 +153,7 @@ class Module(Layer):
         return opt_op
 
     def _get_variable_scope(self, scope_prefix, name):
-        return f'{scope_prefix}/{name}'
+        return f'{scope_prefix}/{name}' if scope_prefix else name
 
 
 class Model(Module):
@@ -199,9 +199,6 @@ class Model(Module):
 
         super().__init__(name, args, self.graph, log_tensorboard=log_tensorboard, 
                          log_params=log_params, device=device, reuse=reuse)
-
-        # reset variable scope for model
-        self.variable_scope = self.name
 
         display_var_info(self.trainable_variables)
 
