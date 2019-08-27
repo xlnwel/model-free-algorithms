@@ -99,6 +99,7 @@ class DiagGaussian(Distribution):
                              + .5 * (self.std**2 + (self.mean - other.mean)**2) / (other.std + EPSILON)**2, axis=-1)
 
 def compute_sample_mean_variance(samples, name='sample_mean_var'):
+    """ Compute mean and covariance matrix from samples """
     sample_size = samples.shape.as_list()[0]
     with tf.name_scope(name):
         samples = tf.reshape(samples, [sample_size, -1])
@@ -114,9 +115,11 @@ def compute_sample_mean_variance(samples, name='sample_mean_var'):
 
         return mean, covariance
 
-def compute_kl_with_standard_gaussian(mean, covariance, vec_dim, name='kl_with_standard_gaussian'):
-    # compute KL(N(mean, covariance) || N(0, I))
-    # Following https://en.wikipedia.org/wiki/Multivariate_normal_distribution#Kullback%E2%80%93Leibler_divergence
+def compute_kl_with_standard_gaussian(mean, covariance, name='kl_with_standard_gaussian'):
+    """ Compute KL(N(mean, covariance) || N(0, I)) following 
+    https://en.wikipedia.org/wiki/Multivariate_normal_distribution#Kullback%E2%80%93Leibler_divergence
+    """
+    vec_dim = mean.shape[-1]
     with tf.name_scope(name):
         trace = tf.trace(covariance)
         squared_term = tf.reduce_sum(tf.square(mean))
