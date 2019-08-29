@@ -32,23 +32,11 @@ Here we demonstrate the average score per 100 episodes shown in tensorboard:
 <img src="/results/sac/fore_episode.png" alt="average score in tensorboard" height="350">
 </p>
 
-#### Ape-X, 10 workers, bach size 512 x-axis denotes time
 ## Implementation Details
 
 ### Some Implementation Details
 
-1. All off-policy algorithms use proportional replay as the default experience replay buffer, and noisy layers as the exploration strategy.
-
-2. Unlike many open source RL algorithms, network update is by default run in a background thread here. 
-    The advantage is:
-
-    - This speeds up the learning process. (2x+)
-
-    The downside is:
-
-    - The network may be overfitting at the inital stage bacause we increase the training speed. This has the similar effect as a large batch size. However, this problem does not emerges during my tests
-    - This makes the algorithm unstable at the convergence, which, however, could be mitigated by learning rate decay and a larger batch size.
-    - This causes loss of control of the number of updates per environment step, which is sometimes required when doing research experiments, but we do not concern it here. 
+All off-policy algorithms use proportional replay as the default experience replay buffer, and noisy layers as the exploration strategy.
 
 ## Experimental Results
 

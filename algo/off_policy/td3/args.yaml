@@ -4,11 +4,12 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
-    background_learning: True
+    background_learning: False
     algorithm: td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
     batch_size: 128
+    update_freq: 1
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name

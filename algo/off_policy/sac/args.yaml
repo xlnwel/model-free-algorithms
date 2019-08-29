@@ -4,7 +4,7 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
-    background_learning: True
+    background_learning: False
     algorithm: sac
     temperature: 0.01
     gamma: &gamma 0.99

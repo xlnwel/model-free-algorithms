@@ -13,7 +13,7 @@ a2c is legacy code and no longer maintained because I personally think a2c could
 
 ### PPO
 
-PPO requires a significantly large batch size than off-policy algorithms for a stable learning process and better final results. This may corresponds to the way advantages are computed(both GAE and NAE use the whole return, which have high variance), and could be alleviated using TD residuals.
+PPO requires a significantly larger batch size than off-policy algorithms for a stable learning process and better final results. This may corresponds to the way advantages are computed(both GAE and NAE use the whole return, resulting in high variance), and could be alleviated using TD residuals.
 
 It is important to monitor the value of the approximate KL divergence when fine-tuning PPO. As the paper suggests, small KL divergence oftentimes gives a stable learning process, but a tiny KL divergence may impair the final performance (during my experiment, 0.01 is a good threshold). Furthermore, there is a positive correlation between the KL divergence and clip ratio.
 

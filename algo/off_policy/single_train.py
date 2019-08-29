@@ -23,7 +23,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
         state = agent.env.reset()
         start = time.time()
 
-        for _ in range(agent.max_path_length):
+        for j in range(agent.max_path_length):
             if render:
                 agent.env.render()
             at, action = timeit(lambda: agent.act(state) if agent.buffer.good_to_learn else agent.env.random_action())
@@ -31,7 +31,7 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
             next_state, reward, done, _ = agent.env.step(action)
 
             agent.add_data(state, action, reward, done)
-            if not background_learning and agent.buffer.good_to_learn:
+            if not background_learning and agent.buffer.good_to_learn and j % agent.args['update_freq'] == 0:
                 lt, _ = timeit(lambda: agent.learn())
                 learntimes.append(lt)
             state = next_state
