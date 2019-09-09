@@ -20,6 +20,8 @@ def plot_data(data, x, y, outpath):
     sns.set(style="whitegrid", font_scale=1.5)
     sns.lineplot(x=x, y=y, ax=ax, data=data, hue='Condition')
     ax.legend(loc='best').set_draggable(True)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     fig.savefig(outpath)
 
 

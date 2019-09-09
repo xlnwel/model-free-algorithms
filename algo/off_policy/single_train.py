@@ -39,30 +39,31 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
                 break
 
         # bookkeeping
-        score = agent.env.get_score()
-        eps_len = agent.env.get_length()
-        itr_time = (time.time() - start) / eps_len
-        itrtimes.append(itr_time)
-        scores_deque.append(score)
-        eps_len_deque.append(eps_len)
-        avg_score = np.mean(scores_deque)
-        avg_eps_len = np.mean(eps_len_deque)
-        if hasattr(agent, 'stats'):
-            agent.record_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
+        if i % 10 == 0:
+            score = agent.env.get_score()
+            eps_len = agent.env.get_length()
+            itr_time = (time.time() - start) / eps_len
+            itrtimes.append(itr_time)
+            scores_deque.append(score)
+            eps_len_deque.append(eps_len)
+            avg_score = np.mean(scores_deque)
+            avg_eps_len = np.mean(eps_len_deque)
+            if hasattr(agent, 'stats'):
+                agent.record_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
 
-        log_info = {
-            'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
-            'Iteration': i,
-            'IterationTime': utils.timeformat(np.mean(itrtimes)) + 's',
-            'ActionTime': utils.timeformat(np.mean(acttimes)) + 's',
-            'LearnTime': (utils.timeformat(np.mean(learntimes)) if learntimes else '0') + 's',
-            'Score': score,
-            'AvgScore': avg_score,
-            'EpsLen': eps_len,
-            'AvgEpsLen': avg_eps_len
-        }
-        [agent.log_tabular(k, v) for k, v in log_info.items()]
-        agent.dump_tabular(print_terminal_info=print_terminal_info)
+            log_info = {
+                'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
+                'Iteration': i,
+                'IterationTime': utils.timeformat(np.mean(itrtimes)) + 's',
+                'ActionTime': utils.timeformat(np.mean(acttimes)) + 's',
+                'LearnTime': (utils.timeformat(np.mean(learntimes)) if learntimes else '0') + 's',
+                'Score': score,
+                'AvgScore': avg_score,
+                'EpsLen': eps_len,
+                'AvgEpsLen': avg_eps_len
+            }
+            [agent.log_tabular(k, v) for k, v in log_info.items()]
+            agent.dump_tabular(print_terminal_info=print_terminal_info)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

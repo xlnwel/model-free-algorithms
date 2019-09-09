@@ -1,6 +1,7 @@
 ---
 env:
     name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
+    video_path: video
     max_episode_steps: 1000
     seed: 0
 agent:

@@ -4,7 +4,7 @@ import ray
 
 from utility import tf_distributions
 from utility.debug_tools import assert_colorize
-
+from env.wrappers import TimeLimit
 
 def action_dist_type(env):
     if isinstance(env.action_space, gym.spaces.Discrete):
@@ -56,7 +56,7 @@ class GymEnv:
         self.env = env = gym.make(args['name'])
         # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
         if 'video_path' in args:
-            self.env = env = gym.wrappers.Monitor(self.env, args['video_path'], force=True)
+            self.env = env = gym.wrappers.Monitor(TimeLimit(self.env, args['max_episode_steps']), args['video_path'], force=True)
 
         env.seed(args['seed'])
 
