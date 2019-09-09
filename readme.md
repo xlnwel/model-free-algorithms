@@ -60,6 +60,7 @@ export OPENBLAS_NUM_THREADS=1
 # For full argument specification, please refer to run/train.py
 python run/train.py -a=td3
 ```
+To add monitor so as to save videos automatically, add argument `video_path` to `env` in `args.yaml`. See `env` in `algo/off_policy_td3/args.yaml` for a concrete example. 
 
 ## Paper References
 
