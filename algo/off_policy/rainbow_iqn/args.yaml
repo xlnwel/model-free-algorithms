@@ -39,7 +39,7 @@ agent:
         f_units: [64]
     env_stats:
         times: 1
-        stats: [score, avg_score, eps_len, avg_eps_len]
+        stats: [score_mean, score_std, eps_len_mean, eps_len_std]
 
 # argumennts for prioritized replay
 buffer:

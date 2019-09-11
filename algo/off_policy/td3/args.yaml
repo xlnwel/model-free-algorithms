@@ -1,16 +1,16 @@
 ---
 env:
     name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
-    video_path: video
+    # video_path: video
     max_episode_steps: 1000
     seed: 0
 agent:
     background_learning: False
     algorithm: td3
     gamma: 0.99
-    polyak: 0.995      # moving average rate
+    polyak: 0.995       # moving average rate
     batch_size: 128
-    update_freq: 1
+    update_freq: 1      # Update every # environment steps
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
@@ -25,16 +25,16 @@ agent:
         n_noisy: 2          # number of noisy layer
         units: [512, 256, 128]
         noisy_sigma: 0.4    # standard deviation for noisy layers
-        layernorm: True
+        layernorm: False
         # args for optimizer
         learning_rate: 1e-4
-        decay_rate: &decay_rate .95
+        decay_rate: &decay_rate 1
         decay_steps: &decay_steps 1e4
         
     critic:
-        units: [512, 512, 256]
+        units: [512, 512, 128]
         loss_type: mse   # huber or mse
-        layernorm: True
+        layernorm: False 
         # args for optimizer
         learning_rate: 3e-4
         decay_rate: *decay_rate
@@ -42,7 +42,7 @@ agent:
 
     env_stats:
         times: 1
-        stats: [score, avg_score, eps_len, avg_eps_len]
+        stats: [score_mean, score_std, eps_len_mean, eps_len_std]
 
 # argumennts for prioritized replay
 buffer:
@@ -52,7 +52,7 @@ buffer:
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 1e4     # number of sampling steps taken beta to reach 1
-    min_size: 5e3
+    min_size: 5e4
     capacity: 1e6
 
     tb_capacity: 100

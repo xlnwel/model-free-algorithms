@@ -106,7 +106,7 @@ def squarest_grid_size(num_images, more_on_width=True):
 
 def check_make_dir(path):
     _, ext = osp.splitext(path)
-    if ext:
+    if ext: # if path is a file path, extract its directory path
         path, _ = osp.split(path)
 
     if not os.path.isdir(path):

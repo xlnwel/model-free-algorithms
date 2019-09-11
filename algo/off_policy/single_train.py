@@ -11,59 +11,69 @@ from utility import utils
 from utility.debug_tools import timeit
 
 
+def run_trajectory(agent, fn, render):
+    """ run a trajectory, fn is a function executed after each environment step """
+    env = agent.env
+    state = env.reset()
+    for i in range(env.max_episode_steps):
+        if render:
+            env.render()
+        action = agent.act(state)
+        next_state, reward, done, _ = env.step(action)
+        fn(state, action, reward, done, i)
+        state = next_state
+        if done:
+            break
+
+    return env.get_score(), env.get_length()
+
 def train(agent, render, n_epochs, print_terminal_info=True, background_learning=True):
-    interval = 100
-    scores_deque = deque(maxlen=interval)
-    eps_len_deque = deque(maxlen=interval)
+    def train_fn(state, action, reward, done, i):
+        agent.add_data(state, action, reward, done)
+        if not background_learning and agent.buffer.good_to_learn and i % agent.args['update_freq'] == 0:
+            agent.learn()
+    def eval_fn(state, action, reward, done, i):
+        pass    # do nothing at eval time
     
-    acttimes = deque(maxlen=1000)
-    learntimes = deque(maxlen=1000)
-    itrtimes = deque(maxlen=1000)
-    for i in range(1, n_epochs + 1):
-        state = agent.env.reset()
-        start = time.time()
+    interval = 100
+    scores = deque(maxlen=interval)
+    eps_lens = deque(maxlen=interval)
+    
+    for k in range(1, n_epochs + 1):
+        score, eps_len = run_trajectory(agent, train_fn, False)
+        print(f'\rIteration {k}, Score={score}', end='')
 
-        for j in range(agent.max_path_length):
-            if render:
-                agent.env.render()
-            at, action = timeit(lambda: agent.act(state) if agent.buffer.good_to_learn else agent.env.random_action())
-            acttimes.append(at)
-            next_state, reward, done, _ = agent.env.step(action)
+        # evaluate every 100 episodes
+        if k % 100 == 0:
+            start = time.time()
+            for i in range(1, interval+1):
+                score, eps_len = run_trajectory(agent, eval_fn, render)
 
-            agent.add_data(state, action, reward, done)
-            if not background_learning and agent.buffer.good_to_learn and j % agent.args['update_freq'] == 0:
-                lt, _ = timeit(lambda: agent.learn())
-                learntimes.append(lt)
-            state = next_state
-            if done:
-                break
+                if i % 10 == 0:
+                    scores.append(score)
+                    eps_lens.append(eps_len)
 
-        # bookkeeping
-        if i % 10 == 0:
-            score = agent.env.get_score()
-            eps_len = agent.env.get_length()
-            itr_time = (time.time() - start) / eps_len
-            itrtimes.append(itr_time)
-            scores_deque.append(score)
-            eps_len_deque.append(eps_len)
-            avg_score = np.mean(scores_deque)
-            avg_eps_len = np.mean(eps_len_deque)
-            if hasattr(agent, 'stats'):
-                agent.record_stats(score=score, avg_score=avg_score, eps_len=eps_len, avg_eps_len=avg_eps_len)
+                    itrtime = (time.time() - start) / interval
 
-            log_info = {
-                'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
-                'Iteration': i,
-                'IterationTime': utils.timeformat(np.mean(itrtimes)) + 's',
-                'ActionTime': utils.timeformat(np.mean(acttimes)) + 's',
-                'LearnTime': (utils.timeformat(np.mean(learntimes)) if learntimes else '0') + 's',
-                'Score': score,
-                'AvgScore': avg_score,
-                'EpsLen': eps_len,
-                'AvgEpsLen': avg_eps_len
-            }
-            [agent.log_tabular(k, v) for k, v in log_info.items()]
-            agent.dump_tabular(print_terminal_info=print_terminal_info)
+                    score_mean = np.mean(scores)
+                    score_std = np.std(scores)
+                    eps_len_mean = np.mean(eps_lens)
+                    eps_len_std = np.std(eps_lens)
+                    if hasattr(agent, 'stats'):
+                        agent.record_stats(score_mean=score_mean, score_std=score_std,
+                                            eps_len_mean=eps_len_mean, eps_len_std=eps_len_std)
+                    
+                    log_info = {
+                        'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
+                        'Iteration': k,
+                        'IterationTime': utils.timeformat(np.mean(itrtime)) + 's',
+                        'ScoreMean': score_mean,
+                        'ScoreStd': score_std,
+                        'EpsLenMean': eps_len_mean,
+                        'EpsLenStd': eps_len_std
+                    }
+                    [agent.log_tabular(k, v) for k, v in log_info.items()]
+                    agent.dump_tabular(print_terminal_info=print_terminal_info)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

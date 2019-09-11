@@ -219,6 +219,8 @@ class Model(Module):
         if save:
             self.saver = self._setup_saver()
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
+
+        pwc(f'{self.name} has been constructed', 'magenta')
     
     @property
     def global_variables(self):

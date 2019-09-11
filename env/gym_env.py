@@ -58,7 +58,7 @@ class GymEnv:
         if 'video_path' in args:
             self.env = env = gym.wrappers.Monitor(TimeLimit(self.env, args['max_episode_steps']), args['video_path'], force=True)
 
-        env.seed(args['seed'])
+        env.seed(('seed' in args and args['seed']) or 42)
 
         self.state_space = env.observation_space.shape
 

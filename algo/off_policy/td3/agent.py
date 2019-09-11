@@ -112,7 +112,8 @@ class Agent(OffPolicyOperation):
 
             with tf.name_scope('critic_loss'):
                 target_Q = n_step_target(self.data['reward'], self.data['done'], 
-                                        self.target_critic.Q_with_actor, self.gamma, self.data['steps'])
+                                         self.target_critic.Q_with_actor, 
+                                         self.gamma, self.data['steps'])
                 
                 TD_error1 = tf.abs(target_Q - self.critic.Q1, name='TD_error1')
                 TD_error2 = tf.abs(target_Q - self.critic.Q2, name='TD_error2')
