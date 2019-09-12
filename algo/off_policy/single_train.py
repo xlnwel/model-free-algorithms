@@ -45,15 +45,14 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
 
         # evaluate every 100 episodes
         if k % 100 == 0:
-            start = time.time()
             for i in range(1, interval+1):
+                start = time.time()
                 score, eps_len = run_trajectory(agent, eval_fn, render)
+                scores.append(score)
+                eps_lens.append(eps_len)
 
                 if i % 10 == 0:
-                    scores.append(score)
-                    eps_lens.append(eps_len)
-
-                    itrtime = (time.time() - start) / interval
+                    steptime = (time.time() - start) / eps_len
 
                     score_mean = np.mean(scores)
                     score_std = np.std(scores)
@@ -65,8 +64,8 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
                     
                     log_info = {
                         'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
-                        'Iteration': k,
-                        'IterationTime': utils.timeformat(np.mean(itrtime)) + 's',
+                        'Iteration': k-100 + i,
+                        'StepTime': utils.timeformat(np.mean(steptime)) + 's',
                         'ScoreMean': score_mean,
                         'ScoreStd': score_std,
                         'EpsLenMean': eps_len_mean,
