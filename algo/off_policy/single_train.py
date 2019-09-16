@@ -56,11 +56,11 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
 
                     score_mean = np.mean(scores)
                     score_std = np.std(scores)
-                    eps_len_mean = np.mean(eps_lens)
-                    eps_len_std = np.std(eps_lens)
+                    epslen_mean = np.mean(eps_lens)
+                    epslen_std = np.std(eps_lens)
                     if hasattr(agent, 'stats'):
                         agent.record_stats(score_mean=score_mean, score_std=score_std,
-                                            eps_len_mean=eps_len_mean, eps_len_std=eps_len_std)
+                                            epslen_mean=epslen_mean, epslen_std=epslen_std)
                     
                     log_info = {
                         'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
@@ -68,8 +68,8 @@ def train(agent, render, n_epochs, print_terminal_info=True, background_learning
                         'StepTime': utils.timeformat(np.mean(steptime)) + 's',
                         'ScoreMean': score_mean,
                         'ScoreStd': score_std,
-                        'EpsLenMean': eps_len_mean,
-                        'EpsLenStd': eps_len_std
+                        'EpsLenMean': epslen_mean,
+                        'EpsLenStd': epslen_std
                     }
                     [agent.log_tabular(k, v) for k, v in log_info.items()]
                     agent.dump_tabular(print_terminal_info=print_terminal_info)

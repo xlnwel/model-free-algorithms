@@ -18,7 +18,7 @@ def get_worker(BaseClass, *args, **kwargs):
                     args, 
                     env_args,
                     buffer_args,
-                    max_episodes,
+                    weight_update_freq,
                     sess_config=None, 
                     save=False, 
                     log_tensorboard=False, 
@@ -26,7 +26,7 @@ def get_worker(BaseClass, *args, **kwargs):
                     log_stats=False,
                     device=None):
             self.no = worker_no
-            self.max_episodes = max_episodes
+            self.weight_update_freq = weight_update_freq    # update weights 
             buffer_args['type'] = 'local'
             buffer_args['local_capacity'] = env_args['max_episode_steps']
 
@@ -47,9 +47,9 @@ def get_worker(BaseClass, *args, **kwargs):
             return self.sess.run(self.priority)
 
         def sample_data(self, learner):
-            # I intend not to synchronize the worker's weights at the beginning for initial exploration 
+            # I intend not to synchronize the worker's weights at the beginning for initial diversity 
             score_deque = deque(maxlen=100)
-            eps_len_deque = deque(maxlen=100)
+            epslen_deque = deque(maxlen=100)
             episode_i = 0
             t = 0
             
@@ -71,22 +71,23 @@ def get_worker(BaseClass, *args, **kwargs):
                 last_state = np.zeros_like(state) if done else next_state
                 self.buffer.add_last_state(last_state)
                 self.buffer['priority'] = self.compute_priorities()
+                # push samples to the central buffer after each episode
                 learner.merge_buffer.remote(dict(self.buffer), self.buffer.idx)
                 self.buffer.reset()
 
                 score = self.env.get_score()
-                eps_len = self.env.get_length()
+                epslen = self.env.get_length()
                 episode_i += 1
                 score_deque.append(score)
-                eps_len_deque.append(eps_len)
-                stats = dict(score=score, avg_score=np.mean(score_deque), 
-                            eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque), 
-                            worker_no=self.no)
+                epslen_deque.append(epslen)
+                stats = dict(score=score, score_mean=np.mean(score_deque), 
+                             epslen=epslen, epslen_mean=np.mean(epslen_deque), 
+                             worker_no=self.no)
                             
                 learner.record_stats.remote(stats)
                 
                 # pull weights from learner
-                if episode_i >= self.max_episodes:
+                if episode_i >= self.weight_update_freq:
                     weights = ray.get(learner.get_weights.remote())
                     self.variables.set_flat(weights)
                     episode_i = 0

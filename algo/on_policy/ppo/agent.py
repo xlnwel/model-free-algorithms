@@ -20,7 +20,7 @@ class Agent(Model):
                  env_args,
                  sess_config=None,
                  save=False,
-                 log_tensorboard=True,
+                 log_tensorboard=False,
                  log_params=False,
                  log_stats=False,
                  device=None,

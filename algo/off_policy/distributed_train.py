@@ -30,14 +30,20 @@ def main(env_args, agent_args, buffer_args, render=False):
     ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
 
     agent_name = 'Agent'
-    sess_config = tf.ConfigProto(allow_soft_placement=True)
+    sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
+                                 inter_op_parallelism_threads=1,
+                                 allow_soft_placement=True)
+    sess_config.gpu_options.allow_growth = True
     learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, 
                             log_stats=True, sess_config=sess_config, device='/GPU: 0')
 
     workers = []
     buffer_args['type'] = 'local'
+    sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
+                                 inter_op_parallelism_threads=1,
+                                 allow_soft_placement=True)
     for worker_no in range(agent_args['n_workers']):
-        max_episodes = 1    # np.random.randint(1, 10)
+        weight_update_freq = 1    # np.random.randint(1, 10)
         if agent_args['algorithm'] == 'apex-td3':
             agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
         elif agent_args['algorithm'] == 'apex-sac':
@@ -46,7 +52,7 @@ def main(env_args, agent_args, buffer_args, render=False):
              raise NotImplementedError
         env_args['seed'] = worker_no * 10
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
-                            max_episodes, device='/CPU:{}'.format(worker_no + 1))
+                            weight_update_freq, sess_config=sess_config, device=f'/CPU:{worker_no + 1}')
         workers.append(worker)
 
     pids = [worker.sample_data.remote(learner) for worker in workers]

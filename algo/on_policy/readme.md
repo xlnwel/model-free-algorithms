@@ -1,7 +1,3 @@
-## Heads Up
-
-a2c is legacy code and no longer maintained because I personally think a2c could be completely replaced by using an environment vector if one only intends to run ppo on a single machine.
-
 ## Performance on BipedalWalker-v2
 
 #### PPO with NAE, x-axis denotes time.

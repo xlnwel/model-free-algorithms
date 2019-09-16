@@ -172,7 +172,7 @@ class ActorCritic(Module):
 
     def _optimization_op(self, loss):
         with tf.name_scope('optimization'):
-            optimizer, opt_step = self._adam_optimizer(opt_step=True)
+            optimizer, _, opt_step = self._adam_optimizer(opt_step=True)
             grads_and_vars = self._compute_gradients(loss, optimizer)
             opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 

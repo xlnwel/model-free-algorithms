@@ -1,7 +1,8 @@
 import numpy as np
 from copy import deepcopy
 
-from utility.utils import normalize, assert_colorize
+from utility.debug_tools import assert_colorize
+from utility.utils import normalize
 
 
 class PPOBuffer(dict):

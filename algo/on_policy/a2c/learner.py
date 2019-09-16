@@ -13,10 +13,10 @@ class Learner(Agent):
                  args,
                  env_args,
                  sess_config=None,
-                 save=False,
+                 save=True,
                  log_tensorboard=False,
                  log_params=False,
-                 log_stats=False,
+                 log_stats=True,
                  device=None):
         super().__init__(name, 
                          args, 
@@ -33,14 +33,13 @@ class Learner(Agent):
         
         feed_dict = {g_var: g for g_var, g in zip(self.ac.grads, grads)}
         
-        if self.graph_summary is not None:
+        if self.log_tensorboard:
             learn_step, _, summary = self.sess.run([self.ac.opt_step, self.ac.opt_op, self.graph_summary], feed_dict=feed_dict)
         else:
             learn_step, _ = self.sess.run([self.ac.opt_step, self.ac.opt_op], feed_dict=feed_dict)
 
         if self.log_tensorboard and learn_step % 100 == 0:
-            if self.graph_summary:
-                self.writer.add_summary(summary, learn_step)
+            self.writer.add_summary(summary, learn_step)
             self.save()
 
         return self.get_weights()
@@ -48,7 +47,6 @@ class Learner(Agent):
     def get_weights(self):
         return self.variables.get_flat()
 
-    def record_stats(self, score, avg_score, eps_len, avg_eps_len, worker_no):
-        super().record_stats(score=score, avg_score=avg_score, 
-                          eps_len=eps_len, avg_eps_len=avg_eps_len, 
-                          worker_no=worker_no)
+    def record_stats(self, score_mean, score_std, epslen_mean, epslen_std):
+        super().record_stats(score_mean=score_mean, score_std=score_std,
+                             epslen_mean=epslen_mean, epslen_std=epslen_std)

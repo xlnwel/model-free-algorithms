@@ -18,12 +18,14 @@ def main(env_args, agent_args, buffer_args, render=False):
 
     ray.init(num_cpus=n_workers+1, num_gpus=1)
 
-    learner = Learner.remote('Agent', agent_args, env_args, device='/gpu: 0')
-    workers = [Worker.remote('Agent', i, agent_args, env_args, device='/gpu: 0') for i in range(n_workers)]
+    sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
+                                 inter_op_parallelism_threads=1,
+                                 allow_soft_placement=True)
+    sess_config.gpu_options.allow_growth = True
+    learner = Learner.remote('Agent', agent_args, env_args, sess_config=sess_config, device='/gpu: 0')
+    workers = [Worker.remote('Agent', i, agent_args, env_args, sess_config=sess_config, device='/gpu: 0') for i in range(n_workers)]
     
     weights_id = learner.get_weights.remote()
-    score_deque = deque(maxlen=100)
-    eps_len_deque = deque(maxlen=100)
     for i in range(1, agent_args['n_epochs'] + 1):
         start = time.time()
         env_stats = [w.sample_trajectories.remote(weights_id) for w in workers]
@@ -46,13 +48,13 @@ def main(env_args, agent_args, buffer_args, render=False):
 
         # score logging
         env_stats = ray.get(list(env_stats))  # ray cannot use tuple as input
-        scores, eps_lens = list(zip(*env_stats))
-        score = np.mean(scores)
-        eps_len = np.mean(eps_lens)
-        score_deque.append(score)
-        eps_len_deque.append(eps_len)
-        logs_ids = [learner.record_stats.remote(score=score, avg_score=np.mean(score_deque),
-                                            eps_len=eps_len, avg_eps_len=np.mean(eps_len_deque))]
+        scores, epslens = list(zip(*env_stats))
+        score_mean = np.mean(scores)
+        score_std = np.std(scores)
+        epslen_mean = np.mean(epslens)
+        epslen_std = np.std(epslens)
+        logs_ids = [learner.record_stats.remote(score_mean=score_mean, score_std=score_std,
+                                                epslen_mean=epslen_mean, epslen_std=epslen_std)]
         
         # data logging
         loss_info = list(zip(*loss_info_list))
@@ -61,10 +63,8 @@ def main(env_args, agent_args, buffer_args, render=False):
         log_info = {
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
-            'AverageScore': score,
-            'StdScore': np.std(scores),
-            'MaxScore': np.max(scores),
-            'MinScore': np.min(scores),
+            'ScoreMean': score_mean,
+            'ScoreStd': score_std,
             'PPOLoss': np.mean(ppo_loss),
             'Entropy': np.mean(entropy),
             'ValueLoss': np.mean(value_loss),
