@@ -15,35 +15,39 @@ def train(agent, agent_args, test_agent):
 
         # score logging
         scores, eps_lens = env_stats
-        avg_score = np.mean(scores)
-        std_score = np.std(scores)
-        max_score = np.max(scores)
-        min_score = np.min(scores)
-        avg_eps_len = np.mean(eps_lens)
+        score_mean = np.mean(scores)
+        score_std = np.std(scores)
+        score_max = np.max(scores)
+        score_min = np.min(scores)
+        epslen_mean = np.mean(eps_lens)
         
         # data logging
         loss_info = list(zip(*loss_info_list))
         ppo_loss, entropy, value_loss, total_loss, approx_kl, clip_frac = loss_info
 
+        ppo_loss = np.mean(ppo_loss)
+        entropy = np.mean(entropy)
+        value_loss = np.mean(value_loss)
+        total_loss = np.mean(total_loss)
         approx_kl = np.mean(approx_kl)
         clip_frac = np.mean(clip_frac)
-        agent.record_stats(avg_score=avg_score, std_score=std_score, max_score=max_score, min_score=min_score,
-                        avg_eps_len=avg_eps_len, approx_kl=approx_kl, clip_frac=clip_frac)
+        agent.record_stats(score_mean=score_mean, score_std=score_std,
+                           epslen_mean=epslen_mean, approx_kl=approx_kl, clip_frac=clip_frac)
 
         log_info = {
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
             'Iteration': i,
             'Time': f'{time.time() - start:3.2f}s',
-            'AvgScore': avg_score,
-            'StdScore': std_score,
-            'MaxScore': max_score,
-            'MinScore': min_score,
-            'PPOLoss': np.mean(ppo_loss),
-            'Entropy': np.mean(entropy),
-            'ValueLoss': np.mean(value_loss),
-            'TotalLoss': np.mean(total_loss),
-            'ApproxKL': np.mean(approx_kl),
-            'ClipFrac': np.mean(clip_frac)
+            'ScoreMean': score_mean,
+            'ScoreStd': score_std,
+            'ScoreMax': score_max,
+            'ScoreMin': score_min,
+            'PPOLoss': ppo_loss,
+            'Entropy': entropy,
+            'ValueLoss': value_loss,
+            'TotalLoss': total_loss,
+            'ApproxKL': approx_kl,
+            'ClipFrac': clip_frac
         }
         [agent.log_tabular(k, v) for k, v in log_info.items()]
         agent.dump_tabular(print_terminal_info=True)
@@ -59,7 +63,6 @@ def main(env_args, agent_args, buffer_args, render=False):
                             log_params=False, log_stats=True, device='/gpu:0')
 
     model = agent_args['model_name']
-    print(f'Model {model} starts training')
 
     test_agent = None
     if render:

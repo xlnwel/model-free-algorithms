@@ -14,7 +14,7 @@ agent:
     n_minibatches: 1        # number of minibatches a sequence is divided into 
     # batch size = seq_len * n_envs / n_minibatches
     n_updates: 5            # number of updates per epoch
-    n_epochs: 5000
+    n_epochs: 2000
     max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
     mask: False
 
@@ -29,7 +29,7 @@ agent:
     ac:
         learning_rate: 3e-4
         common: True           # if share initial dense and lstm layers, if false common* are treated separately
-        common_dense_units: [512, 512]
+        common_dense_units: [512, 256]
         common_lstm_units: [256]
         use_rnn: True
         actor_units: [256]
@@ -41,4 +41,4 @@ agent:
 
     env_stats:
         times: 1
-        stats: [avg_score, std_score, max_score, min_score, avg_eps_len, approx_kl, clip_frac]
+        stats: [score_mean, score_std, epslen_mean, approx_kl, clip_frac]

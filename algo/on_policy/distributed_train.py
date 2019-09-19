@@ -54,7 +54,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         epslen_mean = np.mean(epslens)
         epslen_std = np.std(epslens)
         logs_ids = [learner.record_stats.remote(score_mean=score_mean, score_std=score_std,
-                                                epslen_mean=epslen_mean, epslen_std=epslen_std)]
+                                              epslen_mean=epslen_mean, epslen_std=epslen_std)]
         
         # data logging
         loss_info = list(zip(*loss_info_list))

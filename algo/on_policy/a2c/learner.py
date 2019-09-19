@@ -40,7 +40,8 @@ class Learner(Agent):
 
         if self.log_tensorboard and learn_step % 100 == 0:
             self.writer.add_summary(summary, learn_step)
-            self.save()
+            if hasattr(self, 'saver'):
+                self.save()
 
         return self.get_weights()
 

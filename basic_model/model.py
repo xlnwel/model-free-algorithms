@@ -254,9 +254,9 @@ class Model(Module):
             if print_terminal_info:
                 pwc('Model saved', 'magenta')
             return self.saver.save(self.sess, self.model_file)
-        # else:
-        #     # no intention to treat no saver as an error, just print a warning message
-        #     pwc('No saver is available', 'magenta')
+        else:
+            # no intention to treat no saver as an error, just print a warning message
+            pwc('No saver is available', 'magenta')
 
     def record_stats(self, **kwargs):
         self._record_stats_impl(kwargs)

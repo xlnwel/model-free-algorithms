@@ -34,6 +34,7 @@ class ActorCritic(Module):
         x = self.env_phs['state']
         
         if self.args['common']:
+            # actor and critic share initial networks
             x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_rnn)
             if self.use_rnn:
                 x, self.initial_state, self.final_state = self._common_lstm(x, self.args['common_lstm_units'])
@@ -116,7 +117,8 @@ class ActorCritic(Module):
 
     def _v_net(self, x, units, name='V_net'):
         with tf.variable_scope(name):
-            x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_rnn, name='dense')
+            x = self._common_dense(x, self.args['common_dense_units'], 
+                                   reshape_for_rnn=self.use_rnn, name='dense')
             if self.use_rnn:
                 x, self.critic_init_state, self.critic_final_state = self._common_lstm(x, self.args['common_lstm_units'], name='lstm')
 

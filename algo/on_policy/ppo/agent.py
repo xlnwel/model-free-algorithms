@@ -38,7 +38,7 @@ class Agent(Model):
 
         # environment info
         self.env_vec = (GymEnvVec(env_args) if env_args['n_envs'] > 1 
-                        else GymEnv(env_args, f'{args["log_root_dir"]}/{args["model_name"]}'))
+                        else GymEnv(env_args))
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
                                 self.env_vec.state_space, self.env_vec.action_dim, 
@@ -122,8 +122,10 @@ class Agent(Model):
             if kl > self.args['max_kl']:
                 break
 
-        self.writer.add_summary(summary, epoch_i)
-        self.save()
+        if self.log_tensorboard:
+            self.writer.add_summary(summary, epoch_i)
+        if hasattr(self, 'saver'):
+            self.save()
 
         return loss_info_list
 
@@ -208,20 +210,27 @@ class Agent(Model):
                     self.ac.approx_kl, self.ac.clipfrac]]
         if self.use_rnn:
             fetches.append(self.ac.final_state)
-        fetches.append([self.ac.opt_step, self.graph_summary])
+        if self.log_tensorboard:
+            fetches.append([self.ac.opt_step, self.graph_summary])
 
         # construct feed_dict
         feed_dict = self._get_feeddict()
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_rnn:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
+        opt_step, summary = None, None    # default values if self.log_tensorboard is None
+        if self.use_rnn and self.log_tensorboard:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
             _, loss_info, self.last_lstm_state, (opt_step, summary) = results
-        else:
+        elif self.use_rnn:
+            _, loss_info, self.last_lstm_state = results
+        elif self.log_tensorboard:
             _, loss_info, (opt_step, summary) = results
+        else:
+            _, loss_info = results
 
         self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
 
         return loss_info, opt_step, summary
+        
 
     def _get_feeddict(self):
         get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)

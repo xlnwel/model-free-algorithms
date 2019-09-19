@@ -104,16 +104,17 @@ class OffPolicyOperation(Model, ABC):
     def learn(self):
         if self.log_tensorboard:
             priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
-                                                                self.data['saved_mem_idxs'], 
-                                                                self.opt_op, 
-                                                                self.graph_summary])
+                                                                  self.data['saved_mem_idxs'], 
+                                                                  self.opt_op, 
+                                                                  self.graph_summary])
             if self.update_step % 100 == 0:
                 self.writer.add_summary(summary, self.update_step)
-                self.save()
+                if hasattr(self, 'saver'):
+                    self.save()
         else:
             priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
-                                                        self.data['saved_mem_idxs'], 
-                                                        self.opt_op])
+                                                         self.data['saved_mem_idxs'], 
+                                                         self.opt_op])
 
         # update the target networks
         self._update_target_net()
