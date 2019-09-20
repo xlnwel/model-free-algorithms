@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
         # Grid search happens here
         if algorithm == 'ppo':
-            gs(mask=[True, False])
+            gs()
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':

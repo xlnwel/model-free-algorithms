@@ -4,6 +4,7 @@ import gym
 
 from basic_model.model import Module
 from utility import tf_utils, tf_distributions
+from utility.schedule import PiecewiseSchedule
 
 
 class ActorCritic(Module):
@@ -21,6 +22,9 @@ class ActorCritic(Module):
         self.env_phs = env_phs
         self.clip_range = args['clip_range']
         self.use_rnn = args['use_rnn']
+
+        self.lr_scheduler = PiecewiseSchedule([(0, float(args['learning_rate'])), (args['decay_steps'], float(args['end_lr']))],
+                                              outside_value=float(args['end_lr']))
 
         super().__init__(name,
                          args,
@@ -60,7 +64,7 @@ class ActorCritic(Module):
         self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.V_loss, self.loss = self._loss()
 
         # optimizer
-        self.optimizer, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss)
+        self.optimizer, self.learning_rate, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss, schedule_lr=self.args['schedule_lr'])
         self.grads = [gv[0] for gv in self.grads_and_vars]
 
     def _common_dense(self, x, units, reshape_for_rnn=True, name='common_dense'):
@@ -172,10 +176,10 @@ class ActorCritic(Module):
 
         return loss
 
-    def _optimization_op(self, loss):
+    def _optimization_op(self, loss, schedule_lr=False):
         with tf.name_scope('optimization'):
-            optimizer, _, opt_step = self._adam_optimizer(opt_step=True)
+            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=True, schedule_lr=schedule_lr)
             grads_and_vars = self._compute_gradients(loss, optimizer)
             opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
-        return optimizer, opt_step, grads_and_vars, opt_op
+        return optimizer, learning_rate, opt_step, grads_and_vars, opt_op

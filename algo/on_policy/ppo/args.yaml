@@ -27,8 +27,13 @@ agent:
     model_name: baseline
 
     ac:
-        learning_rate: 3e-4
-        common: True           # if share initial dense and lstm layers, if false common* are treated separately
+        schedule_lr: True
+        learning_rate: 3e-4     # start learning rate if schedule_lr==True
+        # argument for learning-rate schedule 
+        decay_steps: 500        # learning rate decay steps
+        end_lr: 1e-4            # end learning rate
+
+        common: True            # if share initial dense and lstm layers, if false common* are treated separately
         common_dense_units: [512, 256]
         common_lstm_units: [256]
         use_rnn: True
