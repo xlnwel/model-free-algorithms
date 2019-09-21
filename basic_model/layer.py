@@ -372,17 +372,29 @@ class Layer():
 
         return x, (initial_state, final_state)
 
-    def lstm_norm(self, x, units, masks, norm=True):
-        kernel_initializer = tf_utils.kaiming_initializer() if norm else tc.layers.xavier_initializer()
-        xw_shape = [x.shape.as_list()[-1], units]
+    def lstm_norm(self, xs, units, masks=None):
+        """lstm with masks and layer normalization
+        
+        Arguments:
+            xs      3d Tensor   --  input data of shape [n_batch, n_seq, dim]
+            units   int         --  size of hidden/cell state
+            masks   2d Tensor   --  masks, must match the first 2 dimensions of xs
+        
+        Returns:
+            [type] -- [description]
+        """
+        assert_colorize(len(xs.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(xs.shape.as_list())}')
+        assert_colorize(len(masks.shape.as_list()) == 2, f'Masks Shape Error: desire shape of dimension 2, get {len(masks.shape.as_list())}')
+        kernel_initializer = tf_utils.kaiming_initializer()
+        ln = tc.layers.layer_norm
+
+        n_batch, n_steps, x_dim = xs.shape.as_list()
+
+        xw_shape = [x_dim, units]
         xb_shape = [units]
         hw_shape = [units, units]
         hb_shape = [units]
         
-        n_batch, n_steps = x.shape.as_list()[:2]
-
-        ln = tc.layers.layer_norm
-
         with tf.variable_scope('lstm_norm'):
             x_w = tf.get_variable('x_w', shape=xw_shape, 
                                   initializer=kernel_initializer,
@@ -398,10 +410,15 @@ class Layer():
 
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
             h, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
-            xs = [tf.squeeze(v, [1]) for v in tf.split(value=x, num_or_size_splits=n_steps, axis=1)]
-            for idx, (x, m) in enumerate(zip(xs, masks)):
-                c *= 1-m
-                h *= 1-m
+            xs = tf.unstack(xs, axis=1)
+            masks = tf.unstack(masks, axis=1)
+
+            ys = []
+            for x in xs if masks is None else zip(xs, masks):
+                if masks:
+                    x, m = x
+                    c *= m
+                    h *= m
                 z = ln(tf.matmul(x, x_w) + x_b) + ln(tf.matmul(h, h_w) + h_b)
                 f, i, o, u = tf.split(value=z, num_or_size_splits=4, axis=1)
                 f = tf.nn.sigmoid(f)
@@ -410,12 +427,12 @@ class Layer():
                 u = tf.tanh(u)
                 c = f * c + i * u
                 h = o * tf.tanh(ln(c))
-                xs[idx] = h
+                ys.append(h)
             
             final_state = (h, c)
-            xs = tf.stack(xs, 1)
+            ys = tf.stack(ys, 1)
 
-        return xs, (initial_state, final_state)
+        return ys, (initial_state, final_state)
 
     def attention(self, q, k, v, mask=None):
         # softmax(QK^T/)V
