@@ -386,7 +386,7 @@ class Layer():
         """
         assert_colorize(len(xs.shape.as_list()) == 3, 
                         f'Imput Shape Error: desire tensor of 3 dimensions, get {len(xs.shape.as_list())}')
-        pwc(masks is None)
+
         assert_colorize(masks is None or len(masks.shape.as_list()) == 2, 
                         f'Masks Shape Error: desire None or tensor of 2 dimensions, get {len(masks.shape.as_list())}')
         kernel_initializer = tf_utils.kaiming_initializer()
@@ -394,10 +394,10 @@ class Layer():
 
         n_batch, n_steps, x_dim = xs.shape.as_list()
 
-        xw_shape = [x_dim, units]
-        xb_shape = [units]
-        hw_shape = [units, units]
-        hb_shape = [units]
+        xw_shape = [x_dim, 4*units]
+        xb_shape = [4*units]
+        hw_shape = [units, 4*units]
+        hb_shape = [4*units]
         
         with tf.variable_scope('lstm_norm'):
             x_w = tf.get_variable('x_w', shape=xw_shape, 
@@ -413,17 +413,18 @@ class Layer():
                                   initializer=tf.zeros_initializer())
 
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
-            h, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
-            xs = tf.unstack(xs, axis=1)
-            if masks:
-                masks = tf.unstack(masks, axis=1)
+            initial_state = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
+            h, c = initial_state
+            xs = tf.unstack(xs, n_steps, axis=1)
+            if masks is not None:
+                masks = tf.unstack(masks, n_steps, axis=1)
 
             ys = []
             for x in xs if masks is None else zip(xs, masks):
-                if masks:
+                if masks is not None:
                     x, m = x
-                    c *= m
-                    h *= m
+                    c *= m[:, None]
+                    h *= m[:, None]
                 z = ln(tf.matmul(x, x_w) + x_b) + ln(tf.matmul(h, h_w) + h_b)
                 f, i, o, u = tf.split(value=z, num_or_size_splits=4, axis=1)
                 f = tf.nn.sigmoid(f)

@@ -75,13 +75,13 @@ class ActorCritic(Module):
         return x
 
     def _common_lstm(self, x, units, name='common_lstm'):
+        # initial&final state list for multi-layer LSTM
         init_state_list, final_state_list = [], []
         with tf.variable_scope(name):
             u = x.shape.as_list()[-1]
             x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
             for u in units:
-                x, (init_state, final_state) = (self.lstm_norm(x, u, self.env_phs['mask']) if self.args['lstm_norm'] 
-                                                else self.lstm(x, u, return_sequences=True))
+                x, (init_state, final_state) = self.lstm(x, u, return_sequences=True)
                 init_state_list += init_state
                 final_state_list += final_state
 

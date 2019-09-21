@@ -113,7 +113,7 @@ if __name__ == '__main__':
         if algorithm == 'ppo':
             gs()
         elif algorithm == 'a2c':
-            gs(mask=True)
+            gs()
         elif algorithm == 'td3':
             gs()
         elif algorithm == 'sac':

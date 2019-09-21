@@ -20,3 +20,5 @@ Masking out states and rewards after the agent encounters a done significantly s
 GAE works better with a smaller learning rate (1e-4), NAE works better with a larger learning rate (3e-4).
 
 NAE is more stable than GAE in my test. Both take around 4 hours to reach 250+ scores averaged over 10 episodes, but take about 8-10 hours to reach the solved requirement of BipedalWalker-v2.
+
+Masking is nasty. Since we only terminate an episode when maximum sequence length is reached, the agent will receive a lot of negative rewards after done. This will affect the result of reward normalization and LSTM performance.
