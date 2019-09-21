@@ -114,7 +114,7 @@ class Agent(Model):
                     continue
                 kl = np.mean(loss_info[4])
                 if kl > self.args['max_kl']:
-                    pwc(f'{self.model_name}: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl')
+                    pwc(f'{self.model_name}: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl.\nCurrent kl={kl}')
                     break
             if 'max_kl' not in self.args or self.args['max_kl'] == 0.:
                 continue
@@ -154,6 +154,7 @@ class Agent(Model):
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
             env_phs['old_logpi'] = tf.placeholder(tf.float32, shape=[None, 1], name='old_logpi')
             env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coeff')
+            env_phs['mask'] = tf.placeholder(tf.float32, shape=[], name='mask')
         
         return env_phs
 

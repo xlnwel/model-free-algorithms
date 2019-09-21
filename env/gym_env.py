@@ -16,33 +16,40 @@ def action_dist_type(env):
 
 class envstats:
     """ Provide Environment Stats Records """
-    def __init__(self, env):
-        self.EnvType = env
+    def __init__(self, env_type):
+        self.EnvType = env_type
         self.score = 0
         self.eps_len = 0
         self.early_done = 0
+        self.mask = 0
         
-        self.env_reset = env.reset
+        self.env_reset = env_type.reset
         self.EnvType.reset = self.reset
-        self.env_step = env.step
+        self.env_step = env_type.step
         self.EnvType.step = self.step
-        self.EnvType.early_done = self.early_done
 
         self.EnvType.get_score = lambda _: self.score
         self.EnvType.get_length = lambda _: self.eps_len
+
     def __call__(self, *args, **kwargs):
         self.env = self.EnvType(*args, **kwargs)
 
         return self.env
 
+    def return_mask(self):
+        """ return mask at the current step, should only be called after self.step """
+        return self.mask
+
     def reset(self):
         self.score = 0
         self.eps_len = 0
-        self.early_done = 0
+        self.early_done = np.zeros(self.env.n_envs)
+        self.mask = np.ones(self.env.n_envs)
         
         return self.env_reset(self.env)
 
     def step(self, action):
+        self.mask = 1 - self.early_done
         next_state, reward, done, info = self.env_step(self.env, action)
         self.score += np.where(self.early_done, 0, reward)
         self.eps_len += np.where(self.early_done, 0, 1)
@@ -79,7 +86,7 @@ class GymEnv:
     def step(self, action):
         action = np.squeeze(action)
         return self.env.step(action)
-        
+
     def render(self):
         return self.env.render()
 

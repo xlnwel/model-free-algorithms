@@ -81,6 +81,7 @@ class ActorCritic(Module):
             x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
             for u in units:
                 x, (init_state, final_state) = self.lstm(x, u, return_sequences=True)
+                # x, (init_state, final_state) = self.lstm_norm(x, u, self.env_phs['mask])
                 init_state_list += init_state
                 final_state_list += final_state
 

@@ -56,13 +56,14 @@ def main(env_args, agent_args, buffer_args, render=False):
 
                 weights_id = learner.apply_gradients.remote(epoch_i, *grads_ids)
 
-                if max_kl == 0:
+                # we do not check KL in early stage
+                if epoch_i < 100 or max_kl == 0:
                     continue
 
                 loss_info = decompose(loss_info)
                 kl = np.mean(loss_info[4])
                 if kl > max_kl:
-                    pwc(f'a2c: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl')
+                    pwc(f'a2c: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl.\nCurrent kl={kl}')
                     break
             if max_kl == 0:
                 continue
