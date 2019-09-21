@@ -27,6 +27,7 @@ class Learner(Agent):
                          log_params=log_params, 
                          log_stats=log_stats,
                          device=device)
+        del self.buffer
     
     def apply_gradients(self, timestep, *grads):
         grads = np.mean(grads, axis=0)

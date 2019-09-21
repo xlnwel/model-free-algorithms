@@ -43,8 +43,16 @@ def pwc(string, color='red', bold=False, highlight=False):
     else:
         print(colorize(string, color, bold, highlight))
 
-def normalize(x, mean=0., std=1., epsilon=1e-8):
-    x = (x - np.mean(x)) / (np.std(x) + epsilon)
+def normalize(x, mask=None, mean=0., std=1., epsilon=1e-8):
+    if mask is None:
+        x_mean = np.mean(x)
+        x_std = np.std(x)
+    else:
+        # compute x_mean and x_std from entries in x corresponding to True in mask
+        n = np.sum(mask)
+        x_mean = np.sum(x * mask) / n
+        x_std = np.sqrt(np.sum((x * mask - x_mean)**2) / n)
+    x = (x - x_mean) / (x_std + epsilon)
     x = x * std + mean
 
     return x

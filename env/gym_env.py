@@ -27,6 +27,7 @@ class envstats:
         self.EnvType.reset = self.reset
         self.env_step = env_type.step
         self.EnvType.step = self.step
+        self.EnvType.get_mask = self.get_mask
 
         self.EnvType.get_score = lambda _: self.score
         self.EnvType.get_length = lambda _: self.eps_len
@@ -36,8 +37,8 @@ class envstats:
 
         return self.env
 
-    def return_mask(self):
-        """ return mask at the current step, should only be called after self.step """
+    def get_mask(self):
+        """ Get mask at the current step. Should only be called after self.step """
         return self.mask
 
     def reset(self):

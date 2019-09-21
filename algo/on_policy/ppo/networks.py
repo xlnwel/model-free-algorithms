@@ -21,7 +21,7 @@ class ActorCritic(Module):
         self.env_vec = env_vec
         self.env_phs = env_phs
         self.clip_range = args['clip_range']
-        self.use_rnn = args['use_rnn']
+        self.use_lstm = args['use_lstm']
 
         self.lr_scheduler = PiecewiseSchedule([(0, float(args['learning_rate'])), (args['decay_steps'], float(args['end_lr']))],
                                               outside_value=float(args['end_lr']))
@@ -39,8 +39,8 @@ class ActorCritic(Module):
         
         if self.args['common']:
             # actor and critic share initial networks
-            x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_rnn)
-            if self.use_rnn:
+            x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_lstm)
+            if self.use_lstm:
                 x, self.initial_state, self.final_state = self._common_lstm(x, self.args['common_lstm_units'])
             actor_output = self._policy_head(x, self.args['actor_units'], self.env_vec.action_dim, 
                                             discrete=self.env_vec.is_action_discrete)
@@ -52,7 +52,7 @@ class ActorCritic(Module):
                                             discrete=self.env_vec.is_action_discrete)
 
             self.V = self._v_net(x, self.args['critic_units'])
-            if self.use_rnn:
+            if self.use_lstm:
                 self.initial_state = [*self.actor_init_state, *self.critic_init_state]
                 self.final_state = [*self.actor_final_state, *self.critic_final_state]
 
@@ -80,8 +80,8 @@ class ActorCritic(Module):
             u = x.shape.as_list()[-1]
             x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
             for u in units:
-                x, (init_state, final_state) = self.lstm(x, u, return_sequences=True)
-                # x, (init_state, final_state) = self.lstm_norm(x, u, self.env_phs['mask])
+                x, (init_state, final_state) = (self.lstm_norm(x, u, self.env_phs['mask']) if self.args['lstm_norm'] 
+                                                else self.lstm(x, u, return_sequences=True))
                 init_state_list += init_state
                 final_state_list += final_state
 
@@ -111,8 +111,8 @@ class ActorCritic(Module):
     def _policy_net(self, x, units, action_dim, discrete=False, name='policy_net'):
         with tf.variable_scope(name):
             x = self._common_dense(x, self.args['common_dense_units'], 
-                                   reshape_for_rnn=self.use_rnn, name='dense')
-            if self.use_rnn:
+                                   reshape_for_rnn=self.use_lstm, name='dense')
+            if self.use_lstm:
                 x, self.actor_init_state, self.actor_final_state = self._common_lstm(x, self.args['common_lstm_units'], name='lstm')
 
             output = self._policy_head(x, self.args['actor_units'], self.env_vec.action_dim, 
@@ -123,8 +123,8 @@ class ActorCritic(Module):
     def _v_net(self, x, units, name='V_net'):
         with tf.variable_scope(name):
             x = self._common_dense(x, self.args['common_dense_units'], 
-                                   reshape_for_rnn=self.use_rnn, name='dense')
-            if self.use_rnn:
+                                   reshape_for_rnn=self.use_lstm, name='dense')
+            if self.use_lstm:
                 x, self.critic_init_state, self.critic_final_state = self._common_lstm(x, self.args['common_lstm_units'], name='lstm')
 
             x = self._V_head(x, self.args['critic_units'])

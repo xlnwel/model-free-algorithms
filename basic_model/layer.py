@@ -381,10 +381,14 @@ class Layer():
             masks   2d Tensor   --  masks, must match the first 2 dimensions of xs
         
         Returns:
-            [type] -- [description]
+            ys      3d Tensor   -- output date of shape [n_batch, n_seq, units]
+            initial_state, final_state
         """
-        assert_colorize(len(xs.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(xs.shape.as_list())}')
-        assert_colorize(len(masks.shape.as_list()) == 2, f'Masks Shape Error: desire shape of dimension 2, get {len(masks.shape.as_list())}')
+        assert_colorize(len(xs.shape.as_list()) == 3, 
+                        f'Imput Shape Error: desire tensor of 3 dimensions, get {len(xs.shape.as_list())}')
+        pwc(masks is None)
+        assert_colorize(masks is None or len(masks.shape.as_list()) == 2, 
+                        f'Masks Shape Error: desire None or tensor of 2 dimensions, get {len(masks.shape.as_list())}')
         kernel_initializer = tf_utils.kaiming_initializer()
         ln = tc.layers.layer_norm
 
@@ -411,7 +415,8 @@ class Layer():
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
             h, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
             xs = tf.unstack(xs, axis=1)
-            masks = tf.unstack(masks, axis=1)
+            if masks:
+                masks = tf.unstack(masks, axis=1)
 
             ys = []
             for x in xs if masks is None else zip(xs, masks):

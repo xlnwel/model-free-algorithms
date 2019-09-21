@@ -30,10 +30,11 @@ class Agent(Model):
         self.gamma = args['gamma']
         self.gae_discount = self.gamma * args['lam']
         self.seq_len = args['seq_len']
-        self.use_rnn = args['ac']['use_rnn']
+        self.n_minibatches = args['n_minibatches']
+        self.use_lstm = args['ac']['use_lstm']
+        self.mask = args['mask']
 
         self.entropy_coef = args['ac']['entropy_coef']
-        self.n_minibatches = args['n_minibatches']
         self.minibatch_idx = 0
 
         # environment info
@@ -41,8 +42,7 @@ class Agent(Model):
                         else GymEnv(env_args))
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
-                                self.env_vec.state_space, self.env_vec.action_dim, 
-                                self.use_rnn)
+                                self.env_vec.state_space, self.env_vec.action_dim, self.mask)
 
         super().__init__(name, args, 
                          sess_config=sess_config,
@@ -54,7 +54,7 @@ class Agent(Model):
                          reuse=reuse,
                          graph=graph)
 
-        if self.use_rnn:
+        if self.use_lstm:
             self.last_lstm_state = None
 
         with self.graph.as_default():
@@ -69,11 +69,11 @@ class Agent(Model):
         state = np.reshape(state, (-1, *self.env_vec.state_space))
         fetches = [self.ac.action, self.ac.V, self.ac.logpi]
         feed_dict = {self.env_phs['state']: state}
-        if self.use_rnn:
+        if self.use_lstm:
             fetches.append(self.ac.final_state)
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_rnn:
+        if self.use_lstm:
             action, value, logpi, self.last_lstm_state = results
         else:
             action, value, logpi = results
@@ -83,7 +83,7 @@ class Agent(Model):
     def demonstrate(self):
         state = self.env_vec.reset()
         state = np.reshape(state, (-1, *self.env_vec.state_space))
-        if self.use_rnn:
+        if self.use_lstm:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
         for _ in range(self.env_vec.max_episode_steps):
@@ -98,7 +98,7 @@ class Agent(Model):
         print(f'Demonstration length:\t{self.env_vec.get_length()}')
 
     def shuffle_buffer(self):
-        if not self.use_rnn:
+        if not self.use_lstm:
             self.buffer.shuffle()
 
     def optimize(self, epoch_i):
@@ -154,7 +154,10 @@ class Agent(Model):
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
             env_phs['old_logpi'] = tf.placeholder(tf.float32, shape=[None, 1], name='old_logpi')
             env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coeff')
-            env_phs['mask'] = tf.placeholder(tf.float32, shape=[], name='mask')
+            if self.mask and self.use_lstm:
+                env_phs['mask'] = tf.placeholder(tf.float32, shape=[None, 1], name='mask')
+            else:
+                env_phs['mask'] = None
         
         return env_phs
 
@@ -179,26 +182,25 @@ class Agent(Model):
         self.buffer.reset()
         state = self.env_vec.reset()
         
-        if self.use_rnn:
+        if self.use_lstm:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
         for _ in range(self.seq_len):
             action, value, logpi = self.act(state)
             next_state, reward, done, _ = self.env_vec.step(action)
             
-            if self.args['mask']:
-                state = np.where(self.env_vec.early_done, 0, state)
-                value = np.where(self.env_vec.early_done, 0, value)
-                reward = np.where(self.env_vec.early_done, 0, reward)
+            data = dict(state=state, action=action, reward=reward, value=value, old_logpi=logpi, nonterminal=1-np.asarray(done))
+            if self.mask:
+                mask = self.env_vec.get_mask()
+                data['mask'] = mask
 
-            self.buffer.add(state, action, reward, value, logpi, 1-np.array(done))
+            self.buffer.add(data)
 
             state = next_state
         
         # add one more ad hoc value so that we can take values[1:] as next state values
         last_value = np.squeeze(self.sess.run(self.ac.V, feed_dict={self.env_phs['state']: state}))
-        if self.args['mask']:
-            last_value = np.where(self.env_vec.early_done, 0, last_value)
+
         self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount)
         
         return self.env_vec.get_score(), self.env_vec.get_length()
@@ -209,7 +211,7 @@ class Agent(Model):
                    [self.ac.ppo_loss, self.ac.entropy, 
                     self.ac.V_loss, self.ac.loss, 
                     self.ac.approx_kl, self.ac.clipfrac]]
-        if self.use_rnn:
+        if self.use_lstm:
             fetches.append(self.ac.final_state)
         if self.log_tensorboard:
             fetches.append([self.ac.opt_step, self.graph_summary])
@@ -219,9 +221,9 @@ class Agent(Model):
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
         opt_step, summary = None, None    # default values if self.log_tensorboard is None
-        if self.use_rnn and self.log_tensorboard:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
+        if self.use_lstm and self.log_tensorboard:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
             _, loss_info, self.last_lstm_state, (opt_step, summary) = results
-        elif self.use_rnn:
+        elif self.use_lstm:
             _, loss_info, self.last_lstm_state = results
         elif self.log_tensorboard:
             _, loss_info, (opt_step, summary) = results
@@ -236,7 +238,7 @@ class Agent(Model):
     def _get_feeddict(self):
         get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
 
-        if self.minibatch_idx == 0 and self.use_rnn:
+        if self.minibatch_idx == 0 and self.use_lstm:
             # set initial state to zeros for every pass of buffer
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
             
@@ -250,7 +252,9 @@ class Agent(Model):
             self.env_phs['old_logpi']: get_data('old_logpi'),
             self.env_phs['entropy_coef']: self.entropy_coef
         }
-        if self.use_rnn:
+        if self.use_lstm:
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
+        if self.mask:
+            feed_dict[self.env_phs['mask']] = get_data('mask')
 
         return feed_dict

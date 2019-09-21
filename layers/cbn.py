@@ -36,10 +36,10 @@ class ConditionalBatchNorm:
                                 initializer=tf.ones_initializer(),
                                 trainable=False)
 
-            beta = tf.gather(self.beta, labels)   # [L, F]
-            beta = tf.expand_dims(tf.expand_dims(beta, 1), 1) # [L, 1, 1, F]
-            gamma = tf.gather(self.gamma, labels) # [L, F]
-            gamma = tf.expand_dims(tf.expand_dims(gamma, 1), 1) # [L, 1, 1, F]
+            beta = tf.gather(self.beta, labels)     # [L, F]
+            beta = beta[:, None, None, :]           # [L, 1, 1, F]
+            gamma = tf.gather(self.gamma, labels)   # [L, F]
+            gamma = gamma[:, None, None, :]         # [L, 1, 1, F]
             decay = self.decay_rate
             variance_epsilon = 1e-5
             if is_training:

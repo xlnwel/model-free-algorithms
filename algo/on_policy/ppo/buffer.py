@@ -6,7 +6,7 @@ from utility.utils import normalize
 
 
 class PPOBuffer(dict):
-    def __init__(self, n_envs, seq_len, n_minibatches, state_space, action_dim, use_rnn):
+    def __init__(self, n_envs, seq_len, n_minibatches, state_space, action_dim, mask):
         self.n_envs = n_envs
         self.seq_len = seq_len
         self.n_minibatches = n_minibatches
@@ -27,16 +27,15 @@ class PPOBuffer(dict):
             'advantage': np.zeros(basic_shape),
             'old_logpi': np.zeros(basic_shape)
         })
+        if mask:
+            self['mask'] = np.zeros(basic_shape)
 
-    def add(self, state, action, reward, value, logpi, nonterminal):
+    def add(self, data):
         assert_colorize(self.idx < self.seq_len, f'Out-of-range idx {self.idx}. Call self.reset() beforehand')
         idx = self.idx
-        self['state'][:, idx] = state
-        self['action'][:, idx] = action
-        self['reward'][:, idx] = reward
-        self['value'][:, idx] = value
-        self['old_logpi'][:, idx] = logpi
-        self['nonterminal'][:, idx] = nonterminal
+        for k, v in data.items():
+            self[k][:, idx] = v
+
         self.idx += 1
 
     def get_flat_batch(self, key, batch_idx):
@@ -50,7 +49,8 @@ class PPOBuffer(dict):
 
     def compute_ret_adv(self, last_value, adv_type, gamma, gae_discount):
         self['value'][:, -1] = last_value
-        
+        mask = self['mask'] if 'mask' in self else None
+
         if adv_type == 'norm':
             returns = self['return']
             next_return = 0
@@ -58,9 +58,9 @@ class PPOBuffer(dict):
                 returns[:, i] = next_return = self['reward'][:, i] + self['nonterminal'][:, i] * gamma * next_return
 
             # normalize returns and advantages
-            values = normalize(self['value'][:, :-1], np.mean(returns), np.std(returns))
-            self['advantage'] = normalize(returns - values)
-            self['return'] = normalize(returns)
+            values = normalize(self['value'][:, :-1], mask, np.mean(returns), np.std(returns))
+            self['advantage'] = normalize(returns - values, mask)
+            self['return'] = normalize(returns, mask)
         elif adv_type == 'gae':
             advs = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
             # advs = np.zeros_like(delta)
@@ -68,7 +68,7 @@ class PPOBuffer(dict):
             for i in reversed(range(self.seq_len)):
                 advs[:, i] = next_adv = delta[:, i] + self['nonterminal'][:, i] * gae_discount * next_adv
             self['return'] = advs + self['value'][:, :-1]
-            self['advantage'] = normalize(advs)
+            self['advantage'] = normalize(advs, mask)
         else:
             NotImplementedError
 

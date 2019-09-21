@@ -25,15 +25,10 @@ class Worker(Agent):
                          device=device)
         self.no = worker_no
         self.entropy_coef = self.args['ac']['entropy_coef']
-        self.n_minibatches = args['n_minibatches']
-        self.minibach_size = self.seq_len // self.n_minibatches
         self.minibatch_idx = 0
-        if self.use_rnn:
+        if self.use_lstm:
             self.last_lstm_state = None
 
-        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
-                                self.env_vec.state_space, self.env_vec.action_dim, 
-                                self.use_rnn)
         pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
     @ray.method(num_return_vals=2)
@@ -45,14 +40,14 @@ class Worker(Agent):
                    [self.ac.ppo_loss, self.ac.entropy, 
                     self.ac.V_loss, self.ac.loss, 
                     self.ac.approx_kl, self.ac.clipfrac]]
-        if self.use_rnn:
+        if self.use_lstm:
             fetches.append(self.ac.final_state)
 
         # construct feed_dict
         feed_dict = self._get_feeddict()
 
         results = self.sess.run(fetches, feed_dict=feed_dict)
-        if self.use_rnn:
+        if self.use_lstm:
             grads, loss_info, self.last_lstm_state = results
         else:
             grads, loss_info = results

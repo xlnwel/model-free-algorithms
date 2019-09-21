@@ -15,7 +15,7 @@ agent:
     # batch size = seq_len * n_envs / n_minibatches
     n_updates: 5            # number of updates per epoch
     n_epochs: 2000
-    max_kl: 0             # early stop when max_kl is violated. 0 suggests no bound
+    max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
     mask: False
 
     advantage_type: norm      # norm or gae
@@ -36,7 +36,7 @@ agent:
         common: True            # if share initial dense and lstm layers, if false common* are treated separately
         common_dense_units: [512, 256]
         common_lstm_units: [256]
-        use_rnn: True
+        use_lstm: True
         actor_units: [256]
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0

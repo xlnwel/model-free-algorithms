@@ -15,7 +15,7 @@ def read_image(image_path, image_shape=None, preserve_range=True):
     image = imread(image_path)
     if image_shape:
         image = resize(image, image_shape, preserve_range=preserve_range)
-    image = np.expand_dims(image, 0)
+    image = image[None]
 
     return image
 
