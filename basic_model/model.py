@@ -264,7 +264,7 @@ class Model(Module):
     def log_tabular(self, key, value):
         self.logger.log_tabular(key, value)
 
-    def dump_tabular(self, print_terminal_info=False):
+    def dump_tabular(self, print_terminal_info=True):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
     """ Implementation """
@@ -332,7 +332,11 @@ class Model(Module):
         else:
             no = kwargs['worker_no']
             del kwargs['worker_no']
-        
+
+        # if global_step appeas in kwargs, use it when adding summary to tensorboard
+        step = kwargs['global_step'] if 'global_step' in kwargs else None
+        del kwargs['global_step']
+
         feed_dict = {}
 
         for k, v in kwargs.items():
@@ -342,7 +346,7 @@ class Model(Module):
         score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
                                             feed_dict=feed_dict)
 
-        self.writer.add_summary(summary, score_count)
+        self.writer.add_summary(summary, step or score_count)
 
     def _time_to_save(self, train_steps, interval=100):
         return train_steps % interval == 0

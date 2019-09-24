@@ -58,10 +58,10 @@ class Layer():
 
         return x
 
-    def dense_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
+    def dense_norm_activation(self, x, units, use_bias=True, kernel_initializer=tf_utils.kaiming_initializer(),
                                norm=tc.layers.layer_norm, activation=tf.nn.relu, name=None):
         def layer_imp():
-            y = self.dense(x, units, kernel_initializer=kernel_initializer)
+            y = self.dense(x, units, use_bias=use_bias, kernel_initializer=kernel_initializer)
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                         training=self.training)
 
