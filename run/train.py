@@ -21,9 +21,7 @@ def parse_cmd_args():
                         choices=[True, False],
                         default=False)
     parser.add_argument('--render', '-r',
-                        type=str2bool,
-                        choices=[True, False],
-                        default=False)
+                        action='store_true')
     parser.add_argument('--trials', '-t',
                         type=int,
                         default=1,
@@ -82,7 +80,7 @@ if __name__ == '__main__':
     arg_file = get_arg_file(algorithm)
     main = import_main(algorithm)
     
-    render = True if cmd_args.render == 'true' else False
+    render = cmd_args.render
     background_learning = cmd_args.background
 
     if cmd_args.file != '':
@@ -111,7 +109,7 @@ if __name__ == '__main__':
 
         # Grid search happens here
         if algorithm == 'ppo':
-            gs()
+            gs(mask_data=[True], mask_loss=[True], advantage_type='gae', max_kl=[0.01], ac=dict(norm=['instance', 'layer']))
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
@@ -119,7 +117,7 @@ if __name__ == '__main__':
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow-iqn':
-            gs(Qnets=dict(algo=['double', 'duel', 'iqn'], psi_units=[[128], [64]]))
+            gs()
         elif algorithm == 'apex-td3':
             gs()
         elif algorithm == 'apex-sac':

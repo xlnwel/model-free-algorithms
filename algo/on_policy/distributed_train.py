@@ -27,9 +27,11 @@ def main(env_args, agent_args, buffer_args, render=False):
                                  inter_op_parallelism_threads=1,
                                  allow_soft_placement=True)
     sess_config.gpu_options.allow_growth = True
-    learner = Learner.remote('Agent', agent_args, env_args, sess_config=sess_config, device='/gpu: 0')
     workers = [Worker.remote('Agent', i, agent_args, env_args, sess_config=sess_config, device='/gpu: 0') 
                for i in range(n_workers)]
+    if render:
+        env_args['log_video'] = True
+    learner = Learner.remote('Agent', agent_args, env_args, sess_config=sess_config, device='/gpu: 0')
 
     max_kl = agent_args['max_kl']
     

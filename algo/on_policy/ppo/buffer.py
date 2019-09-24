@@ -28,6 +28,9 @@ class PPOBuffer(dict):
             'old_logpi': np.zeros(basic_shape)
         })
         if mask:
+            # we use mask in two way, 
+            # 1. normalize ret and adv, see self.compute_ret_adv
+            # 2. mask loss, see loss function in network.py
             self['mask'] = np.zeros(basic_shape)
 
     def add(self, data):
@@ -47,9 +50,9 @@ class PPOBuffer(dict):
 
         return result
 
-    def compute_ret_adv(self, last_value, adv_type, gamma, gae_discount):
+    def compute_ret_adv(self, last_value, adv_type, gamma, gae_discount, mask):
         self['value'][:, -1] = last_value
-        mask = self['mask'] if 'mask' in self else None
+        mask = self['mask'] if mask else None
 
         if adv_type == 'norm':
             returns = self['return']
@@ -58,9 +61,9 @@ class PPOBuffer(dict):
                 returns[:, i] = next_return = self['reward'][:, i] + self['nonterminal'][:, i] * gamma * next_return
 
             # normalize returns and advantages
-            values = normalize(self['value'][:, :-1], mask, np.mean(returns), np.std(returns))
-            self['advantage'] = normalize(returns - values, mask)
-            self['return'] = normalize(returns, mask)
+            values = normalize(self['value'][:, :-1], mean=np.mean(returns), std=np.std(returns), mask=mask)
+            self['advantage'] = normalize(returns - values, mask=mask)
+            self['return'] = normalize(returns, mask=mask)
         elif adv_type == 'gae':
             advs = delta = self['reward'] + self['nonterminal'] * gamma * self['value'][:, 1:] - self['value'][:, :-1]
             # advs = np.zeros_like(delta)
@@ -68,7 +71,7 @@ class PPOBuffer(dict):
             for i in reversed(range(self.seq_len)):
                 advs[:, i] = next_adv = delta[:, i] + self['nonterminal'][:, i] * gae_discount * next_adv
             self['return'] = advs + self['value'][:, :-1]
-            self['advantage'] = normalize(advs, mask)
+            self['advantage'] = normalize(advs, mask=mask)
         else:
             NotImplementedError
 

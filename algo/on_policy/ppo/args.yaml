@@ -2,6 +2,8 @@
 n_experiments: 1 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
     name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
+    video_path: video
+    log_video: False
     max_episode_steps: &seq_len 1000
     n_envs: 64
     seed: 0
@@ -16,8 +18,8 @@ agent:
     n_updates: 5            # number of updates per epoch
     n_epochs: 2000
     max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
-    mask: False
-
+    mask_data: False
+    mask_loss: False
     advantage_type: norm      # norm or gae
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -27,12 +29,13 @@ agent:
     model_name: baseline
 
     ac:
-        schedule_lr: True
+        schedule_lr: False
         learning_rate: 3e-4     # start learning rate if schedule_lr==True
-        # argument for learning-rate schedule 
+        # arguments for learning-rate schedule 
         decay_steps: 500        # learning rate decay steps
         end_lr: 1e-4            # end learning rate
 
+        norm: layer
         common: True            # if share initial dense and lstm layers, if false common* are treated separately
         common_dense_units: [512, 256]
         common_lstm_units: [256]

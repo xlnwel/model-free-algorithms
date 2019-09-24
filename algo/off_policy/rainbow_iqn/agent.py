@@ -147,5 +147,5 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('loss_', self.loss)
             
             with tf.name_scope('networks'):
-                stats_summary(self.Qnets.Q, 'Q')
+                stats_summary('Q', self.Qnets.Q)
 

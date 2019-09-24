@@ -450,8 +450,8 @@ class Layer():
         # Test code to monitor saturation of softmax
         if hasattr(self, 'log_params') and self.log_params:
             with tf.name_scope('attention'):
-                tf_utils.stats_summary(weights, 'softmax', hist=True)
-                tf_utils.stats_summary(x, 'output')
+                tf_utils.stats_summary('softmax', weights, hist=True)
+                tf_utils.stats_summary('output', x)
         
         return x
 

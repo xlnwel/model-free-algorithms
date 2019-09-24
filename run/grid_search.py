@@ -46,8 +46,8 @@ class GridSearch:
         dirs = ['model_root_dir', 'log_root_dir']
         for root_dir in dirs:
             self.agent_args[root_dir] = dir_fn(self.agent_args[root_dir])
-        if 'video_path' in self.env_args:
-            self.env_args['video_path'] = dir_fn(self.env_args['video_path'])
+        
+        self.env_args['video_path'] = dir_fn(self.env_args['video_path'])
 
     def _change_args(self, **kwargs):
         if kwargs == {}:

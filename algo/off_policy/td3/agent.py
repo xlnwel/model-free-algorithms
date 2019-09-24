@@ -148,5 +148,5 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('critic_loss_', self.critic_loss)
             
             with tf.name_scope('critic'):
-                stats_summary(self.critic.Q_with_actor, 'Q_with_actor')
+                stats_summary('Q_with_actor', self.critic.Q_with_actor)
                 

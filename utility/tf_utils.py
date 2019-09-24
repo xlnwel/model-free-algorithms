@@ -4,6 +4,7 @@ import tensorflow.contrib as tc
 import tensorflow.keras as tk
 
 from utility.debug_tools import assert_colorize
+from layers.adain import adaptive_instance_norm
 
 def kaiming_initializer(distribution='truncated_normal', seed=None):
     """ kaiming initializer """
@@ -110,13 +111,15 @@ def n_step_target(reward, done, nth_value, gamma, steps=1):
 
     return n_step_target
 
-def stats_summary(data, name, max=False, min=False, mean=True, hist=False):
+def stats_summary(name, data, mean=True, std=False, max=False, min=False, hist=False):
+    if mean:
+        tf.summary.scalar(f'{name}_mean_', tf.reduce_mean(data))
+    if std:
+        tf.summary.scalar(f'{name}_std_', tf.reduce_mean(data))
     if max:
         tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
     if min:
         tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
-    if mean:
-        tf.summary.scalar(f'{name}_avg_', tf.reduce_mean(data))
     if hist:
         tf.summary.histogram(f'{name}_', data)
 
@@ -189,3 +192,17 @@ def positional_encoding(indices, max_idx, dim, name='positional_encoding'):
         v = tf.nn.embedding_lookup(params, indices)
 
     return v
+
+def get_norm(name):
+    if name == 'instance':
+        return tc.layers.instance_norm
+    elif name == 'layer':
+        return tc.layers.layer_norm
+    elif name == 'batch':
+        return tf.layers.batch_normalization
+    elif name == 'adain':
+        return adaptive_instance_norm
+    elif name is None:
+        return None
+    else:
+        raise NotImplementedError

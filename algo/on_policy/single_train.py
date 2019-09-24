@@ -59,15 +59,13 @@ def main(env_args, agent_args, buffer_args, render=False):
     utils.set_global_seed()
 
     agent_name = 'Agent'
-    agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=False, 
+    agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=True, 
                             log_params=False, log_stats=True, device='/gpu:0')
-
-    model = agent_args['model_name']
 
     test_agent = None
     if render:
-        env_args['n_envs'] = 1
-        del env_args['max_episode_steps']
+        env_args['n_envs'] = 1  # run test agent in a single environment
+        env_args['log_video'] = True
         test_agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=False, 
                             log_params=False, log_stats=False, device='/gpu:0', reuse=True, graph=agent.graph)
 

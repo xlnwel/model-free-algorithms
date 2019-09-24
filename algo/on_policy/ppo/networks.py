@@ -5,6 +5,7 @@ import gym
 from basic_model.model import Module
 from utility import tf_utils, tf_distributions
 from utility.schedule import PiecewiseSchedule
+from utility.utils import pwc
 
 
 class ActorCritic(Module):
@@ -39,7 +40,7 @@ class ActorCritic(Module):
         
         if self.args['common']:
             # actor and critic share initial networks
-            x = self._common_dense(x, self.args['common_dense_units'], reshape_for_rnn=self.use_lstm)
+            x = self._common_dense(x, self.args['common_dense_units'])
             if self.use_lstm:
                 x, self.initial_state, self.final_state = self._common_lstm(x, self.args['common_lstm_units'])
             actor_output = self._policy_head(x, self.args['actor_units'], self.env_vec.action_dim, 
@@ -67,10 +68,10 @@ class ActorCritic(Module):
         self.optimizer, self.learning_rate, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss, schedule_lr=self.args['schedule_lr'])
         self.grads = [gv[0] for gv in self.grads_and_vars]
 
-    def _common_dense(self, x, units, reshape_for_rnn=True, name='common_dense'):
+    """ Code for shared policy and value network"""
+    def _common_dense(self, x, units, name='common_dense'):
         with tf.variable_scope(name):
-            for u in units:
-                x = self.dense_norm_activation(x, u)
+            self._feedforward_net(x, units)
 
         return x
 
@@ -110,8 +111,7 @@ class ActorCritic(Module):
     """ Code for separate policy and value network """
     def _policy_net(self, x, units, action_dim, discrete=False, name='policy_net'):
         with tf.variable_scope(name):
-            x = self._common_dense(x, self.args['common_dense_units'], 
-                                   reshape_for_rnn=self.use_lstm, name='dense')
+            x = self._common_dense(x, self.args['common_dense_units'], name='dense')
             if self.use_lstm:
                 x, self.actor_init_state, self.actor_final_state = self._common_lstm(x, self.args['common_lstm_units'], name='lstm')
 
@@ -122,8 +122,7 @@ class ActorCritic(Module):
 
     def _v_net(self, x, units, name='V_net'):
         with tf.variable_scope(name):
-            x = self._common_dense(x, self.args['common_dense_units'], 
-                                   reshape_for_rnn=self.use_lstm, name='dense')
+            x = self._common_dense(x, self.args['common_dense_units'], name='dense')
             if self.use_lstm:
                 x, self.critic_init_state, self.critic_final_state = self._common_lstm(x, self.args['common_lstm_units'], name='lstm')
 
@@ -131,39 +130,57 @@ class ActorCritic(Module):
 
         return x
 
-    def _feedforward_net(self, x, units, output_dim, output_name):
+    def _feedforward_net(self, x, units, output_dim=None, output_name=None):
         for u in units:
-            x = self.dense_norm_activation(x, u)
-        x = self.dense(x, output_dim, name=output_name)
+            x = self.dense_norm_activation(x, u, norm=tf_utils.get_norm(self.args['norm']))
+
+        if output_dim and output_name:
+            x = self.dense(x, output_dim, name=output_name)
 
         return x
 
     """ Losses """
     def _loss(self):
         with tf.name_scope('loss'):
+            if self.env_phs['mask_loss'] is None:
+                n = None
+            else:
+                n = tf.reduce_sum(self.env_phs['mask_loss'], name='num_true_entries')   # the number of True entries in mask
+
             loss_info = self._policy_loss(self.logpi, self.env_phs['old_logpi'], 
                                         self.env_phs['advantage'], self.clip_range, 
-                                        self.action_distribution.entropy())
+                                        self.action_distribution.entropy(), 
+                                        self.env_phs['mask_loss'], n)
             ppo_loss, entropy, approx_kl, clipfrac = loss_info
-            V_loss = self._value_loss(self.V, self.env_phs['return'], self.env_phs['value'], self.clip_range)
+            V_loss = self._value_loss(self.V, self.env_phs['return'], 
+                                      self.env_phs['value'], self.clip_range, 
+                                      self.env_phs['mask_loss'], n)
+            
             loss = ppo_loss - self.env_phs['entropy_coef'] * entropy + V_loss * self.args['value_coef']
 
         return ppo_loss, entropy, approx_kl, clipfrac, V_loss, loss
 
-    def _policy_loss(self, logpi, old_logpi, advantages, clip_range, entropy):
+    def _policy_loss(self, logpi, old_logpi, advantages, clip_range, entropy, mask, n):
         with tf.name_scope('policy_loss'):
             ratio = tf.exp(logpi - old_logpi)
             loss1 = -advantages * ratio
             loss2 = -advantages * tf.clip_by_value(ratio, 1. - clip_range, 1. + clip_range)
-            ppo_loss = tf.reduce_mean(tf.maximum(loss1, loss2), name='ppo_loss')
-            entropy = tf.reduce_mean(entropy, name='entropy_loss')
-            # debug stats: KL between old and current policy and fraction of data being clipped
-            approx_kl = .5 * tf.reduce_mean(tf.square(old_logpi - logpi))
-            clipfrac = tf.reduce_mean(tf.cast(tf.greater(tf.abs(ratio - 1.), clip_range), tf.float32))
-
+            if mask is None:
+                ppo_loss = tf.reduce_mean(tf.maximum(loss1, loss2), name='ppo_loss')
+                entropy = tf.reduce_mean(entropy, name='entropy_loss')
+                # debug stats: KL between old and current policy and fraction of data being clipped
+                approx_kl = .5 * tf.reduce_mean(tf.square(old_logpi - logpi))
+                clipfrac = tf.reduce_mean(tf.cast(tf.greater(tf.abs(ratio - 1.), clip_range), tf.float32))
+            else:
+                ppo_loss = tf.reduce_sum(tf.maximum(loss1, loss2) * mask, name='ppo_loss') / n
+                entropy = tf.reduce_sum(entropy * mask, name='entropy_loss') / n
+                # debug stats: KL between old and current policy and fraction of data being clipped
+                approx_kl = .5 * tf.reduce_sum(tf.square(old_logpi - logpi) * mask) / n
+                clipfrac = tf.reduce_sum(tf.cast(tf.greater(tf.abs(ratio - 1.), clip_range), tf.float32) * mask) / n
+        
         return ppo_loss, entropy, approx_kl, clipfrac
 
-    def _value_loss(self, V, returns, value, clip_range):
+    def _value_loss(self, V, returns, value, clip_range, mask, n):
         with tf.name_scope('value_loss'):
             if self.args['value_loss_type'] == 'mse':
                 loss = .5 * tf.reduce_mean((returns - V)**2, name='critic_loss')
@@ -171,7 +188,10 @@ class ActorCritic(Module):
                 V_clipped = value + tf.clip_by_value(V - value, -clip_range, clip_range)
                 loss1 = (V - returns)**2
                 loss2 = (V_clipped - returns)**2
-                loss = .5 * tf.reduce_mean(tf.maximum(loss1, loss2))
+                if mask is None:
+                    loss = .5 * tf.reduce_mean(tf.maximum(loss1, loss2))
+                else:
+                    loss = .5 * tf.reduce_sum(tf.maximum(loss1, loss2) * mask) / n
             else:
                 NotImplementedError
 
