@@ -6,6 +6,7 @@ from basic_model.model import Module
 from utility import tf_utils, tf_distributions
 from utility.schedule import PiecewiseSchedule
 from utility.utils import pwc
+from utility.rl_losses import ppo_loss, clipped_value_loss
 
 
 class ActorCritic(Module):
@@ -65,7 +66,7 @@ class ActorCritic(Module):
         self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.V_loss, self.loss = self._loss()
 
         # optimizer
-        self.optimizer, self.learning_rate, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss, schedule_lr=self.args['schedule_lr'])
+        self.optimizer, self.learning_rate, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss, opt_step=True, schedule_lr=self.args['schedule_lr'])
         self.grads = [gv[0] for gv in self.grads_and_vars]
 
     """ Code for shared policy and value network"""
@@ -147,60 +148,15 @@ class ActorCritic(Module):
             else:
                 n = tf.reduce_sum(self.env_phs['mask_loss'], name='num_true_entries')   # the number of True entries in mask
 
-            loss_info = self._policy_loss(self.logpi, self.env_phs['old_logpi'], 
-                                        self.env_phs['advantage'], self.clip_range, 
-                                        self.action_distribution.entropy(), 
+            loss_info = ppo_loss(self.logpi, self.env_phs['old_logpi'], 
+                                self.env_phs['advantage'], self.clip_range, 
+                                self.action_distribution.entropy(), 
+                                self.env_phs['mask_loss'], n)
+            policy_loss, entropy, approx_kl, clipfrac = loss_info
+            V_loss = clipped_value_loss(self.V, self.env_phs['return'], 
+                                        self.env_phs['value'], self.clip_range, 
                                         self.env_phs['mask_loss'], n)
-            ppo_loss, entropy, approx_kl, clipfrac = loss_info
-            V_loss = self._value_loss(self.V, self.env_phs['return'], 
-                                      self.env_phs['value'], self.clip_range, 
-                                      self.env_phs['mask_loss'], n)
             
-            loss = ppo_loss - self.env_phs['entropy_coef'] * entropy + V_loss * self.args['value_coef']
+            total_loss = policy_loss - self.env_phs['entropy_coef'] * entropy + self.args['value_coef'] * V_loss + self.args['kl_coef'] * approx_kl
 
-        return ppo_loss, entropy, approx_kl, clipfrac, V_loss, loss
-
-    def _policy_loss(self, logpi, old_logpi, advantages, clip_range, entropy, mask, n):
-        with tf.name_scope('policy_loss'):
-            ratio = tf.exp(logpi - old_logpi)
-            loss1 = -advantages * ratio
-            loss2 = -advantages * tf.clip_by_value(ratio, 1. - clip_range, 1. + clip_range)
-            if mask is None:
-                ppo_loss = tf.reduce_mean(tf.maximum(loss1, loss2), name='ppo_loss')
-                entropy = tf.reduce_mean(entropy, name='entropy_loss')
-                # debug stats: KL between old and current policy and fraction of data being clipped
-                approx_kl = .5 * tf.reduce_mean(tf.square(old_logpi - logpi))
-                clipfrac = tf.reduce_mean(tf.cast(tf.greater(tf.abs(ratio - 1.), clip_range), tf.float32))
-            else:
-                ppo_loss = tf.reduce_sum(tf.maximum(loss1, loss2) * mask, name='ppo_loss') / n
-                entropy = tf.reduce_sum(entropy * mask, name='entropy_loss') / n
-                # debug stats: KL between old and current policy and fraction of data being clipped
-                approx_kl = .5 * tf.reduce_sum(tf.square(old_logpi - logpi) * mask) / n
-                clipfrac = tf.reduce_sum(tf.cast(tf.greater(tf.abs(ratio - 1.), clip_range), tf.float32) * mask) / n
-        
-        return ppo_loss, entropy, approx_kl, clipfrac
-
-    def _value_loss(self, V, returns, value, clip_range, mask, n):
-        with tf.name_scope('value_loss'):
-            if self.args['value_loss_type'] == 'mse':
-                loss = .5 * tf.reduce_mean((returns - V)**2, name='critic_loss')
-            elif self.args['value_loss_type'] == 'clip':
-                V_clipped = value + tf.clip_by_value(V - value, -clip_range, clip_range)
-                loss1 = (V - returns)**2
-                loss2 = (V_clipped - returns)**2
-                if mask is None:
-                    loss = .5 * tf.reduce_mean(tf.maximum(loss1, loss2))
-                else:
-                    loss = .5 * tf.reduce_sum(tf.maximum(loss1, loss2) * mask) / n
-            else:
-                NotImplementedError
-
-        return loss
-
-    def _optimization_op(self, loss, schedule_lr=False):
-        with tf.name_scope('optimization'):
-            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=True, schedule_lr=schedule_lr)
-            grads_and_vars = self._compute_gradients(loss, optimizer)
-            opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
-
-        return optimizer, learning_rate, opt_step, grads_and_vars, opt_op
+        return policy_loss, entropy, approx_kl, clipfrac, V_loss, total_loss

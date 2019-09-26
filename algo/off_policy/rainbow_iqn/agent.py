@@ -46,9 +46,9 @@ class Agent(OffPolicyOperation):
 
         self.priority, self.loss = self._loss()
 
-        self.opt_op, self.opt_step = self.Qnets._optimization_op(self.loss, 
-                                                                tvars=self.Qnets.main_variables,
-                                                                opt_step=True)
+        _, _, self.opt_step, _, self.opt_op = self.Qnets._optimization_op(self.loss, 
+                                                                          tvars=self.Qnets.main_variables,
+                                                                          opt_step=True)
 
         # target net operations
         self.init_target_op, self.update_target_op = self._target_net_ops()

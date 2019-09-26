@@ -46,6 +46,7 @@ agent:
         critic_units: [256]
         value_coef: .5
         value_loss_type: clip    # mse or clip
+        kl_coef: 0.0005
 
     env_stats:
         times: 1

@@ -38,8 +38,6 @@ def get_learner(BaseClass, *args, **kwargs):
             self.learning_thread = threading.Thread(target=self.background_learning, daemon=True)
             self.learning_thread.start()
             
-            print('Learner has been constructed.')
-            
         def get_weights(self):
             weights = self.variables.get_flat()
 
@@ -51,5 +49,8 @@ def get_learner(BaseClass, *args, **kwargs):
         def record_stats(self, kwargs):
             assert isinstance(kwargs, dict)
             super()._record_stats_impl(kwargs)
+
+        def print_construction_complete(self):
+            pwc('Learner has been constructed.', color='cyan')
 
     return Learner.remote(*args, **kwargs)

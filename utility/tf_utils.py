@@ -202,7 +202,7 @@ def get_norm(name):
         return tf.layers.batch_normalization
     elif name == 'adain':
         return adaptive_instance_norm
-    elif name is None:
+    elif name is None or name == 'None':
         return None
     else:
         raise NotImplementedError

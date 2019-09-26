@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
         # Grid search happens here
         if algorithm == 'ppo':
-            gs(mask_data=[True], mask_loss=[True], advantage_type='gae', max_kl=[0.01], ac=dict(norm=['instance', 'layer']))
+            gs()
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':

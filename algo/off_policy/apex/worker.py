@@ -41,8 +41,6 @@ def get_worker(BaseClass, *args, **kwargs):
                             log_stats=log_stats,
                             device=device)
 
-            pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
-
         def compute_priorities(self):
             return self.sess.run(self.priority)
 
@@ -91,5 +89,7 @@ def get_worker(BaseClass, *args, **kwargs):
                     weights = ray.get(learner.get_weights.remote())
                     self.variables.set_flat(weights)
                     episode_i = 0
-
+        def print_construction_complete(self):
+            pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
+            
     return Worker.remote(*args, **kwargs)

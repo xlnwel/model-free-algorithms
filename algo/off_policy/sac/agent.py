@@ -49,9 +49,9 @@ class Agent(OffPolicyOperation):
         self.priority, losses = self._loss(self.actor, self.V_nets, self.Q_nets, self.logpi)
         self.actor_loss, self.V_loss, self.Q_loss, self.loss = losses
 
-        actor_opt_op, self.opt_step, _ = self.actor._optimization_op(self.actor_loss, opt_step=True)
-        V_opt_op, _, _ = self.V_nets._optimization_op(self.V_loss)
-        Q_opt_op, _, _ = self.Q_nets._optimization_op(self.Q_loss)
+        _, _, self.opt_step, _, actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True)
+        _, _, _, _, V_opt_op = self.V_nets._optimization_op(self.V_loss)
+        _, _, _, _, Q_opt_op = self.Q_nets._optimization_op(self.Q_loss)
         self.opt_op = tf.group(actor_opt_op, V_opt_op, Q_opt_op)
 
         self._log_loss()
