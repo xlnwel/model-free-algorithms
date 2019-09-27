@@ -24,6 +24,7 @@ class ActorCritic(Module):
         self.env_phs = env_phs
         self.clip_range = args['clip_range']
         self.use_lstm = args['use_lstm']
+        self.batch_seq_len = args['batch_seq_len']
 
         super().__init__(name,
                          args,
@@ -71,7 +72,7 @@ class ActorCritic(Module):
     """ Code for shared policy and value network"""
     def _common_dense(self, x, units, name='common_dense'):
         with tf.variable_scope(name):
-            self._feedforward_net(x, units)
+            x = self._feedforward_net(x, units)
 
         return x
 
@@ -83,6 +84,7 @@ class ActorCritic(Module):
             x = tf.reshape(x, (self.env_vec.n_envs, -1, u))
             for u in units:
                 x, (init_state, final_state) = self.lstm(x, u, return_sequences=True)
+                
                 init_state_list += init_state
                 final_state_list += final_state
 
@@ -133,7 +135,7 @@ class ActorCritic(Module):
     def _feedforward_net(self, x, units, output_dim=None, output_name=None):
         for u in units:
             x = self.dense_norm_activation(x, u, norm=tf_utils.get_norm(self.args['norm']))
-
+    
         if output_dim and output_name:
             x = self.dense(x, output_dim, name=output_name)
 

@@ -87,16 +87,16 @@ class Module(Layer):
     def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False, name=None):
         name = name or self.name
         with tf.variable_scope(name + '_optimizer'):
-            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr)
+            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr, name=name)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
             opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
         return optimizer, learning_rate, opt_step, grads_and_vars, opt_op
 
-    def _adam_optimizer(self, opt_step=None, schedule_lr=False):
+    def _adam_optimizer(self, opt_step=None, schedule_lr=False, name=None):
         # params for optimizer
         if not schedule_lr:
-            learning_rate = float(self.args['learning_rate'])
+            learning_rate = float(self.args['learning_rate']) if name is None else float(self.args[f'{name}_lr'])
             decay_rate = float(self.args['decay_rate']) if 'decay_rate' in self.args else 1.
             decay_steps = float(self.args['decay_steps']) if 'decay_steps' in self.args else 1e6
         beta1 = float(self.args['beta1']) if 'beta1' in self.args else 0.9

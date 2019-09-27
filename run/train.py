@@ -109,11 +109,11 @@ if __name__ == '__main__':
 
         # Grid search happens here
         if algorithm == 'ppo':
-            gs(mask_data=[True], advantage_type='gae', ac=dict(n_value_updates=[6, 10]))
+            gs(ac=dict(policy_lr=[3e-4], value_lr=[6e-4, 1e-3]))
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs()
+            gs(update_freq=[1, 10])
         elif algorithm == 'sac':
             gs()
         elif algorithm == 'rainbow-iqn':

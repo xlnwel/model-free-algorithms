@@ -3,7 +3,7 @@ n_experiments: 1 # 1 run the following configuration, otherwise, run test code i
 env:
     name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
     video_path: video
-    log_video: False
+    log_video: True
     max_episode_steps: &seq_len 1000
     n_envs: 64
     seed: 0
@@ -14,11 +14,11 @@ agent:
     lam: 0.97
     seq_len: *seq_len
     n_minibatches: 1        # number of minibatches a sequence is divided into 
-    # batch size = seq_len * n_envs / n_minibatches
+    # batch size = n_envs * seq_len / n_minibatches
     n_updates: 5            # number of updates per epoch
     n_epochs: 2000
     max_kl: .01             # early stop when max_kl is violated. 0 suggests no bound
-    mask_data: False
+    mask_data: True
     mask_loss: True
     advantage_type: gae      # norm or gae
 
@@ -29,22 +29,23 @@ agent:
     model_name: baseline
 
     ac:
-        learning_rate: 3e-4
+        policy_lr: 1e-4
+        value_lr: 3e-4
         # network arguments
         norm: layer
         common: True            # if share initial dense and lstm layers, if false common* are treated separately
-        common_dense_units: [512, 256]
-        common_lstm_units: [256, 256]
+        common_dense_units: [256]
+        common_lstm_units: [256]
         use_lstm: True
-        actor_units: [128]
+        actor_units: [256]
         critic_units: [256]
         # loss arguments
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
-        kl_coef: 0.0005
+        kl_coef: 0.0
         value_loss_type: clip    # mse or clip
         value_coef: 0.5
-        n_value_updates: 5
+        n_value_updates: 6
 
     env_stats:
         times: 1

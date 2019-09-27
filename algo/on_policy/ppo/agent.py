@@ -140,6 +140,7 @@ class Agent(Model):
     def _build_graph(self):
         self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)
 
+        self.args['ac']['batch_seq_len'] = self.seq_len // self.n_minibatches
         self.ac = ActorCritic('ac', 
                               self.args['ac'], 
                               self.graph,
@@ -167,32 +168,6 @@ class Agent(Model):
                 env_phs['mask_loss'] = None
         
         return env_phs
-
-    def _log_loss(self):
-        if self.log_tensorboard:
-            with tf.name_scope('loss'):
-                tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
-                tf.summary.scalar('entropy_', self.ac.entropy)
-                tf.summary.scalar('V_loss_', self.ac.V_loss)
-
-            with tf.name_scope('value'):
-                stats_summary('V', self.ac.V)
-                stats_summary('advantage', self.env_phs['advantage'])
-                stats_summary('return', self.env_phs['return'])
-                
-                if self.env_phs['mask_loss'] is not None:
-                    stats_summary('V_mask', self.ac.V * self.env_phs['mask_loss'])
-                    stats_summary('advantage_mask', self.env_phs['advantage']* self.env_phs['mask_loss'])
-                    stats_summary('return_mask', self.env_phs['return']* self.env_phs['mask_loss'])
-
-            if self.mask_loss:
-                with tf.name_scope('mask'):
-                    stats_summary('mask', self.env_phs['mask_loss'])
-
-            with tf.name_scope('policy'):
-                stats_summary('mean_', self.ac.action_distribution.mean)
-                stats_summary('std_', self.ac.action_distribution.std)
-                stats_summary('entropy_', self.ac.action_distribution.entropy())
 
     def _sample_data(self):
         self.buffer.reset()
@@ -272,9 +247,36 @@ class Agent(Model):
             self.env_phs['old_logpi']: get_data('old_logpi'),
             self.env_phs['entropy_coef']: self.entropy_coef
         }
+        
         if self.use_lstm:
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         if self.mask_loss:
             feed_dict[self.env_phs['mask_loss']] = get_data('mask')
 
         return feed_dict
+
+    def _log_loss(self):
+        if self.log_tensorboard:
+            with tf.name_scope('loss'):
+                tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
+                tf.summary.scalar('entropy_', self.ac.entropy)
+                tf.summary.scalar('V_loss_', self.ac.V_loss)
+
+            with tf.name_scope('value'):
+                stats_summary('V', self.ac.V)
+                stats_summary('advantage', self.env_phs['advantage'])
+                stats_summary('return', self.env_phs['return'])
+                
+                if self.env_phs['mask_loss'] is not None:
+                    stats_summary('V_mask', self.ac.V * self.env_phs['mask_loss'])
+                    stats_summary('advantage_mask', self.env_phs['advantage']* self.env_phs['mask_loss'])
+                    stats_summary('return_mask', self.env_phs['return']* self.env_phs['mask_loss'])
+
+            if self.mask_loss:
+                with tf.name_scope('mask'):
+                    stats_summary('mask', self.env_phs['mask_loss'])
+
+            with tf.name_scope('policy'):
+                stats_summary('mean_', self.ac.action_distribution.mean)
+                stats_summary('std_', self.ac.action_distribution.std)
+                stats_summary('entropy_', self.ac.action_distribution.entropy())

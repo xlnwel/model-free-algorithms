@@ -2,7 +2,7 @@
 env:
     name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
     video_path: video
-    log_video: False
+    log_video: True
     max_episode_steps: 1000
     seed: 0
 agent:
@@ -43,7 +43,7 @@ agent:
 
     env_stats:
         times: 1
-        stats: [score_mean, score_std, eps_len_mean, eps_len_std]
+        stats: [score_mean, score_std, epslen_mean, epslen_std]
 
 # argumennts for prioritized replay
 buffer:

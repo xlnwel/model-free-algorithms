@@ -34,7 +34,7 @@ def main(env_args, agent_args, buffer_args, render=False):
                                  inter_op_parallelism_threads=1,
                                  allow_soft_placement=True)
     sess_config.gpu_options.allow_growth = True
-    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, 
+    learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, log=True,
                             log_stats=True, sess_config=sess_config, device='/GPU: 0')
 
     workers = []

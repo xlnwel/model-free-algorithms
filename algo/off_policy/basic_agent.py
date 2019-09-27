@@ -27,10 +27,11 @@ class OffPolicyOperation(Model, ABC):
                  env_args, 
                  buffer_args, 
                  sess_config=None, 
-                 save=True, 
-                 log_tensorboard=True, 
+                 save=False, 
+                 log=False,
+                 log_tensorboard=False, 
                  log_params=False, 
-                 log_stats=True, 
+                 log_stats=False, 
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99
@@ -61,6 +62,7 @@ class OffPolicyOperation(Model, ABC):
         super().__init__(name, args, 
                          sess_config=sess_config, 
                          save=save, 
+                         log=log,
                          log_tensorboard=log_tensorboard, 
                          log_params=log_params, 
                          log_stats=log_stats, 

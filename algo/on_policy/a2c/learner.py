@@ -17,7 +17,7 @@ class Learner(Agent):
                  log=False,
                  log_tensorboard=False,
                  log_params=False,
-                 log_stats=True,
+                 log_stats=False,
                  device=None):
         super().__init__(name, 
                          args, 

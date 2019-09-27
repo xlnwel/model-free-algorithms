@@ -44,13 +44,16 @@ def eval(agent, scores, epslens, interval, k, render, print_terminal_info):
             score_std = np.std(scores)
             epslen_mean = np.mean(epslens)
             epslen_std = np.std(epslens)
+            
+            global_step = k-100+i
             if hasattr(agent, 'stats'):
                 agent.record_stats(score_mean=score_mean, score_std=score_std,
-                                    epslen_mean=epslen_mean, epslen_std=epslen_std)
+                                    epslen_mean=epslen_mean, epslen_std=epslen_std,
+                                    global_step=global_step)
             
             log_info = {
                 'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
-                'Iteration': k-100 + i,
+                'Iteration': global_step,
                 'StepTime': utils.timeformat(np.mean(steptime)) + 's',
                 'ScoreMean': score_mean,
                 'ScoreStd': score_std,
@@ -91,7 +94,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, 
+    agent = Agent('Agent', agent_args, env_args, buffer_args, log=True,
                     log_tensorboard=False, log_stats=True, save=False, 
                     device='/GPU: 0')
     if agent_args['background_learning']:
