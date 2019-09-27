@@ -413,8 +413,8 @@ class Layer():
                                   initializer=tf.zeros_initializer())
 
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
-            h, c = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
-            
+            initial_state = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
+            h, c = initial_state
             xs = tf.unstack(xs, n_steps, axis=1)
             if masks is not None:
                 masks = tf.unstack(masks, n_steps, axis=1)
