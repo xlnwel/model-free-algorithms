@@ -75,19 +75,19 @@ def main(env_args, agent_args, buffer_args, render=False):
 
         # data logging
         loss_info = decompose(loss_info_list)
-        ppo_loss, entropy, value_loss, total_loss, approx_kl, clip_frac = loss_info
+        ppo_loss, entropy, approx_kl, clip_frac, value_loss = loss_info
 
         env_stats = ray.get(list(env_stats))  # ray cannot use tuple as input
         scores, epslens = list(zip(*env_stats))
         score_mean = np.mean(scores)
         score_std = np.std(scores)
         epslen_mean = np.mean(epslens)
+        
         ppo_loss = np.mean(ppo_loss)
         entropy = np.mean(entropy)
-        value_loss = np.mean(value_loss)
-        total_loss = np.mean(total_loss)
         approx_kl = np.mean(approx_kl)
         clip_frac = np.mean(clip_frac)
+        value_loss = np.mean(value_loss)
         logs_ids = [learner.record_stats.remote(score_mean=score_mean, score_std=score_std,
                                                 epslen_mean=epslen_mean, entropy=entropy,
                                                 approx_kl=approx_kl, clip_frac=clip_frac)]
@@ -100,7 +100,6 @@ def main(env_args, agent_args, buffer_args, render=False):
             'PPOLoss': ppo_loss,
             'Entropy': entropy,
             'ValueLoss': value_loss,
-            'TotalLoss': total_loss,
             'ApproxKL': approx_kl,
             'ClipFrac': clip_frac
         }

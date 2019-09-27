@@ -89,7 +89,8 @@ def get_worker(BaseClass, *args, **kwargs):
                     weights = ray.get(learner.get_weights.remote())
                     self.variables.set_flat(weights)
                     episode_i = 0
+
         def print_construction_complete(self):
-            pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
+            pwc(f'Worker {self.no} has been constructed.', 'cyan')
             
     return Worker.remote(*args, **kwargs)

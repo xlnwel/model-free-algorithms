@@ -24,10 +24,7 @@ class Worker(Agent):
                          save=save, 
                          device=device)
         self.no = worker_no
-        self.entropy_coef = self.args['ac']['entropy_coef']
         self.minibatch_idx = 0
-        if self.use_lstm:
-            self.last_lstm_state = None
 
         pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
@@ -38,7 +35,6 @@ class Worker(Agent):
         # construct fetches
         fetches = [self.ac.grads, 
                    [self.ac.ppo_loss, self.ac.entropy, 
-                    self.ac.V_loss, self.ac.loss, 
                     self.ac.approx_kl, self.ac.clipfrac]]
         if self.use_lstm:
             fetches.append(self.ac.final_state)
@@ -68,6 +64,10 @@ class Worker(Agent):
 
     def normalize_advantages(self, mean, std):
         self.buffer['advantage'] = (self.buffer['advantage'] - mean) / (std + 1e8)
+
+    def print_construction_complete(self):
+        pwc(f'Worker {self.no} has been constructed.', 'cyan')
+            
 
     """ Implementation """
     def _set_weights(self, weights):

@@ -84,8 +84,9 @@ class Module(Layer):
     def _build_graph(self):
         raise NotImplementedError
         
-    def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False):
-        with tf.variable_scope(self.name + '_optimizer'):
+    def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False, name=None):
+        name = name or self.name
+        with tf.variable_scope(name + '_optimizer'):
             optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
             opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
@@ -220,8 +221,8 @@ class Model(Module):
             self.saver = self._setup_saver()
             self.model_file = self._setup_model_path(args['model_root_dir'], self.model_name)
 
-        pwc(f'{self.name} has been constructed', 'magenta')
-    
+        self.print_construction_complete()
+        
     @property
     def global_variables(self):
         return super().global_variables + self.graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope='stats')
@@ -268,6 +269,9 @@ class Model(Module):
     def dump_tabular(self, print_terminal_info=True):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
 
+    def print_construction_complete(self):
+        pwc(f'{self.name} has been constructed', 'cyan')
+        
     """ Implementation """
     def _setup_saver(self):
         return tf.train.Saver(self.global_variables)
@@ -335,9 +339,11 @@ class Model(Module):
             del kwargs['worker_no']
 
         # if global_step appeas in kwargs, use it when adding summary to tensorboard
-        step = kwargs['global_step'] if 'global_step' in kwargs else None
-        del kwargs['global_step']
-
+        if 'global_steps' in kwargs:
+            step = kwargs['global_step']
+            del kwargs['global_step']
+        else:
+            step = None
         feed_dict = {}
 
         for k, v in kwargs.items():

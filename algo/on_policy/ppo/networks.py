@@ -25,9 +25,6 @@ class ActorCritic(Module):
         self.clip_range = args['clip_range']
         self.use_lstm = args['use_lstm']
 
-        self.lr_scheduler = PiecewiseSchedule([(0, float(args['learning_rate'])), (args['decay_steps'], float(args['end_lr']))],
-                                              outside_value=float(args['end_lr']))
-
         super().__init__(name,
                          args,
                          graph,
@@ -63,10 +60,12 @@ class ActorCritic(Module):
         self.logpi = self.action_distribution.logp(tf.stop_gradient(self.action))
 
         # losses
-        self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.V_loss, self.loss = self._loss()
+        self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.policy_loss, self.V_loss = self._loss()
 
         # optimizer
-        self.optimizer, self.learning_rate, self.opt_step, self.grads_and_vars, self.opt_op = self._optimization_op(self.loss, opt_step=True, schedule_lr=self.args['schedule_lr'])
+        _, _, self.opt_step, self.policy_grads_and_vars, self.policy_optop = self._optimization_op(self.policy_loss, name='policy')
+        _, _, _, self.v_grads_and_vars, self.v_optop = self._optimization_op(self.V_loss, name='value')
+        self.grads_and_vars = self.policy_grads_and_vars + self.v_grads_and_vars
         self.grads = [gv[0] for gv in self.grads_and_vars]
 
     """ Code for shared policy and value network"""
@@ -152,11 +151,11 @@ class ActorCritic(Module):
                                 self.env_phs['advantage'], self.clip_range, 
                                 self.action_distribution.entropy(), 
                                 self.env_phs['mask_loss'], n)
-            policy_loss, entropy, approx_kl, clipfrac = loss_info
+            ppo_loss_, entropy, approx_kl, clipfrac = loss_info
             V_loss = clipped_value_loss(self.V, self.env_phs['return'], 
                                         self.env_phs['value'], self.clip_range, 
                                         self.env_phs['mask_loss'], n)
             
-            total_loss = policy_loss - self.env_phs['entropy_coef'] * entropy + self.args['value_coef'] * V_loss + self.args['kl_coef'] * approx_kl
+            policy_loss = ppo_loss_ - self.env_phs['entropy_coef'] * entropy + self.args['kl_coef'] * approx_kl
 
-        return policy_loss, entropy, approx_kl, clipfrac, V_loss, total_loss
+        return ppo_loss_, entropy, approx_kl, clipfrac, policy_loss, V_loss

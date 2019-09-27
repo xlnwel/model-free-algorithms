@@ -17,6 +17,10 @@ Clipping target value helps.
 
 Comparison between GAE and NAE(based on a single trial):
 
-1. GAE works better with a lower max KL bound(0.01); NAE works better with a larger max KL bound(0.02). Overall, I find NAE is more stable than GAE.
+1. When apply GAE, it is better to update value function more often so that the adantage estimate will be more accurate. However, this is not the case for NAE, the reason is till unclear.
 
-2. GAE works best with both data masking and loss masking applied; NAE does not work well with data masking, but works fine with loss masking.
+2. GAE works better with a lower max KL bound(0.01); NAE works better with a larger max KL bound(0.02). Overall, I find NAE is more stable than GAE.
+
+3. As expected, GAE works best with both data masking and loss masking applied; NAE does not work well with data masking, but works fine with loss masking.
+
+Sum them up: NAE works best for a naive implementation; for some mysterious reasons, it is not compatible with tricks, such as data masking and multiple value updates, which significantly improve the performance of GAE.

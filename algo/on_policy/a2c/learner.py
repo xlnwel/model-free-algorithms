@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import ray
 
-from utility.utils import normalize
+from utility.utils import normalize, pwc
 from algo.on_policy.ppo.agent import Agent
 
 
@@ -33,18 +33,13 @@ class Learner(Agent):
         grads = np.mean(grads, axis=0)
         
         feed_dict = {g_var: g for g_var, g in zip(self.ac.grads, grads)}
-        if self.ac.args['schedule_lr']:
-            feed_dict[self.ac.learning_rate] = self.ac.lr_scheduler.value(timestep)
-            
-        if self.log_tensorboard:
-            learn_step, _, summary = self.sess.run([self.ac.opt_step, self.ac.opt_op, self.graph_summary], feed_dict=feed_dict)
-        else:
-            learn_step, _ = self.sess.run([self.ac.opt_step, self.ac.opt_op], feed_dict=feed_dict)
 
-        if self.log_tensorboard and learn_step % 100 == 0:
-            self.writer.add_summary(summary, learn_step)
-            if hasattr(self, 'saver'):
-                self.save()
+        # do not log_tensorboard, use record_stats if required
+        learn_step, _, _ = self.sess.run([self.ac.opt_step, self.ac.policy_optop, self.ac.v_optop], 
+                                         feed_dict=feed_dict)
+
+        if hasattr(self, 'saver') and learn_step % 100 == 0:
+            self.save()
 
         return self.get_weights()
 
@@ -56,3 +51,6 @@ class Learner(Agent):
         super().record_stats(score_mean=score_mean, score_std=score_std,
                              epslen_mean=epslen_mean, entropy=entropy,
                              approx_kl=approx_kl, clip_frac=clip_frac)
+
+    def print_construction_complete(self):
+        pwc('Learner has been constructed.', color='cyan')

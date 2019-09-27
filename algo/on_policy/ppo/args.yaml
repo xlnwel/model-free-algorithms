@@ -17,9 +17,9 @@ agent:
     # batch size = seq_len * n_envs / n_minibatches
     n_updates: 5            # number of updates per epoch
     n_epochs: 2000
-    max_kl: .02             # early stop when max_kl is violated. 0 suggests no bound
+    max_kl: .01             # early stop when max_kl is violated. 0 suggests no bound
     mask_data: False
-    mask_loss: False
+    mask_loss: True
     advantage_type: norm      # norm or gae
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -29,24 +29,21 @@ agent:
     model_name: baseline
 
     ac:
-        schedule_lr: False
-        learning_rate: 3e-4     # start learning rate if schedule_lr==True
-        # arguments for learning-rate schedule 
-        decay_steps: 500        # learning rate decay steps
-        end_lr: 1e-4            # end learning rate
-
+        learning_rate: 3e-4
+        # network arguments
         norm: layer
         common: True            # if share initial dense and lstm layers, if false common* are treated separately
         common_dense_units: [512, 256]
         common_lstm_units: [256]
         use_lstm: True
         actor_units: [256]
+        critic_units: [256]
+        # loss arguments
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0
-        critic_units: [256]
-        value_coef: .5
-        value_loss_type: clip    # mse or clip
         kl_coef: 0.0005
+        value_loss_type: clip    # mse or clip
+        n_value_updates: 5
 
     env_stats:
         times: 1

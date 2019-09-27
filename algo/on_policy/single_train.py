@@ -23,16 +23,16 @@ def train(agent, agent_args, test_agent):
         
         # data logging
         loss_info = list(zip(*loss_info_list))
-        ppo_loss, entropy, value_loss, total_loss, approx_kl, clip_frac = loss_info
+        ppo_loss, entropy, approx_kl, clip_frac, value_loss = loss_info
 
         ppo_loss = np.mean(ppo_loss)
         entropy = np.mean(entropy)
-        value_loss = np.mean(value_loss)
-        total_loss = np.mean(total_loss)
         approx_kl = np.mean(approx_kl)
         clip_frac = np.mean(clip_frac)
+        value_loss = np.mean(value_loss)
         agent.record_stats(score_mean=score_mean, score_std=score_std,
-                           epslen_mean=epslen_mean, approx_kl=approx_kl, clip_frac=clip_frac)
+                           epslen_mean=epslen_mean, approx_kl=approx_kl, 
+                           clip_frac=clip_frac)
 
         log_info = {
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
@@ -43,9 +43,8 @@ def train(agent, agent_args, test_agent):
             'ScoreMax': score_max,
             'ScoreMin': score_min,
             'PPOLoss': ppo_loss,
-            'Entropy': entropy,
             'ValueLoss': value_loss,
-            'TotalLoss': total_loss,
+            'Entropy': entropy,
             'ApproxKL': approx_kl,
             'ClipFrac': clip_frac
         }
@@ -59,7 +58,7 @@ def main(env_args, agent_args, buffer_args, render=False):
     utils.set_global_seed()
 
     agent_name = 'Agent'
-    agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=True, 
+    agent = Agent(agent_name, agent_args, env_args, save=False, log_tensorboard=False, 
                             log_params=False, log_stats=True, device='/gpu:0')
 
     test_agent = None

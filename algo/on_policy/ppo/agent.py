@@ -31,11 +31,12 @@ class Agent(Model):
         self.gae_discount = self.gamma * args['lam']
         self.seq_len = args['seq_len']
         self.n_minibatches = args['n_minibatches']
-        self.use_lstm = args['ac']['use_lstm']
         self.mask_data = args['mask_data']
         self.mask_loss = args['mask_loss']
 
+        self.use_lstm = args['ac']['use_lstm']
         self.entropy_coef = args['ac']['entropy_coef']
+        self.n_value_updates = args['ac']['n_value_updates']
         self.minibatch_idx = 0
 
         # environment info
@@ -60,7 +61,7 @@ class Agent(Model):
             self.last_lstm_state = None
 
         with self.graph.as_default():
-            self.variables = TensorFlowVariables(self.ac.loss, self.sess)
+            self.variables = TensorFlowVariables([self.ac.policy_loss, self.ac.V_loss], self.sess)
 
     def sample_trajectories(self):
         env_stats = self._sample_data()
@@ -95,8 +96,8 @@ class Agent(Model):
             if done:
                 break
 
-        print(f'Demonstration score:\t{self.env_vec.get_score()}')
-        print(f'Demonstration length:\t{self.env_vec.get_length()}')
+        pwc(f'Demonstration score:\t{self.env_vec.get_score()}', 'green')
+        pwc(f'Demonstration length:\t{self.env_vec.get_length()}', 'green')
 
     def shuffle_buffer(self):
         if not self.use_lstm:
@@ -107,13 +108,13 @@ class Agent(Model):
         for i in range(self.args['n_updates']):
             self.shuffle_buffer()
             for j in range(self.args['n_minibatches']):
-                loss_info, opt_step, summary = self._optimize(epoch_i)
+                loss_info, summary = self._optimize(epoch_i)
 
                 loss_info_list.append(loss_info)
 
                 if 'max_kl' not in self.args or self.args['max_kl'] == 0.:
                     continue
-                kl = np.mean(loss_info[4])
+                kl = np.mean(loss_info[2])
                 if kl > self.args['max_kl']:
                     pwc(f'{self.model_name}: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl.\nCurrent kl={kl}')
                     break
@@ -129,6 +130,9 @@ class Agent(Model):
             self.save()
 
         return loss_info_list
+
+    def print_construction_complete(self):
+        pwc(f'{self.name} has been constructed.', color='cyan')
 
     """ Implementation """
     def _build_graph(self):
@@ -216,33 +220,37 @@ class Agent(Model):
         return self.env_vec.get_score(), self.env_vec.get_length()
 
     def _optimize(self, timestep=None):
-        # construct fetches
-        fetches = [self.ac.opt_op, 
-                   [self.ac.ppo_loss, self.ac.entropy, 
-                    self.ac.V_loss, self.ac.loss, 
-                    self.ac.approx_kl, self.ac.clipfrac]]
+        # construct policy fetches
+        policy_fetches = [self.ac.policy_optop, 
+                          [self.ac.ppo_loss, self.ac.entropy, 
+                           self.ac.approx_kl, self.ac.clipfrac]]
         if self.use_lstm:
-            fetches.append(self.ac.final_state)
+            policy_fetches.append(self.ac.final_state)
         if self.log_tensorboard:
-            fetches.append([self.ac.opt_step, self.graph_summary])
+            policy_fetches.append(self.graph_summary)
 
         # construct feed_dict
         feed_dict = self._get_feeddict(timestep)
 
-        results = self.sess.run(fetches, feed_dict=feed_dict)
-        opt_step, summary = None, None    # default values if self.log_tensorboard is None
+        results = self.sess.run(policy_fetches, feed_dict=feed_dict)
+        summary = None    # default values if self.log_tensorboard is None
         if self.use_lstm and self.log_tensorboard:   # assuming log_tensorboard=True for simplicity, since optimize() is only called by learner
-            _, loss_info, self.last_lstm_state, (opt_step, summary) = results
+            _, loss_info, self.last_lstm_state, summary = results
         elif self.use_lstm:
             _, loss_info, self.last_lstm_state = results
         elif self.log_tensorboard:
-            _, loss_info, (opt_step, summary) = results
+            _, loss_info, summary = results
         else:
             _, loss_info = results
 
+        v_fetches = [self.ac.v_optop, self.ac.V_loss]
+        for _ in range(self.n_value_updates):
+            _, v_loss = self.sess.run(v_fetches, feed_dict=feed_dict)
+        
+        loss_info.append(v_loss)
         self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
 
-        return loss_info, opt_step, summary
+        return loss_info, summary
         
 
     def _get_feeddict(self, timestep=None):
@@ -266,7 +274,5 @@ class Agent(Model):
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         if self.mask_loss:
             feed_dict[self.env_phs['mask_loss']] = get_data('mask')
-        if self.ac.args['schedule_lr'] and timestep:
-            feed_dict[self.ac.learning_rate] = self.ac.lr_scheduler.value(timestep)
 
         return feed_dict
