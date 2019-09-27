@@ -21,9 +21,6 @@ def get_worker(BaseClass, *args, **kwargs):
                     weight_update_freq,
                     sess_config=None, 
                     save=False, 
-                    log_tensorboard=False, 
-                    log_params=False,
-                    log_stats=False,
                     device=None):
             self.no = worker_no
             self.weight_update_freq = weight_update_freq    # update weights 
@@ -36,9 +33,6 @@ def get_worker(BaseClass, *args, **kwargs):
                             buffer_args,
                             sess_config=sess_config,
                             save=save,
-                            log_tensorboard=log_tensorboard,
-                            log_params=log_params,
-                            log_stats=log_stats,
                             device=device)
 
         def compute_priorities(self):

@@ -164,6 +164,7 @@ class Model(Module):
                  args,
                  sess_config=None, 
                  save=False, 
+                 log=False,
                  log_tensorboard=False,
                  log_params=False,
                  log_stats=False,
@@ -180,10 +181,13 @@ class Model(Module):
         Keyword Arguments:
             sess_config {tf.ConfigProto} -- session configuration (default: {None})
             save {bool} -- Option for saving model (default: {True})
+            log {bool} -- Option for logging info using logger (default: {False})
             log_tensorboard {bool} -- Option for logging information to tensorboard (default: {False})
             log_params {bool} -- Option for logging parameters to tensorboard (default: {False})
             log_stats {bool} -- Option for logging score to tensorboard (default: {False})
             device {[str or None]} -- Device where graph build upon {default: {None}}
+            reuse {bool} -- Option for reusing graph {default: {None}}
+            graph {tf.Graph} -- tensorflow graph. Reconstruct a new one if None {default: {None}}
         """
 
         self.graph = graph if graph else tf.Graph()
@@ -204,12 +208,14 @@ class Model(Module):
         display_var_info(self.trainable_variables)
 
         self.model_name = args['model_name']
+        if log:
+            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
+
         if self.log_tensorboard:
             self.graph_summary= self._setup_tensorboard_summary()
         
         # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
         if log_stats:
-            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
             self.stats = self._setup_stats_logs(args['env_stats'])
 
         if log_tensorboard or log_stats:
@@ -339,11 +345,12 @@ class Model(Module):
             del kwargs['worker_no']
 
         # if global_step appeas in kwargs, use it when adding summary to tensorboard
-        if 'global_steps' in kwargs:
+        if 'global_step' in kwargs:
             step = kwargs['global_step']
             del kwargs['global_step']
         else:
             step = None
+
         feed_dict = {}
 
         for k, v in kwargs.items():

@@ -152,9 +152,9 @@ class ActorCritic(Module):
                                 self.action_distribution.entropy(), 
                                 self.env_phs['mask_loss'], n)
             ppo_loss_, entropy, approx_kl, clipfrac = loss_info
-            V_loss = clipped_value_loss(self.V, self.env_phs['return'], 
-                                        self.env_phs['value'], self.clip_range, 
-                                        self.env_phs['mask_loss'], n)
+            V_loss = self.args['value_coef'] * clipped_value_loss(self.V, self.env_phs['return'], 
+                                                                self.env_phs['value'], self.clip_range, 
+                                                                self.env_phs['mask_loss'], n)
             
             policy_loss = ppo_loss_ - self.env_phs['entropy_coef'] * entropy + self.args['kl_coef'] * approx_kl
 
