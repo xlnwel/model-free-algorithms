@@ -32,7 +32,7 @@ class Actor(Module):
                                                      self.noisy_sigma)
 
     def _deterministic_policy_net(self, state, units, action_dim, noisy_sigma, name='policy_net'):
-        noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=self.norm, sigma=noisy_sigma)
+        noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=noisy_sigma)
         x = state
         with tf.variable_scope(name):
             for i, u in enumerate(units):

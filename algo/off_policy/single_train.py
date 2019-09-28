@@ -27,41 +27,17 @@ def run_trajectory(agent, fn, render):
 
     return env.get_score(), env.get_length()
 
-def eval(agent, scores, epslens, interval, k, render, print_terminal_info):
+def eval(agent, interval, render, print_terminal_info):
     def eval_fn(state, action, reward, done, i):
         pass    # do nothing at eval time
 
-    for i in range(1, interval+1):
-        start = time.time()
-        score, eps_len = run_trajectory(agent, eval_fn, render)
+    scores, epslens = [], []
+
+    for _ in range(1, interval+1):
+        score, epslen = run_trajectory(agent, eval_fn, render)
         scores.append(score)
-        epslens.append(eps_len)
-
-        if i % 10 == 0:
-            steptime = (time.time() - start) / eps_len
-
-            score_mean = np.mean(scores)
-            score_std = np.std(scores)
-            epslen_mean = np.mean(epslens)
-            epslen_std = np.std(epslens)
-            
-            global_step = k-100+i
-            if hasattr(agent, 'stats'):
-                agent.record_stats(score_mean=score_mean, score_std=score_std,
-                                    epslen_mean=epslen_mean, epslen_std=epslen_std,
-                                    global_step=global_step)
-            
-            log_info = {
-                'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
-                'Iteration': global_step,
-                'StepTime': utils.timeformat(np.mean(steptime)) + 's',
-                'ScoreMean': score_mean,
-                'ScoreStd': score_std,
-                'EpsLenMean': epslen_mean,
-                'EpsLenStd': epslen_std
-            }
-            [agent.log_tabular(k, v) for k, v in log_info.items()]
-            agent.dump_tabular(print_terminal_info=print_terminal_info)
+        epslens.append(epslen)
+    utils.pwc(f'Average score at evaluation time: {np.mean(scores)}\nAverage episode length at evaluation time: {np.mean(epslens)}')
 
 def train(agent, n_epochs, render, print_terminal_info, background_learning):
     def train_fn(state, action, reward, done, i):
@@ -72,12 +48,40 @@ def train(agent, n_epochs, render, print_terminal_info, background_learning):
     interval = 100
     scores = deque(maxlen=interval)
     epslens = deque(maxlen=interval)
-    
+
+    t = 0
     for k in range(1, n_epochs + 1):
-        score, _ = run_trajectory(agent, train_fn, False)
-        print(f'\rIteration {k}, Score={score}', end='')
+        duration, (score, epslen) = timeit(run_trajectory, (agent, train_fn, False))
+        t + duration
+
+        scores.append(score)
+        epslens.append(epslen)
+
+        if k % 10 == 0:
+            score_mean = np.mean(scores)
+            score_std = np.std(scores)
+            epslen_mean = np.mean(epslens)
+            epslen_std = np.std(epslens)
+
+            if hasattr(agent, 'stats'):
+                agent.record_stats(score_mean=score_mean, score_std=score_std,
+                                    epslen_mean=epslen_mean, epslen_std=epslen_std,
+                                    global_step=k)
+            
+            log_info = {
+                'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
+                'Iteration': k,
+                'Time': utils.timeformat(t) + 's',
+                'ScoreMean': score_mean,
+                'ScoreStd': score_std,
+                'EpsLenMean': epslen_mean,
+                'EpsLenStd': epslen_std
+            }
+            [agent.log_tabular(k, v) for k, v in log_info.items()]
+            agent.dump_tabular(print_terminal_info=print_terminal_info)
+
         if k % 100 == 0:
-            eval(agent, scores, epslens, interval, k, render, print_terminal_info)
+            eval(agent, interval, render, print_terminal_info)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

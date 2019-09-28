@@ -85,8 +85,7 @@ class Module(Layer):
         raise NotImplementedError
         
     def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False, name=None):
-        name = name or self.name
-        with tf.variable_scope(name + '_optimizer'):
+        with tf.variable_scope((name or self.name) + '_optimizer'):
             optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr, name=name)
             grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
             opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)

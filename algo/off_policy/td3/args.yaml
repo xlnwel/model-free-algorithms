@@ -2,7 +2,7 @@
 env:
     name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
     video_path: video
-    log_video: True
+    log_video: False
     max_episode_steps: 1000
     seed: 0
 agent:
@@ -20,7 +20,7 @@ agent:
     model_name: baseline
 
     n_steps: 3
-    n_epochs: 1000
+    n_epochs: 2000
     
     actor:
         n_noisy: 2          # number of noisy layer

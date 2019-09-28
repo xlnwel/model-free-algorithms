@@ -115,7 +115,7 @@ if __name__ == '__main__':
         elif algorithm == 'td3':
             gs(update_freq=[1, 10])
         elif algorithm == 'sac':
-            gs()
+            gs(update_freq=[1, 10])
         elif algorithm == 'rainbow-iqn':
             gs()
         elif algorithm == 'apex-td3':
