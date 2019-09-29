@@ -22,12 +22,14 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     if 'n_workers' not in agent_args:
-        # 1 cpu for each worker and 2 cpus for the learner so that network update happens at a background thread
-        n_workers = cpu_count() - 2
+        # 1 cpu for each actor
+        n_workers = cpu_count() - 1
         agent_args['n_workers'] = n_workers
-        agent_args['env_stats']['times'] = n_workers
+    else:
+        n_workers = agent_args['n_workers']
+    agent_args['env_stats']['times'] = n_workers
 
-    ray.init(num_cpus=agent_args['n_workers'] + 2, num_gpus=1)
+    ray.init(num_cpus=agent_args['n_workers'] + 1, num_gpus=1)
 
     agent_name = 'Agent'
     sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,

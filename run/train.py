@@ -113,7 +113,7 @@ if __name__ == '__main__':
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs(update_freq=[1, 10])
+            gs()
         elif algorithm == 'sac':
             gs(update_freq=[1, 10])
         elif algorithm == 'rainbow-iqn':

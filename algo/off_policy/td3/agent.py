@@ -123,7 +123,8 @@ class Agent(OffPolicyOperation):
                 priority = self._compute_priority((TD_error1 + TD_error2) / 2.)
 
                 loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
-                TD_squared = loss_func(TD_error1) + loss_func(TD_error2)
+                TD_squared = (loss_func(TD_error1) 
+                            + loss_func(TD_error2))
 
                 critic_loss = tf.reduce_mean(self.data['IS_ratio'] * TD_squared)
 

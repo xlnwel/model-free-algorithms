@@ -374,6 +374,7 @@ class Layer():
 
     def lstm_norm(self, xs, units, masks=None):
         """lstm with masks and layer normalization
+        reference code: https://github.com/openai/baselines/blob/8c2aea2addc9f3ba36d4a0c937e6a2d09830afc7/baselines/a2c/utils.py#L81
         
         Arguments:
             xs      3d Tensor   --  input data of shape [n_batch, n_seq, dim]
@@ -390,7 +391,11 @@ class Layer():
         assert_colorize(masks is None or len(masks.shape.as_list()) == 2, 
                         f'Masks Shape Error: desire None or tensor of 2 dimensions, get {len(masks.shape.as_list())}')
         kernel_initializer = tf_utils.kaiming_initializer()
-        ln = tc.layers.layer_norm
+        def ln(x, gamma, beta, eps=1e-5, axes=[1]):
+            mean, var = tf.nn.moments(x, axes=axes, keep_dims=True)
+            x = (x - mean) / tf.sqrt(var + eps)
+            x = gamma * x + beta
+            return x
 
         n_batch, n_steps, x_dim = xs.shape.as_list()
 
@@ -403,15 +408,27 @@ class Layer():
             x_w = tf.get_variable('x_w', shape=xw_shape, 
                                   initializer=kernel_initializer,
                                   regularizer=self.l2_regularizer)
+            x_g = tf.get_variable('x_g', [4*units], 
+                                  initializer=tf.constant_initializer(1.0))
             x_b = tf.get_variable('x_b', shape=xb_shape, 
                                   initializer=tf.zeros_initializer())
             
             h_w = tf.get_variable('h_w', shape=hw_shape, 
                                   initializer=kernel_initializer,
                                   regularizer=self.l2_regularizer)
+            h_g = tf.get_variable('h_g', [4*units], 
+                                  initializer=tf.constant_initializer(1.0))
             h_b = tf.get_variable('h_b', shape=hb_shape, 
                                   initializer=tf.zeros_initializer())
 
+            b = tf.get_variable('b', [4*units], 
+                                initializer=tf.zeros_initializer())
+        
+            c_g = tf.get_variable('c_g', [units], 
+                                  initializer=tf.constant_initializer(1.0))
+            c_b = tf.get_variable('c_b', [units], 
+                                  initializer=tf.zeros_initializer())
+            
             initial_state = tf.zeros([n_batch, 2*units], name='initial_state')
             initial_state = tf.split(value=initial_state, num_or_size_splits=2, axis=1)
             h, c = initial_state
@@ -423,16 +440,17 @@ class Layer():
             for x in xs if masks is None else zip(xs, masks):
                 if masks is not None:
                     x, m = x
-                    c *= m[:, None]
-                    h *= m[:, None]
-                z = ln(tf.matmul(x, x_w) + x_b) + ln(tf.matmul(h, h_w) + h_b)
+                    m = m[..., None]
+                    c *= m
+                    h *= m
+                z = ln(tf.matmul(x, x_w), x_g, x_b) + ln(tf.matmul(h, h_w), h_g, h_b) + b
                 f, i, o, u = tf.split(value=z, num_or_size_splits=4, axis=1)
                 f = tf.nn.sigmoid(f)
                 i = tf.nn.sigmoid(i)
                 o = tf.nn.sigmoid(o)
                 u = tf.tanh(u)
                 c = f * c + i * u
-                h = o * tf.tanh(ln(c))
+                h = o * tf.tanh(ln(c, c_g, c_b))
                 ys.append(h)
             
             final_state = (h, c)

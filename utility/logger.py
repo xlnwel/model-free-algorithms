@@ -1,7 +1,8 @@
 """
 Some simple logging functionality, inspired by rllab's logging
 
-The original code is from homework of Berkeley cs294-112: 
+Reference code: 
+homework of Berkeley cs294-112 
 http://rail.eecs.berkeley.edu/deeprlcourse/
 
 Adapted by S.C.

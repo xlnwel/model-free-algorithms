@@ -10,7 +10,7 @@ agent:
     algorithm: td3
     gamma: 0.99
     polyak: 0.995       # moving average rate
-    batch_size: 128
+    batch_size: 64
     update_freq: 1      # Update every # environment steps
 
     # model path: model_root_dir/model_name

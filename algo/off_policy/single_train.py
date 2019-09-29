@@ -27,7 +27,7 @@ def run_trajectory(agent, fn, render):
 
     return env.get_score(), env.get_length()
 
-def eval(agent, interval, render, print_terminal_info):
+def eval(agent, k, interval, render, print_terminal_info):
     def eval_fn(state, action, reward, done, i):
         pass    # do nothing at eval time
 
@@ -37,7 +37,9 @@ def eval(agent, interval, render, print_terminal_info):
         score, epslen = run_trajectory(agent, eval_fn, render)
         scores.append(score)
         epslens.append(epslen)
-    utils.pwc(f'Average score at evaluation time: {np.mean(scores)}\nAverage episode length at evaluation time: {np.mean(epslens)}')
+    utils.pwc(f'{agent.args["model_name"]} Evaluation after {k} training epochs\n'
+              f'Average score: {np.mean(scores)}\n'
+              f'Average episode length: {np.mean(epslens)}')
 
 def train(agent, n_epochs, render, print_terminal_info, background_learning):
     def train_fn(state, action, reward, done, i):
@@ -52,7 +54,7 @@ def train(agent, n_epochs, render, print_terminal_info, background_learning):
     t = 0
     for k in range(1, n_epochs + 1):
         duration, (score, epslen) = timeit(run_trajectory, (agent, train_fn, False))
-        t + duration
+        t += duration
 
         scores.append(score)
         epslens.append(epslen)
@@ -81,7 +83,7 @@ def train(agent, n_epochs, render, print_terminal_info, background_learning):
             agent.dump_tabular(print_terminal_info=print_terminal_info)
 
         if k % 100 == 0:
-            eval(agent, interval, render, print_terminal_info)
+            eval(agent, k, interval, render, print_terminal_info)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

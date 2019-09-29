@@ -45,8 +45,8 @@ class envstats:
     def reset(self):
         self.score = 0
         self.eps_len = 0
-        self.early_done = np.zeros(self.env.n_envs)
-        self.mask = np.ones(self.env.n_envs)
+        self.early_done = np.squeeze(np.zeros(self.env.n_envs))
+        self.mask = np.squeeze(np.ones(self.env.n_envs))
         
         return self.env_reset(self.env)
 
