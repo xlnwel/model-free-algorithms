@@ -17,16 +17,16 @@ class Worker(Agent):
                  sess_config=None,
                  save=False,
                  device=None):
+
+        self.no = worker_no
+        self.minibatch_idx = 0
+
         super().__init__(name, 
                          args, 
                          env_args, 
                          sess_config=sess_config, 
                          save=save, 
                          device=device)
-        self.no = worker_no
-        self.minibatch_idx = 0
-
-        pwc('Worker {} has been constructed.'.format(self.no), 'cyan')
 
     @ray.method(num_return_vals=2)
     def compute_gradients(self, weights):
@@ -35,7 +35,9 @@ class Worker(Agent):
         # construct fetches
         fetches = [self.ac.grads, 
                    [self.ac.ppo_loss, self.ac.entropy, 
-                    self.ac.approx_kl, self.ac.clipfrac]]
+                    self.ac.approx_kl, self.ac.clipfrac,
+                    self.ac.V_loss]]
+        
         if self.use_lstm:
             fetches.append(self.ac.final_state)
 

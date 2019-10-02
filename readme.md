@@ -22,11 +22,9 @@ Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algori
 
 ## Notes
 
-All of these algorithms are implemented using the same low-level API. This may cause trouble to some early-implemented algorithms due to my obliviousness as the low-level API evolves from time to time. If you happen to bump into one, feel free to open an issue. 
-
 Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en/latest/), a flexible, high-performance distributed execution framework.
 
-Due to the lack of a Mujoco license, all algorithms for continuous control are tested on the [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2) and [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environments from OpenAI's Gym and solve them. In particular, our TD3 and SAC solve BipedalWalker-v2 in 2-4 hours, significantly faster than the best one on the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2). On the other hand, PPO, which runs in 32-environment vector, steadily solves it in 5-8 hours. 
+Due to the lack of a Mujoco license, all algorithms for continuous control are tested on the [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2) and [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environments from OpenAI's Gym and solve them.
 
 Rainbow, IQN is tested on CartPole-v0 and and steadily solves it. For Rainbow and IQN on Atari games, please refer to my [another project](https://github.com/xlnwel/atari_rl)
 

@@ -19,7 +19,7 @@ agent:
     max_kl: 0                 # early stop when max_kl is violated. 0 suggests no bound
     mask_data: True
     mask_loss: True
-    advantage_type: norm        # norm or gae
+    advantage_type: gae        # norm or gae
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -28,22 +28,24 @@ agent:
     model_name: baseline
 
     ac:
-        schedule_lr: False
-        learning_rate: 3e-4     # start learning rate if schedule_lr==True
-        # argument for learning-rate schedule 
-        decay_steps: 500        # learning rate decay steps
-        end_lr: 1e-4            # end learning rate
+        policy_lr: 1e-4
+        value_lr: 3e-4     # start learning rate if schedule_lr==True
+        # network arguments
+        norm: layer
         common: True            # if share initial dense and lstm layers, if false common* are treated separately
-        common_dense_units: [512, 512]
+        common_dense_units: [256]
         common_lstm_units: [256]
         use_lstm: True
         actor_units: [256]
-        clip_range: 0.2         # clip range for ppo
-        entropy_coef: 0.0
         critic_units: [256]
-        value_coef: .5
-        value_loss_type: clip   # mse or clip
-
+        # loss arguments
+        clip_range: 0.2        # clip range for ppo
+        entropy_coef: 0.0
+        kl_coef: 0.0
+        value_loss_type: clip    # mse or clip
+        value_coef: 0.5
+        n_value_updates: 6
+        
     env_stats:
         times: 1
         stats: [score_mean, score_std, epslen_mean, entropy, approx_kl, clip_frac]

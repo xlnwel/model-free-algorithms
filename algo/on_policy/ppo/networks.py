@@ -64,10 +64,10 @@ class ActorCritic(Module):
         self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.policy_loss, self.V_loss = self._loss()
 
         # optimizer
-        _, _, self.opt_step, self.policy_grads_and_vars, self.policy_optop = self._optimization_op(self.policy_loss, name='policy')
+        _, _, self.opt_step, self.policy_grads_and_vars, self.policy_optop = self._optimization_op(self.policy_loss, opt_step=True, name='policy')
         _, _, _, self.v_grads_and_vars, self.v_optop = self._optimization_op(self.V_loss, name='value')
         self.grads_and_vars = self.policy_grads_and_vars + self.v_grads_and_vars
-        self.grads = [gv[0] for gv in self.grads_and_vars]
+        self.grads = [gv[0] for gv in self.grads_and_vars if gv[0] is not None]
 
     """ Code for shared policy and value network"""
     def _common_dense(self, x, units, name='common_dense'):
