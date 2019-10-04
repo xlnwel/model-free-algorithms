@@ -19,7 +19,6 @@ class Worker(Agent):
                  device=None):
 
         self.no = worker_no
-        self.minibatch_idx = 0
 
         super().__init__(name, 
                          args, 
@@ -49,7 +48,6 @@ class Worker(Agent):
             grads, loss_info, self.last_lstm_state = results
         else:
             grads, loss_info = results
-        self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
         
         return grads, loss_info
 
@@ -61,11 +59,11 @@ class Worker(Agent):
         
         return env_stats
 
-    def get_advantages(self):
-        return self.buffer['advantage']
+    # def get_advantages(self):
+    #     return self.buffer['advantage']
 
-    def normalize_advantages(self, mean, std):
-        self.buffer['advantage'] = (self.buffer['advantage'] - mean) / (std + 1e8)
+    # def normalize_advantages(self, mean, std):
+    #     self.buffer['advantage'] = (self.buffer['advantage'] - mean) / (std + 1e8)
 
     def print_construction_complete(self):
         pwc(f'Worker {self.no} has been constructed.', 'cyan')

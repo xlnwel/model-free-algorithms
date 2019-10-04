@@ -17,7 +17,7 @@ agent:
     # batch size = n_envs * seq_len / n_minibatches
     n_updates: 5            # number of updates per epoch
     n_epochs: 2000
-    max_kl: .01             # early stop when max_kl is violated. 0 suggests no bound
+    max_kl: 0.01             # early stop when max_kl is violated. 0 suggests no bound
     mask_data: True
     mask_loss: True
     advantage_type: gae      # norm or gae
@@ -29,8 +29,8 @@ agent:
     model_name: baseline
 
     ac:
-        policy_lr: 1e-4
-        value_lr: 3e-4
+        policy_lr: 3e-4
+        value_lr: 6e-4
         # network arguments
         norm: layer
         common: True            # if share initial dense and lstm layers, if false common* are treated separately

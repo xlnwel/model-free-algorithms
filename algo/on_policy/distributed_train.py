@@ -64,7 +64,7 @@ def main(env_args, agent_args, buffer_args, render=False):
                     continue
 
                 loss_info = decompose(loss_info)
-                kl = np.mean(loss_info[4])
+                kl = np.mean(loss_info[2])
                 if kl > max_kl:
                     pwc(f'a2c: Eearly stopping at epoch-{epoch_i} update-{i} minibatch-{j} due to reaching max kl.\nCurrent kl={kl}')
                     break

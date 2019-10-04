@@ -31,14 +31,18 @@ class Learner(Agent):
                          device=device)
         del self.buffer
     
-    def apply_gradients(self, timestep, *grads):
+    def apply_gradients(self, timestep, optimize_policy, *grads):
         grads = np.mean(grads, axis=0)
         
         feed_dict = {g_var: g for g_var, g in zip(self.ac.grads, grads)}
 
+        fetches = [self.ac.opt_step]
+        if optimize_policy:
+            fetches.append([self.ac.policy_optop, self.ac.v_optop])
+        else:
+            fetches.append(self.ac.v_optop)
         # do not log_tensorboard, use record_stats if required
-        learn_step, _, _ = self.sess.run([self.ac.opt_step, self.ac.policy_optop, self.ac.v_optop], 
-                                         feed_dict=feed_dict)
+        learn_step, _ = self.sess.run(fetches, feed_dict=feed_dict)
 
         if hasattr(self, 'saver') and learn_step % 100 == 0:
             self.save()
@@ -49,10 +53,11 @@ class Learner(Agent):
         return self.variables.get_flat()
 
     def record_stats(self, score_mean, score_std, epslen_mean, entropy, approx_kl, clip_frac):
+        log_info = dict(score_mean=score_mean, score_std=score_std,
+                        epslen_mean=epslen_mean, entropy=entropy,
+                        approx_kl=approx_kl, clip_frac=clip_frac)
         # a wraper since ray does not support (*args)
-        super().record_stats(score_mean=score_mean, score_std=score_std,
-                             epslen_mean=epslen_mean, entropy=entropy,
-                             approx_kl=approx_kl, clip_frac=clip_frac)
+        super().record_stats(**log_info)
 
     def print_construction_complete(self):
         pwc('Learner has been constructed.', color='cyan')
