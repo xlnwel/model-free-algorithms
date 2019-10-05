@@ -37,15 +37,10 @@ def main(env_args, agent_args, buffer_args, render=False):
     max_kl = agent_args['max_kl']
     
     weights_id = learner.get_weights.remote()
+    
     for epoch_i in range(1, agent_args['n_epochs'] + 1):
         start = time.time()
         env_stats = [w.sample_trajectories.remote(weights_id) for w in workers]
-
-        # if agent_args['advantage_type'] == 'gae':
-        #     advs = ray.get([w.get_advantages.remote() for w in workers])
-        #     adv_mean = np.mean(advs)
-        #     adv_std = np.std(advs)
-        #     [w.normalize_advantages.remote(adv_mean, adv_std) for w in workers]
 
         loss_info_list = []
         kl = 0

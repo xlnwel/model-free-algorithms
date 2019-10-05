@@ -64,8 +64,16 @@ class ActorCritic(Module):
         self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.policy_loss, self.V_loss = self._loss()
 
         # optimizer
-        _, _, self.opt_step, self.policy_grads_and_vars, self.policy_optop = self._optimization_op(self.policy_loss, opt_step=True, name='policy')
-        _, _, _, self.v_grads_and_vars, self.v_optop = self._optimization_op(self.V_loss, name='value')
+        schedule_policy_lr = 'schedule_policy_lr' in self.args and self.args['schedule_policy_lr']
+        schedule_value_lr = 'schedule_value_lr' in self.args and self.args['schedule_value_lr']
+        policy_opt_info = self._optimization_op(self.policy_loss, 
+                                                opt_step=True, 
+                                                schedule_lr=schedule_policy_lr, 
+                                                name='policy')
+        _, self.policy_lr, self.opt_step, self.policy_grads_and_vars, self.policy_optop = policy_opt_info
+        _, self.v_lr, _, self.v_grads_and_vars, self.v_optop = self._optimization_op(self.V_loss,
+                                                                                     schedule_lr=schedule_value_lr,  
+                                                                                     name='value')
         self.grads_and_vars = self.policy_grads_and_vars + self.v_grads_and_vars
         self.grads = [gv[0] for gv in self.grads_and_vars if gv[0] is not None]
 

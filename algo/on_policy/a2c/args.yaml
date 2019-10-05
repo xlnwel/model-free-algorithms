@@ -28,8 +28,14 @@ agent:
     model_name: baseline
 
     ac:
-        policy_lr: 3e-4
-        value_lr: 1e-4     # start learning rate if schedule_lr==True
+        schedule_policy_lr: True
+        policy_lr: 3e-4     # start learning rate if schedule_lr==True
+        policy_decay_steps: 300
+        policy_end_lr: 1e-4
+        schedule_value_lr: True
+        value_lr: 1e-3      # start learning rate if schedule_lr==True
+        value_decay_steps: 300
+        value_end_lr: 3e-4
         # network arguments
         norm: layer
         common: True            # if share initial dense and lstm layers, if false common* are treated separately

@@ -3,6 +3,7 @@ import tensorflow as tf
 import ray
 
 from utility.utils import normalize, pwc
+from utility.schedule import PiecewiseSchedule
 from algo.on_policy.ppo.agent import Agent
 
 
@@ -30,17 +31,33 @@ class Learner(Agent):
                          log_stats=log_stats,
                          device=device)
         del self.buffer
+
+        outside_value = float(args['ac']['policy_end_lr'])
+        points = [(0, float(args['ac']['policy_lr'])), 
+                  (args['ac']['policy_decay_steps'], outside_value)]
+        self.policy_lr_scheduler = PiecewiseSchedule(points, outside_value=outside_value)
+
+        outside_value = float(args['ac']['value_end_lr'])
+        points = [(0, float(args['ac']['value_lr'])),
+                  (args['ac']['value_decay_steps'], outside_value)]
+        self.value_lr_scheduler = PiecewiseSchedule(points, outside_value=outside_value)
     
-    def apply_gradients(self, timestep, optimize_policy, *grads):
+    def apply_gradients(self, timestep, *grads):
+        policy_lr = self.policy_lr_scheduler.value(timestep)
+        val_lr = self.value_lr_scheduler.value(timestep)
+        print('policy learning rate:', policy_lr)
+        print('value learning rate:', val_lr)
+        
         grads = np.mean(grads, axis=0)
         
         feed_dict = {g_var: g for g_var, g in zip(self.ac.grads, grads)}
+        
+        feed_dict.update({self.ac.policy_lr: policy_lr, self.ac.v_lr: val_lr})
 
         fetches = [self.ac.opt_step]
-        if optimize_policy:
-            fetches.append([self.ac.policy_optop, self.ac.v_optop])
-        else:
-            fetches.append(self.ac.v_optop)
+        
+        fetches.append([self.ac.policy_optop, self.ac.v_optop])
+        
         # do not log_tensorboard, use record_stats if required
         learn_step, _ = self.sess.run(fetches, feed_dict=feed_dict)
 
