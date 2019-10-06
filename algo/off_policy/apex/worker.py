@@ -72,8 +72,8 @@ def get_worker(BaseClass, *args, **kwargs):
                 episode_i += 1
                 score_deque.append(score)
                 epslen_deque.append(epslen)
-                stats = dict(score=score, score_mean=np.mean(score_deque), 
-                             epslen=epslen, epslen_mean=np.mean(epslen_deque), 
+                stats = dict(score=score, score_mean=np.mean(score_deque), score_std=np.std(score_deque),
+                             epslen=epslen, epslen_mean=np.mean(epslen_deque), epslen_std=np.std(score_deque),
                              worker_no=self.no)
                             
                 learner.record_stats.remote(stats)

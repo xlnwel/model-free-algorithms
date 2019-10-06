@@ -16,10 +16,6 @@ def parse_cmd_args():
                         type=str,
                         choices=['td3', 'sac', 'apex-td3', 'apex-sac', 'ppo', 'a2c',
                                  'rainbow-iqn'])
-    parser.add_argument('--background', '-b',
-                        type=str2bool,
-                        choices=[True, False],
-                        default=False)
     parser.add_argument('--render', '-r',
                         action='store_true')
     parser.add_argument('--trials', '-t',
@@ -29,10 +25,10 @@ def parse_cmd_args():
     parser.add_argument('--prefix', '-p',
                         default='',
                         help='prefix for model dir')
-    parser.add_argument('--file', '-f',
+    parser.add_argument('--checkpoint', '-c',
                         type=str,
                         default='',
-                        help='filepath to restore')
+                        help='checkpoint path to restore')
     args = parser.parse_args()
 
     return args
@@ -81,20 +77,17 @@ if __name__ == '__main__':
     main = import_main(algorithm)
     
     render = cmd_args.render
-    background_learning = cmd_args.background
 
-    if cmd_args.file != '':
+    if cmd_args.checkpoint != '':
         args = load_args(arg_file)
         env_args = args['env']
         agent_args = args['agent']
         buffer_args = args['buffer'] if 'buffer' in args else {}
-        model_file = cmd_args.file
-        assert_colorize(os.path.exists(model_file), 'Model file does not exists')
-        agent_args['model_root_dir'], agent_args['model_name'] = os.path.split(model_file)
+        checkpoint = cmd_args.checkpoint
+        assert_colorize(os.path.exists(checkpoint), 'Model file does not exists')
+        agent_args['model_root_dir'], agent_args['model_name'] = os.path.split(checkpoint)
         agent_args['log_root_dir'], _ = os.path.split(agent_args['model_root_dir'])
         agent_args['log_root_dir'] += '/logs'
-        if cmd_args.background != '':
-            background_learning = True if cmd_args.background == 'true' else False
 
         main(env_args, agent_args, buffer_args, render=render)
     else:
@@ -104,8 +97,6 @@ if __name__ == '__main__':
         # Although random parameter search is in general better than grid search, 
         # we here continue to go with grid search since it is easier to deal with architecture search
         gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
-        if background_learning:
-            gs.agent_args['background_learning'] = background_learning
 
         # Grid search happens here
         if algorithm == 'ppo':
@@ -115,7 +106,7 @@ if __name__ == '__main__':
         elif algorithm == 'td3':
             gs()
         elif algorithm == 'sac':
-            gs(update_freq=[1, 10])
+            gs()
         elif algorithm == 'rainbow-iqn':
             gs()
         elif algorithm == 'apex-td3':

@@ -10,6 +10,8 @@ class Replay:
     def __init__(self, args, state_space, action_dim):
         self.memory = {}
 
+        self.normalize_state = args['normalize_state']
+
         # params for general replay buffer
         self.capacity = int(float(args['capacity']))
         self.min_size = int(float(args['min_size']))
@@ -52,7 +54,17 @@ class Replay:
         with self.locker:
             samples = self._sample()
 
-        return samples
+        if not hasattr(self, 'state_mean') or hasattr(self, 'state_std'):
+            self.state_mean = np.mean(self['state'], axis=1)
+            self.state_std = np.std(self['state'], axis=1)
+        
+        IS_ratios, indexes, samples = samples
+        if self.normalize_state:
+            samples[0] = (samples[0] - self.state_mean) / self.state_std
+            samples[3] = (samples[3] - self.state_mean) / self.state_std
+
+
+        return IS_ratios, indexes, samples
 
     def merge(self, local_buffer, length, start=0):
         """ Merge a local buffer to the replay buffer, useful for distributed algorithms """

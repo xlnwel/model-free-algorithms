@@ -7,7 +7,7 @@ import tensorflow as tf
 import gym
 import ray
 
-from utility import yaml_op
+from utility.tf_utils import get_sess_config
 from utility.debug_tools import pwc
 from algo.on_policy.a2c.worker import Worker
 from algo.on_policy.a2c.learner import Learner
@@ -23,10 +23,7 @@ def main(env_args, agent_args, buffer_args, render=False):
 
     ray.init(num_cpus=n_workers+1, num_gpus=1)
 
-    sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
-                                 inter_op_parallelism_threads=1,
-                                 allow_soft_placement=True)
-    sess_config.gpu_options.allow_growth = True
+    sess_config = get_sess_config(1)
     workers = [Worker.remote('Agent', i, agent_args, env_args, sess_config=sess_config, device='/gpu: 0') 
                for i in range(n_workers)]
     if render:

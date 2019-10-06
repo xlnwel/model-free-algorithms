@@ -131,4 +131,3 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
                 tf.summary.scalar('V_loss_', self.V_loss)
                 tf.summary.scalar('Q_loss_', self.Q_loss)
-                tf.summary.scalar('loss_', self.loss)

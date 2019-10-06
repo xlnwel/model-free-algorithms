@@ -50,11 +50,12 @@ agent:
 
     env_stats:
         times: 1
-        stats: [score, score_mean, epslen, epslen_mean]
+        stats: [score, score_mean, score_std, epslen, epslen_mean, epslen_std]
 
 # argumennts for prioritized replay
 buffer:
     type: proportional # proportional
+    normalize_state: True
 
     alpha: 0.4
     beta0: 0.4

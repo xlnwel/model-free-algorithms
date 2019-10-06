@@ -6,7 +6,6 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
-    background_learning: False
     algorithm: sac
     temperature: 0.01
     gamma: &gamma 0.99
@@ -23,7 +22,7 @@ agent:
     n_steps: 3
     priority: Q               # Q or V
     policy_delay: 1
-    n_epochs: 2000
+    n_epochs: 1000
     
     policy:
         n_noisy: 2
@@ -58,12 +57,13 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # proportional
+    normalize_state: True
 
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4
-    min_size: 5e4
+    min_size: 1e4
     capacity: 1e6
 
     tb_capacity: 100

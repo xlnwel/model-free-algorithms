@@ -115,7 +115,7 @@ def stats_summary(name, data, mean=True, std=False, max=False, min=False, hist=F
     if mean:
         tf.summary.scalar(f'{name}_mean_', tf.reduce_mean(data))
     if std:
-        tf.summary.scalar(f'{name}_std_', tf.reduce_mean(data))
+        tf.summary.scalar(f'{name}_std_', tf.math.reduce_std(data))
     if max:
         tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
     if min:
@@ -206,3 +206,11 @@ def get_norm(name):
         return None
     else:
         raise NotImplementedError
+
+def get_sess_config(parallelism_threads):
+    sess_config = tf.ConfigProto(intra_op_parallelism_threads=parallelism_threads,
+                                 inter_op_parallelism_threads=parallelism_threads,
+                                 allow_soft_placement=True)
+    sess_config.gpu_options.allow_growth = True
+
+    return sess_config

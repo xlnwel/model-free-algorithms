@@ -111,13 +111,13 @@ class OffPolicyOperation(Model, ABC):
                                                                   self.graph_summary])
             if self.update_step % 100 == 0:
                 self.writer.add_summary(summary, self.update_step)
-                if hasattr(self, 'saver'):
-                    self.save()
         else:
             priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
                                                          self.data['saved_mem_idxs'], 
                                                          self.opt_op])
 
+        if self.update_step % 10000 == 0 and hasattr(self, 'saver'):
+            self.save()
         # update the target networks
         self._update_target_net()
 

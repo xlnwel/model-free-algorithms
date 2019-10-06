@@ -288,6 +288,9 @@ class Layer():
                 
                 # output of the noisy layer
                 x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
+            if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
+                tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
+                tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
 
             x = x + y
 
@@ -318,7 +321,10 @@ class Layer():
                 
                 # output of the noisy layer
                 x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
-
+            if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
+                tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
+                tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
+                
             x = x + y
 
         return x
@@ -466,7 +472,7 @@ class Layer():
         weights = tf.nn.softmax(dot_product)            # [B, H, N, N]
         x = tf.matmul(weights, v)                       # [B, H, N, V]
         # Test code to monitor saturation of softmax
-        if hasattr(self, 'log_params') and self.log_params:
+        if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
             with tf.name_scope('attention'):
                 tf_utils.stats_summary('softmax', weights, hist=True)
                 tf_utils.stats_summary('output', x)

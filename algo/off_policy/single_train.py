@@ -8,17 +8,18 @@ import numpy as np
 import tensorflow as tf
 
 from utility import utils
+from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
 
 
-def run_trajectory(agent, fn, render):
+def run_trajectory(agent, fn, render, random_action=False):
     """ run a trajectory, fn is a function executed after each environment step """
     env = agent.env
     state = env.reset()
     for i in range(env.max_episode_steps):
         if render:
             env.render()
-        action = agent.act(state)
+        action = env.random_action() if random_action else agent.act(state)
         next_state, reward, done, _ = env.step(action)
         fn(state, action, reward, done, i)
         state = next_state
@@ -41,10 +42,12 @@ def eval(agent, k, interval, render, print_terminal_info):
               f'Average score: {np.mean(scores)}\n'
               f'Average episode length: {np.mean(epslens)}')
 
-def train(agent, n_epochs, render, print_terminal_info, background_learning):
+def train(agent, n_epochs, render, print_terminal_info):
+    def pre_collection(state, action, reward, done, i):
+        agent.add_data(state, action, reward, done)
     def train_fn(state, action, reward, done, i):
         agent.add_data(state, action, reward, done)
-        if not background_learning and agent.buffer.good_to_learn and i % agent.args['update_freq'] == 0:
+        if agent.buffer.good_to_learn and i % agent.args['update_freq'] == 0:
             agent.learn()
 
     interval = 100
@@ -52,6 +55,13 @@ def train(agent, n_epochs, render, print_terminal_info, background_learning):
     epslens = deque(maxlen=interval)
 
     t = 0
+
+    utils.pwc(f'Data collection for state normalization')
+    while not agent.buffer.good_to_learn:
+        run_trajectory(agent, pre_collection, False, True)
+    assert agent.buffer.good_to_learn
+    utils.pwc(f'Training starts')
+
     for k in range(1, n_epochs + 1):
         duration, (score, epslen) = timeit(run_trajectory, (agent, train_fn, False))
         t += duration
@@ -100,18 +110,15 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    agent = Agent('Agent', agent_args, env_args, buffer_args, log=True,
-                    log_tensorboard=False, log_stats=True, save=False, 
-                    device='/GPU: 0')
-    if agent_args['background_learning']:
-        utils.pwc('Background Learning...')
-        lt = threading.Thread(target=agent.background_learning, daemon=True)
-        lt.start()
-    else:
-        utils.pwc('Foreground Learning...')
+    sess_config = get_sess_config(1)
+
+    agent = Agent('Agent', agent_args, env_args, buffer_args, 
+                  sess_config=sess_config, log=True,
+                  log_tensorboard=True, log_stats=True, 
+                  save=True, device='/GPU: 0')
+
     model = agent_args['model_name']
     utils.pwc(f'Model {model} starts training')
     
     train(agent, agent_args['n_epochs'], render, 
-          print_terminal_info=True, 
-          background_learning=agent_args['background_learning'])
+          print_terminal_info=True)

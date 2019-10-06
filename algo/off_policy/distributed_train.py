@@ -7,11 +7,21 @@ import numpy as np
 import tensorflow as tf
 import ray
 
-from utility.yaml_op import load_args
+from utility.tf_utils import get_sess_config
 from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
 from algo.off_policy.apex.worker import get_worker
 from algo.off_policy.apex.learner import get_learner
 
+
+def set_noisy(agent_args):
+    if agent_args['algorithm'] == 'apex-td3':
+        agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
+    elif agent_args['algorithm'] == 'apex-sac':
+        agent_args['policy']['noisy_sigma'] = np.random.randint(3, 7) * .1
+    else:
+        raise NotImplementedError
+
+    return agent_args
 
 def main(env_args, agent_args, buffer_args, render=False):
     if agent_args['algorithm'] == 'apex-td3':
@@ -32,10 +42,7 @@ def main(env_args, agent_args, buffer_args, render=False):
     ray.init(num_cpus=agent_args['n_workers'] + 1, num_gpus=1)
 
     agent_name = 'Agent'
-    sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
-                                 inter_op_parallelism_threads=1,
-                                 allow_soft_placement=True)
-    sess_config.gpu_options.allow_growth = True
+    sess_config = get_sess_config(1)
     learner = get_learner(Agent, agent_name, agent_args, env_args, buffer_args, log=True,
                             log_stats=True, sess_config=sess_config, device='/GPU: 0')
 
@@ -47,11 +54,11 @@ def main(env_args, agent_args, buffer_args, render=False):
     for worker_no in range(agent_args['n_workers']):
         weight_update_freq = 1    # np.random.randint(1, 10)
         if agent_args['algorithm'] == 'apex-td3':
-            agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
+            agent_args['actor']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(3, 7) * .1
         elif agent_args['algorithm'] == 'apex-sac':
-            agent_args['policy']['noisy_sigma'] = np.random.randint(3, 7) * .1
+            agent_args['policy']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(3, 7) * .1
         else:
-             raise NotImplementedError
+            raise NotImplementedError
         env_args['seed'] = worker_no * 10
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
                             weight_update_freq, sess_config=sess_config, device=f'/CPU:{worker_no + 1}')

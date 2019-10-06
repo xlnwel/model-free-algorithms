@@ -6,11 +6,10 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
-    background_learning: False
     algorithm: td3
     gamma: 0.99
     polyak: 0.995       # moving average rate
-    batch_size: 64
+    batch_size: 128
     update_freq: 1      # Update every # environment steps
 
     # model path: model_root_dir/model_name
@@ -20,7 +19,7 @@ agent:
     model_name: baseline
 
     n_steps: 3
-    n_epochs: 2000
+    n_epochs: 1000
     
     actor:
         n_noisy: 2          # number of noisy layer
@@ -48,12 +47,13 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # local or proportional
+    normalize_state: True
 
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4
-    beta_steps: 1e4     # number of sampling steps taken beta to reach 1
-    min_size: 5e3
+    beta_steps: 5e4     # number of sampling steps taken beta to reach 1
+    min_size: 1e4
     capacity: 1e6
 
     tb_capacity: 100

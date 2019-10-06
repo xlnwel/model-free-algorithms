@@ -152,4 +152,9 @@ class Agent(OffPolicyOperation):
             
             with tf.name_scope('critic'):
                 stats_summary('Q_with_actor', self.critic.Q_with_actor)
+
+            with tf.name_scope('state'):
+                for i, s in enumerate(tf.unstack(self.data['state'], axis=1)):
+                    tf.summary.histogram(f'dim_{i}', s)
+
                 
