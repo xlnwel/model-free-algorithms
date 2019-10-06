@@ -19,6 +19,7 @@ def plot_data(data, x, y, outpath):
     ax = fig.add_subplot(111)
     sns.set(style="whitegrid", font_scale=1.5)
     sns.lineplot(x=x, y=y, ax=ax, data=data, hue='Condition')
+    ax.grid(True, alpha=0.3, linestyle=':')
     ax.legend(loc='best').set_draggable(True)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -35,7 +36,7 @@ def get_datasets(filedir, condition=None):
 
             data.insert(len(data.columns), 'Condition', condition)
 
-            datasets.append(data)
+            datasets.append(data[:80])
             unit +=1
 
     return datasets
@@ -43,23 +44,26 @@ def get_datasets(filedir, condition=None):
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('logdir')
+    parser.add_argument('logdir', nargs='*')
     parser.add_argument('--outname', '-o')
     parser.add_argument('--legend', nargs='*')
     parser.add_argument('--x', default='Iteration', nargs='*')
-    parser.add_argument('--y', default='AvgScore', nargs='*')
+    parser.add_argument('--y', default='ScoreMean', nargs='*')
     args = parser.parse_args()
 
-
     # by default assume using `python utility/plot.py` to call this file
-    dirs = glob.glob(f'logs/{args.logdir}/*/GS-*')
+    if isinstance(args.logdir, list):
+        dirs = [f'logs/{d}' for d in args.logdir]
+    else:
+        dirs = glob.glob(f'logs/{args.logdir}/*/GS*')
+
     # set up legends
     if args.legend:
         assert_colorize(len(args.legend) == len(dirs),
             "Must give a legend title for each set of experiments.")
         legends = args.legend
     else:
-        legends = [os.path.basename(path)[3:] for path in dirs]
+        legends = [os.path.basename(path) for path in dirs]
 
     pwc('Directories:')
     pwc(dirs)

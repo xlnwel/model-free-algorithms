@@ -1,18 +1,14 @@
 ## Performance on BipedalWalker-v2
 
-Here we demonstrate the average score per 100 episodes shown in tensorboard:
+#### Learning curve for TD3 and SAC, x-axis denotes episodes, y-axis denotes episodic reward averaged over 100 episodes at training time, three random seeds
 
-#### Learning curve for TD3, x-axis denotes episodes, y-axis denotes episodic reward averaged over 100 episodes, three random seeds
-
-<p align="center">
-<img src="/results/td3-bipedalwalker.png" alt="average score in tensorboard" height="350">
-</p>
-
-#### Learning curve for SAC, x-axis denotes episodes, y-axis denotes episodic reward averaged over 100 episodes, three random seeds
+Here we demonstrate the learning curve **at training time**. One could conceives that evaluation will give significantly better results since y-axis denotes episodic reward average over the latest 100 episodes:
 
 <p align="center">
-<img src="/results/sac-bipedalwalker.png" alt="average score in tensorboard" height="350">
+<img src="/results/td3-sac.png" alt="td3-sac" height="350">
 </p>
+
+Our implementations significantly boost learning process, steadily solving [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) in 200-400 episodes compared to the best implementation in the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2), which occasionally solves it in 800 episodes.
 
 ## Implementation Details
 

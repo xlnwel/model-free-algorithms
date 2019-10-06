@@ -24,7 +24,7 @@ Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algori
 
 Distributed Algorithms are implemented using [Ray](https://ray.readthedocs.io/en/latest/), a flexible, high-performance distributed execution framework.
 
-Due to the lack of a Mujoco license, all algorithms for continuous control are tested on the [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2) and [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environments from OpenAI's Gym and solve them.
+Due to the lack of a Mujoco license, all algorithms for continuous control are first tested on the [LunarLanderContinuous-v2](https://gym.openai.com/envs/LunarLanderContinuous-v2) and later on [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) environments from OpenAI's Gym and solve them.
 
 Rainbow, IQN is tested on CartPole-v0 and and steadily solves it. For Rainbow and IQN on Atari games, please refer to my [another project](https://github.com/xlnwel/atari_rl)
 
