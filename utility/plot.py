@@ -56,10 +56,10 @@ def main():
     args = parser.parse_args()
 
     # by default assume using `python utility/plot.py` to call this file
-    if isinstance(args.logdir, list):
+    if len(args.logdir) != 1:
         dirs = [f'logs/{d}' for d in args.logdir]
     else:
-        dirs = glob.glob(f'logs/{args.logdir}/*/GS*')
+        dirs = glob.glob(f'logs/{args.logdir[0]}/logs/GS-*')
 
     # set up legends
     if args.legend:
@@ -68,6 +68,7 @@ def main():
         legends = args.legend
     else:
         legends = [os.path.basename(path) for path in dirs]
+        legends = [l[3:] if l.startswith('GS-') else l for l in legends]
     tag = args.legendtag
 
     pwc('Directories:')

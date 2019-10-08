@@ -207,8 +207,13 @@ class Model(Module):
         display_var_info(self.trainable_variables)
 
         self.model_name = args['model_name']
+
+        # set up logging
+        log_dir = os.path.join(args['log_root_dir'], self.model_name)
+        self._save_args(log_dir)
+
         if log:
-            self.logger = self._setup_logger(args['log_root_dir'], self.model_name)
+            self.logger = self._setup_logger(log_dir, self.model_name)
 
         if self.log_tensorboard:
             self.graph_summary= self._setup_tensorboard_summary()
@@ -218,7 +223,7 @@ class Model(Module):
             self.stats = self._setup_stats_logs(args['env_stats'])
 
         if log_tensorboard or log_stats:
-            self.writer = self._setup_writer(args['log_root_dir'], self.model_name)
+            self.writer = self._setup_writer(log_dir)
             
         self.sess.run(tf.variables_initializer(self.global_variables))
 
@@ -280,7 +285,19 @@ class Model(Module):
     """ Implementation """
     def _setup_saver(self):
         return tf.train.Saver(self.global_variables)
+    
+    def _save_args(self, log_dir):
+        save_args(self.args, filename=log_dir + '/args.yaml')
 
+    def _setup_logger(self, log_dir, model_name):
+        return Logger(log_dir, exp_name=model_name)
+
+    def _setup_writer(self, writer_dir):
+        writer = tf.summary.FileWriter(writer_dir, self.graph)
+        atexit.register(writer.close)
+        
+        return writer
+        
     def _setup_model_path(self, root_dir, model_name):
         model_dir = Path(root_dir) / model_name
 
@@ -319,21 +336,6 @@ class Model(Module):
                             stats[i]['log_op'] = tf.summary.merge(merge_inputs, name='log_op')
 
         return stats
-
-    def _setup_writer(self, root_dir, model_name):
-        writer_dir = os.path.join(root_dir, model_name)
-        writer = tf.summary.FileWriter(writer_dir, self.graph)
-        atexit.register(writer.close)
-        
-        return writer
-    
-    def _setup_logger(self, root_dir, model_name):
-        log_dir = os.path.join(root_dir, model_name)
-        
-        logger = Logger(log_dir, exp_name=model_name)
-        save_args(self.args, filename=log_dir + '/args.yaml')
-
-        return logger
 
     def _record_stats_impl(self, kwargs):
         if 'worker_no' not in kwargs:
