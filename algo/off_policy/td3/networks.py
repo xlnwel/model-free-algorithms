@@ -28,8 +28,8 @@ class Actor(Module):
 
     """ Implementation """
     def _build_graph(self):
-        self.action = self._deterministic_policy_net(self.state, self.args['units'], self.action_dim, 
-                                                     self.noisy_sigma)
+        self.action, self.action_det = self._deterministic_policy_net(self.state, self.args['units'], self.action_dim, 
+                                                                      self.noisy_sigma)
 
     def _deterministic_policy_net(self, state, units, action_dim, noisy_sigma, name='policy_net'):
         noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=noisy_sigma)
@@ -41,7 +41,14 @@ class Actor(Module):
             x = self.dense(x, action_dim)
             x = tf.tanh(x, name='action')
 
-        return x
+        x_det = state
+        with tf.variable_scope(name, reuse=True):
+            for u in units:
+                x_det = self.dense_norm_activation(x_det, u, norm=self.norm)
+
+            x_det = self.dense(x_det, action_dim)
+
+        return x, x_det
 
 
 class Critic(Module):

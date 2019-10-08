@@ -35,6 +35,7 @@ class OffPolicyOperation(Model, ABC):
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99
+        self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1.
         self.update_step = 0
 
         # environment info
@@ -77,13 +78,17 @@ class OffPolicyOperation(Model, ABC):
     def max_path_length(self):
         return self.env.max_episode_steps
     
-    def act(self, state):
+    def act(self, state, deterministic=False):
         state = state.reshape((-1, *self.state_space))
-        action = self.sess.run(self.action, feed_dict={self.data['state']: state})
+        action_tf = self.action_det if deterministic else self.action
+        
+        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
         
         return np.squeeze(action)
 
     def add_data(self, state, action, reward, done):
+        if not done:
+            reward *= self.reward_scale
         self.buffer.add(state, action, reward, done)
 
     def background_learning(self):
@@ -109,7 +114,7 @@ class OffPolicyOperation(Model, ABC):
                                                                   self.data['saved_mem_idxs'], 
                                                                   self.opt_op, 
                                                                   self.graph_summary])
-            if self.update_step % 100 == 0:
+            if self.update_step % 1000 == 0:
                 self.writer.add_summary(summary, self.update_step)
         else:
             priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
@@ -178,4 +183,3 @@ class OffPolicyOperation(Model, ABC):
     
     def _update_target_net(self):
         raise NotImplementedError
-

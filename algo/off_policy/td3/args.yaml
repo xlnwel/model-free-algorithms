@@ -11,6 +11,7 @@ agent:
     polyak: 0.995       # moving average rate
     batch_size: 128
     update_freq: 1      # Update every # environment steps
+    reward_scale: 1
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
@@ -32,7 +33,7 @@ agent:
         decay_steps: &decay_steps 1e4
         
     critic:
-        units: [512, 512, 256]
+        units: [512, 256, 256]
         loss_type: mse   # huber or mse
         layernorm: True
         # args for optimizer
@@ -42,7 +43,7 @@ agent:
 
     env_stats:
         times: 1
-        stats: [score_mean, score_std, epslen_mean, epslen_std]
+        stats: [score, score_mean, score_std, epslen_mean, epslen_std]
 
 # argumennts for prioritized replay
 buffer:

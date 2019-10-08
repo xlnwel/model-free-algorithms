@@ -20,7 +20,11 @@ class Agent(OffPolicyOperation):
                  log_params=False, 
                  log_stats=False, 
                  device=None):
-        self.temperature = args['temperature']
+        # reward scaling indirectly affects the policy temperature
+        # we neutralize the effect by scaling the temperature here
+        # see our blog for more info https://xlnwel.github.io/blog/reinforcement%20learning/SAC/
+        self.temperature = (args['temperature'] * args['reward_scale'] 
+                            if 'reward_scale' in args else args['temperature'])
         self.critic_loss_type = args['loss_type']
         self.priority_type = args['priority']
 
@@ -45,6 +49,7 @@ class Agent(OffPolicyOperation):
 
         self.actor, self.V_nets, self.Q_nets = self._create_nets(self.data)
         
+        self.action_det = self.actor.mean_det
         self.action = self.actor.action
         self.logpi = self.actor.logpi
 

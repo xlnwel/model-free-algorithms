@@ -19,6 +19,7 @@ class SoftPolicy(Module):
         self.env = env
         self.action_dim = env.action_dim
         self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
+        self.noisy_sigma = args['noisy_sigma']
 
         super().__init__(name, 
                          args, 
@@ -28,7 +29,7 @@ class SoftPolicy(Module):
                          log_params=log_params)
 
     def _build_graph(self):
-        mean, logstd = self._stochastic_policy_net(self.state, self.args['units'], self.action_dim, self.norm)
+        mean, logstd, self.mean_det = self._stochastic_policy_net(self.state, self.args['units'], self.action_dim, self.norm, self.noisy_sigma)
 
         self.action_distribution = self.env.action_dist_type((mean, logstd))
 
@@ -38,11 +39,12 @@ class SoftPolicy(Module):
         # Enforcing action bound
         self.action, self.logpi = self._squash_correction(orig_action, orig_logpi)
 
-    def _stochastic_policy_net(self, state, units, action_dim, norm):
+    def _stochastic_policy_net(self, state, units, action_dim, norm, noisy_sigma, name='policy_net'):
+        noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=noisy_sigma)
         x = state
-        with tf.variable_scope('policy_net'):
+        with tf.variable_scope(name):
             for i, u in enumerate(units):
-                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else self.noisy_norm_activation
+                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
                 x = layer(x, u, norm=norm)
 
             mean = self.dense(x, action_dim)
@@ -50,8 +52,15 @@ class SoftPolicy(Module):
             # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
             logstd = self.dense(x, action_dim)
             logstd = tf.clip_by_value(logstd, -20., 2.)
+        
+        x_det = state
+        with tf.variable_scope(name, reuse=True):
+            for u in units:
+                x_det = self.dense_norm_activation(x_det, u, norm=norm)
 
-        return mean, logstd
+            mean_det = self.dense(x_det, action_dim)
+
+        return mean, logstd, mean_det
 
     def _squash_correction(self, action, logpi):
         with tf.name_scope('squash'):
