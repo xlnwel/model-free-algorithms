@@ -53,12 +53,13 @@ def main(env_args, agent_args, buffer_args, render=False):
                                  allow_soft_placement=True)
     for worker_no in range(agent_args['n_workers']):
         weight_update_freq = 1    # np.random.randint(1, 10)
-        if agent_args['algorithm'] == 'apex-td3':
-            agent_args['actor']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(3, 7) * .1
-        elif agent_args['algorithm'] == 'apex-sac':
-            agent_args['policy']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(3, 7) * .1
-        else:
-            raise NotImplementedError
+        if worker_no != 0:
+            if agent_args['algorithm'] == 'apex-td3':
+                agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
+            elif agent_args['algorithm'] == 'apex-sac':
+                agent_args['policy']['noisy_sigma'] = np.random.randint(3, 7) * .1
+            else:
+                raise NotImplementedError
         env_args['seed'] = worker_no * 10
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
                             weight_update_freq, sess_config=sess_config, device=f'/CPU:{worker_no + 1}')

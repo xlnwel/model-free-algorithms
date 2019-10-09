@@ -11,7 +11,7 @@ agent:
     polyak: 0.995       # moving average rate
     batch_size: 128
     update_freq: 1      # Update every # environment steps
-    reward_scale: 1
+    reward_scale: 5
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name

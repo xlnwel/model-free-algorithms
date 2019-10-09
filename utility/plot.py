@@ -11,18 +11,19 @@ from utility.debug_tools import assert_colorize, pwc
 def plot_data(data, x, y, outpath, tag):
     if isinstance(data, list):
         data = pd.concat(data, ignore_index=True)
+        # data = data[data.Timing == 'Train'].drop('Timing', axis=1)
 
     dir_name, file_name = os.path.split(outpath)
     if not os.path.isdir(dir_name):
         os.mkdir(dir_name)
-    fig = plt.figure(figsize=(10, 7))
+    fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111)
     sns.set(style="whitegrid", font_scale=1.5)
     if 'Timing' in data.columns:
         sns.lineplot(x=x, y=y, ax=ax, data=data, hue=tag, style='Timing')
     else:
         sns.lineplot(x=x, y=y, ax=ax, data=data, hue=tag)
-    ax.grid(True, alpha=0.3, linestyle=':')
+    ax.grid(True, alpha=0.8, linestyle=':')
     ax.legend(loc='best').set_draggable(True)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -39,7 +40,7 @@ def get_datasets(filedir, tag, condition=None):
 
             data.insert(len(data.columns), tag, condition)
 
-            datasets.append(data[:80])
+            datasets.append(data)
             unit +=1
 
     return datasets

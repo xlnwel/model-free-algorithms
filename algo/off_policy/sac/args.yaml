@@ -9,9 +9,9 @@ agent:
     algorithm: sac
     temperature: 0.01
     gamma: &gamma 0.99
-    batch_size: 128
+    batch_size: 256
     update_freq: 1      # Update every # environment steps
-    reward_scale: 1
+    reward_scale: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -23,30 +23,31 @@ agent:
     n_steps: 3
     priority: Q               # Q or V
     policy_delay: 1
-    n_epochs: 1000
+    n_epochs: 400
     
-    policy:
+    Policy:
         n_noisy: 2
         noisy_sigma: 0.4    # standard deviation for noisy layers
         units: [512, 256, 128]
         layernorm: True
+        target: False
         # args for optimizer
-        learning_rate: 1e-4
+        learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
-    V:
+    Q:
         polyak: .995      # moving average rate
-        units: &critic_units [512, 256, 256]
+        units: &critic_units [512, 512, 256]
         layernorm: True
         # args for optimizer
         learning_rate: &critic_lr 3e-4
         decay_rate: *decay_rate
         decay_steps: *decay_steps
-    Q:
-        units: *critic_units
-        layernorm: True
+    Temperature:
+        type: simple
+        noisy: False
         # args for optimizer
-        learning_rate: *critic_lr
+        learning_rate: *policy_lr
         decay_rate: *decay_rate
         decay_steps: *decay_steps
 

@@ -283,7 +283,7 @@ class Layer():
                                         initializer=kernel_initializer,
                                         regularizer=self.l2_regularizer)
             noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
-                                        initializer=tf.constant_initializer(sigma / np.sqrt(units)))
+                                        initializer=tf.constant_initializer(sigma / np.sqrt(features)))
             
             # output of the noisy layer
             x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
@@ -560,7 +560,8 @@ class Layer():
     """ Auxiliary functions """
     def reset_counter(self, name):
         counter = name + '_counter'
-        setattr(self, counter, -1)   # to avoid scope name conflict caused by _dense_resnet_norm_activation
+        if hasattr(self, counter):
+            setattr(self, counter, -1)   # to avoid scope name conflict caused by _dense_resnet_norm_activation
 
     def get_name(self, name, default_name):
         if name is None:

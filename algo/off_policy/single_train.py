@@ -53,7 +53,7 @@ def eval(agent, k, interval, scores, epslens, render):
         score, epslen = run_trajectory(agent, eval_fn, render=render, test=True)
         scores.append(score)
         epslens.append(epslen)
-        if i % 10 == 0:
+        if i % 4 == 0:
             log(agent, 
                 Timing='Eval', 
                 Iteration=k-100+i,
@@ -90,7 +90,7 @@ def train(agent, n_epochs, render):
         scores.append(score)
         epslens.append(epslen)
 
-        if k % 10 == 0:
+        if k % 4 == 0:
             score_mean = np.mean(scores)
             score_std = np.std(scores)
             epslen_mean = np.mean(epslens)
@@ -102,14 +102,14 @@ def train(agent, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                log(agent, 
-                    Timing='Train', 
-                    Iteration=k,
-                    Score=score, 
-                    ScoreMean=score_mean,
-                    ScoreStd=score_std,
-                    EpsLenMean=epslen_mean,
-                    EpsLenStd=epslen_std)
+                t, _ = timeit(log, **dict(agent=agent, 
+                                Timing='Train', 
+                                Iteration=k,
+                                Score=score, 
+                                ScoreMean=score_mean,
+                                ScoreStd=score_std,
+                                EpsLenMean=epslen_mean,
+                                EpsLenStd=epslen_std))
 
         if k % 100 == 0:
             eval(agent, k, interval, test_scores, test_epslens, render)
