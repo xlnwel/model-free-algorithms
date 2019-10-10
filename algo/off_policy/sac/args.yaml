@@ -58,7 +58,7 @@ agent:
 buffer:
     type: proportional # proportional
     normalize_state: False
-    normalize_reward: False
+    normalize_reward: True
     reward_scale: 5
 
     alpha: 0.4

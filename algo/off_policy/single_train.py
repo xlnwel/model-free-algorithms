@@ -1,5 +1,5 @@
 """
-Code for training single agent
+Code for training single agent. The agent trains its networks after every "update_freq" steps.
 """
 import time
 import threading

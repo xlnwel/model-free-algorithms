@@ -70,8 +70,7 @@ class Agent(OffPolicyOperation):
             # reward scaling indirectly affects the policy temperature
             # we neutralize the effect by scaling the temperature here
             # see my blog for more info https://xlnwel.github.io/blog/reinforcement%20learning/SAC/
-            self.alpha = (self.raw_temperature * self.args['reward_scale'] 
-                            if 'reward_scale' in self.args else self.raw_temperature)
+            self.alpha = self.raw_temperature * self.buffer.reward_scale
             self.next_alpha = self.alpha
 
         self.priority, losses = self._loss(self.actor, self.Q_nets, self.logpi)

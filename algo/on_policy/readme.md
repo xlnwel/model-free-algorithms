@@ -7,9 +7,12 @@
 
 ## Experimental Results 
 
+We haven't tested tricks used in off-policy methods, since it takes too long to run an on-policy method. One
+might expect theses trics also work well for on-policy methods.
+
 ### PPO
 
-PPO requires a significantly larger batch size than off-policy algorithms for a stable learning process and better final results. This may corresponds to the score function estimator and the way advantages are computed(both GAE and NAE use the whole return, resulting in high variance). The latter could be alleviated using TD residuals.
+PPO requires a significantly larger batch size than off-policy algorithms for a stable learning process and better final results. This may corresponds to the score function estimator and the way advantages are computed(both GAE and NAE use the whole return, which results in high variance). The latter could be alleviated using TD residuals.
 
 It is important to monitor the value of the approximate KL divergence when fine-tuning PPO. As the paper suggests, small KL divergence oftentimes gives a stable learning process, but a tiny KL divergence may impair the final performance (during my experiment, 0.01 is a good threshold). Furthermore, there is a positive correlation between the KL divergence and clip ratio.
 

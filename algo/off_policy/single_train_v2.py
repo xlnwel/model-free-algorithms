@@ -1,5 +1,5 @@
 """
-Code for training single agent
+Code for training single agent. The agent trains its network "epslen" times after every episode is done
 """
 import time
 import threading
@@ -16,7 +16,7 @@ from utility.debug_tools import timeit
 
 def log(agent, **kwargs):
     assert 'Timing' in kwargs
-    assert 'Iteration' in kwargs
+    assert 'Episodes' in kwargs
     assert 'Score' in kwargs
     assert 'ScoreMean' in kwargs
     assert 'ScoreStd' in kwargs
@@ -49,20 +49,24 @@ def run_trajectory(agent, buffer=None, render=False, random_action=False, test=F
 
     return env.get_score(), env.get_length()
 
-def eval(agent, k, interval, scores, epslens, render):
+def eval(agent, eval_t, start_episodes, interval, scores, epslens, render):
     for i in range(1, interval + 1):
+        eval_t += 1
         score, epslen = run_trajectory(agent, render=render, test=True)
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
             log(agent, 
+                Steps=eval_t,
                 Timing='Eval', 
-                Iteration=k-100+i,
+                Episodes=start_episodes+i,
                 Score=score, 
                 ScoreMean=np.mean(scores),
                 ScoreStd=np.std(scores),
                 EpsLenMean=np.mean(epslens),
                 EpsLenStd=np.std(epslens))
+    
+    return eval_t
 
 def train(agent, buffer, n_epochs, render):
     def collect_data(agent, buffer, random_action=False):
@@ -74,8 +78,10 @@ def train(agent, buffer, n_epochs, render):
         return score, epslen
 
     interval = 100
+    train_t = 0
     scores = deque(maxlen=interval)
     epslens = deque(maxlen=interval)
+    eval_t = 0
     test_scores = deque(maxlen=interval)
     test_epslens = deque(maxlen=interval)
 
@@ -87,6 +93,7 @@ def train(agent, buffer, n_epochs, render):
     utils.pwc(f'Training starts')
 
     for k in range(1, n_epochs + 1):
+        train_t += 1
         score, epslen = collect_data(agent, buffer)
         
         for _ in range(epslen):
@@ -107,17 +114,18 @@ def train(agent, buffer, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                t, _ = timeit(log, **dict(agent=agent, 
-                                Timing='Train', 
-                                Iteration=k,
-                                Score=score, 
-                                ScoreMean=score_mean,
-                                ScoreStd=score_std,
-                                EpsLenMean=epslen_mean,
-                                EpsLenStd=epslen_std))
+                log(agent=agent, 
+                    Steps=train_t,
+                    Timing='Train', 
+                    Episodes=k,
+                    Score=score, 
+                    ScoreMean=score_mean,
+                    ScoreStd=score_std,
+                    EpsLenMean=epslen_mean,
+                    EpsLenStd=epslen_std)
 
         if k % 100 == 0:
-            eval(agent, k, interval, test_scores, test_epslens, render)
+            eval_t = eval(agent, eval_t, k-100, interval, test_scores, test_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

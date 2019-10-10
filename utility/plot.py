@@ -8,10 +8,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utility.debug_tools import assert_colorize, pwc
 
 
-def plot_data(data, x, y, outpath, tag):
+def plot_data(data, x, y, outpath, tag, title, timing=None):
     if isinstance(data, list):
         data = pd.concat(data, ignore_index=True)
-        # data = data[data.Timing == 'Train'].drop('Timing', axis=1)
+        if timing:
+            data = data[data.Timing == timing].drop('Timing', axis=1)
 
     dir_name, file_name = os.path.split(outpath)
     if not os.path.isdir(dir_name):
@@ -19,6 +20,7 @@ def plot_data(data, x, y, outpath, tag):
     fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111)
     sns.set(style="whitegrid", font_scale=1.5)
+    sns.set_palette('Set2') # or husl
     if 'Timing' in data.columns:
         sns.lineplot(x=x, y=y, ax=ax, data=data, hue=tag, style='Timing')
     else:
@@ -27,8 +29,11 @@ def plot_data(data, x, y, outpath, tag):
     ax.legend(loc='best').set_draggable(True)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    if timing:
+        title = f'{title}-{timing}'
+    ax.set_title(title)
     fig.savefig(outpath)
-
+    pwc(f'Plot Path: {outpath}')
 
 def get_datasets(filedir, tag, condition=None):
     unit = 0
@@ -51,9 +56,12 @@ def main():
     parser.add_argument('logdir', nargs='*')
     parser.add_argument('--outname', '-o')
     parser.add_argument('--legend', nargs='*')
-    parser.add_argument('--legendtag', '-t', default='Algo')
-    parser.add_argument('--x', default='Iteration', nargs='*')
+    parser.add_argument('--legendtag', '-tag', default='Algo')
+    parser.add_argument('--title')
+    parser.add_argument('--x', default='Episodes', nargs='*')
     parser.add_argument('--y', default='ScoreMean', nargs='*')
+    parser.add_argument('--timing', default=None, choices=['Train', 'Eval', None], 
+                        help='select timing to plot; both training and evaluation stats are plotted by default')
     args = parser.parse_args()
 
     # by default assume using `python utility/plot.py` to call this file
@@ -88,10 +96,10 @@ def main():
         for x in xs:
             for y in ys:
                 outpath = f'results/{args.outname}/{x}-{y}.png'
-                plot_data(data, x, y, outpath, tag)
+                plot_data(data, x, y, outpath, tag, args.title, args.timing)
     else:
         outpath = f'results/{args.outname}.png'
-        plot_data(data, args.x, args.y, outpath, tag)
+        plot_data(data, args.x, args.y, outpath, tag, args.title, args.timing)
 
 if __name__ == '__main__':
     main()
