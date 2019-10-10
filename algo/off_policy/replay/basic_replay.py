@@ -171,6 +171,7 @@ class Replay:
         if self.normalize_reward:
             reward = self.running_reward_stats.normalize(reward)
         reward *= self.reward_scale
+        
         return (
             state,
             self.memory['action'][indexes],

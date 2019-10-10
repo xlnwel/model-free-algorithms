@@ -13,23 +13,6 @@ from utility.run_avg import RunningMeanStd
 from algo.off_policy.apex.buffer import LocalBuffer
 from utility.debug_tools import timeit
 
-
-def log(agent, **kwargs):
-    assert 'Timing' in kwargs
-    assert 'Episodes' in kwargs
-    assert 'Score' in kwargs
-    assert 'ScoreMean' in kwargs
-    assert 'ScoreStd' in kwargs
-    assert 'EpsLenMean' in kwargs
-    assert 'EpsLenStd' in kwargs
-
-    log_info = {
-        'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}'
-    }
-    log_info.update(kwargs)
-
-    [agent.log_tabular(k, v) for k, v in log_info.items()]
-    agent.dump_tabular()
     
 def run_trajectory(agent, buffer=None, render=False, random_action=False, test=False):
     env = agent.env
@@ -56,15 +39,14 @@ def eval(agent, eval_t, start_episodes, interval, scores, epslens, render):
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
-            log(agent, 
-                Steps=eval_t,
-                Timing='Eval', 
-                Episodes=start_episodes+i,
-                Score=score, 
-                ScoreMean=np.mean(scores),
-                ScoreStd=np.std(scores),
-                EpsLenMean=np.mean(epslens),
-                EpsLenStd=np.std(epslens))
+            agent.log(Steps=eval_t,
+                    Timing='Eval', 
+                    Episodes=start_episodes+i,
+                    Score=score, 
+                    ScoreMean=np.mean(scores),
+                    ScoreStd=np.std(scores),
+                    EpsLenMean=np.mean(epslens),
+                    EpsLenStd=np.std(epslens))
     
     return eval_t
 
@@ -114,15 +96,14 @@ def train(agent, buffer, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                log(agent=agent, 
-                    Steps=train_t,
-                    Timing='Train', 
-                    Episodes=k,
-                    Score=score, 
-                    ScoreMean=score_mean,
-                    ScoreStd=score_std,
-                    EpsLenMean=epslen_mean,
-                    EpsLenStd=epslen_std)
+                agent,log(Steps=train_t,
+                        Timing='Train', 
+                        Episodes=k,
+                        Score=score, 
+                        ScoreMean=score_mean,
+                        ScoreStd=score_std,
+                        EpsLenMean=epslen_mean,
+                        EpsLenStd=epslen_std)
 
         if k % 100 == 0:
             eval_t = eval(agent, eval_t, k-100, interval, test_scores, test_epslens, render)

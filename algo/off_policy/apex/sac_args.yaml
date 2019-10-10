@@ -4,11 +4,10 @@ env:
     max_episode_steps: 1000
     seed: 0
 agent:
-    background_learning: True
     algorithm: apex-sac
-    temperature: 0.01
+    temperature: auto
     gamma: &gamma 0.99
-    batch_size: 128
+    batch_size: 256
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -18,33 +17,31 @@ agent:
 
     loss_type: mse            # huber or mse
     n_steps: 3
-    priority: Q               # Q or V
-    policy_delay: 1
     n_epochs: 1000
     
-    policy:
-        n_noisy: 0
+    Policy:
+        n_noisy: 2
         noisy_sigma: 0.4    # standard deviation for noisy layers
         units: [512, 256, 128]
         layernorm: True
+        target: False
         # args for optimizer
-        learning_rate: 1e-4
+        learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
-    V:
+    Q:
         polyak: .995      # moving average rate
         units: &critic_units [512, 512, 256]
         layernorm: True
         # args for optimizer
         learning_rate: &critic_lr 3e-4
-        layernorm: True
         decay_rate: *decay_rate
         decay_steps: *decay_steps
-    Q:
-        units: *critic_units
-        layernorm: True
+    Temperature:
+        type: state_action
+        noisy: False
         # args for optimizer
-        learning_rate: *critic_lr
+        learning_rate: *policy_lr
         decay_rate: *decay_rate
         decay_steps: *decay_steps
 
@@ -56,7 +53,9 @@ agent:
 buffer:
     type: proportional # proportional
     normalize_state: True
-
+    normalize_reward: True
+    reward_scale: 5
+    
     alpha: 0.4
     beta0: 0.4
     epsilon: 1e-4

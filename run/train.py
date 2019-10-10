@@ -105,7 +105,7 @@ if __name__ == '__main__':
             gs(batch_size=[128, 256])
         elif algorithm == 'sac':
             # gs()
-            gs(reward_scale=[1, 5], normalize_reward=[False, True])
+            gs(normalize_state=True)
         elif algorithm == 'rainbow-iqn':
             gs()
         elif algorithm == 'apex-td3':

@@ -8,15 +8,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utility.debug_tools import assert_colorize, pwc
 
 
-def plot_data(data, x, y, outpath, tag, title, timing=None):
+def plot_data(data, x, y, outdir, tag, title, timing=None):
     if isinstance(data, list):
         data = pd.concat(data, ignore_index=True)
         if timing:
             data = data[data.Timing == timing].drop('Timing', axis=1)
 
-    dir_name, file_name = os.path.split(outpath)
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
     fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111)
     sns.set(style="whitegrid", font_scale=1.5)
@@ -31,6 +30,7 @@ def plot_data(data, x, y, outpath, tag, title, timing=None):
     ax.spines['right'].set_visible(False)
     if timing:
         title = f'{title}-{timing}'
+    outpath = f'{outdir}/{title}.png'
     ax.set_title(title)
     fig.savefig(outpath)
     pwc(f'Plot Path: {outpath}')
@@ -54,7 +54,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('logdir', nargs='*')
-    parser.add_argument('--outname', '-o')
+    parser.add_argument('--outdir', '-o')
     parser.add_argument('--legend', nargs='*')
     parser.add_argument('--legendtag', '-tag', default='Algo')
     parser.add_argument('--title')
@@ -90,16 +90,12 @@ def main():
     for logdir, legend_title in zip(dirs, legends):
         data += get_datasets(logdir, tag, legend_title)
 
-    if isinstance(args.x, list) or isinstance(args.y, list):
-        xs = args.x if isinstance(args.x, list) else [args.x]
-        ys = args.y if isinstance(args.y, list) else [args.y]
-        for x in xs:
-            for y in ys:
-                outpath = f'results/{args.outname}/{x}-{y}.png'
-                plot_data(data, x, y, outpath, tag, args.title, args.timing)
-    else:
-        outpath = f'results/{args.outname}.png'
-        plot_data(data, args.x, args.y, outpath, tag, args.title, args.timing)
+    xs = args.x if isinstance(args.x, list) else [args.x]
+    ys = args.y if isinstance(args.y, list) else [args.y]
+    for x in xs:
+        for y in ys:
+            outdir = f'results/{args.outdir}-{x}-{y}'
+            plot_data(data, x, y, outdir, tag, args.title, args.timing)
 
 if __name__ == '__main__':
     main()

@@ -12,56 +12,22 @@ from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
 
 
-def log(agent, **kwargs):
-    assert 'Timing' in kwargs
-    assert 'Iteration' in kwargs
-    assert 'Score' in kwargs
-    assert 'ScoreMean' in kwargs
-    assert 'ScoreStd' in kwargs
-    assert 'EpsLenMean' in kwargs
-    assert 'EpsLenStd' in kwargs
-
-    log_info = {
-        'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}'
-    }
-    log_info.update(kwargs)
-
-    [agent.log_tabular(k, v) for k, v in log_info.items()]
-    agent.dump_tabular()
-    
-def run_trajectory(agent, fn, render=False, random_action=False, test=False):
-    """ run a trajectory, fn is a function executed after each environment step """
-    env = agent.env
-    state = env.reset()
-    for i in range(env.max_episode_steps):
-        if render:
-            env.render()
-        action = env.random_action() if random_action else agent.act(state, deterministic=test)
-        next_state, reward, done, _ = env.step(action)
-        fn(state, action, reward, done, i)
-        state = next_state
-        if done:
-            break
-
-    return env.get_score(), env.get_length()
-
 def eval(agent, k, interval, scores, epslens, render):
     def eval_fn(state, action, reward, done, i):
         pass    # do nothing at eval time
 
     for i in range(1, interval + 1):
-        score, epslen = run_trajectory(agent, eval_fn, render=render, test=True)
+        score, epslen = agent.run_trajectory(eval_fn, render=render, test=True)
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
-            log(agent, 
-                Timing='Eval', 
-                Iteration=k-100+i,
-                Score=score, 
-                ScoreMean=np.mean(scores),
-                ScoreStd=np.std(scores),
-                EpsLenMean=np.mean(epslens),
-                EpsLenStd=np.std(epslens))
+            agent.log(Timing='Eval', 
+                    Episodes=k-100+i,
+                    Score=score, 
+                    ScoreMean=np.mean(scores),
+                    ScoreStd=np.std(scores),
+                    EpsLenMean=np.mean(epslens),
+                    EpsLenStd=np.std(epslens))
 
 def train(agent, n_epochs, render):
     def collection_fn(state, action, reward, done, i):
@@ -80,12 +46,12 @@ def train(agent, n_epochs, render):
 
     utils.pwc(f'Data collection for state normalization')
     while not agent.buffer.good_to_learn:
-        run_trajectory(agent, collection_fn, random_action=True)
+        agent.run_trajectory(agent, collection_fn, random_action=True)
     assert agent.buffer.good_to_learn
     utils.pwc(f'Training starts')
 
     for k in range(1, n_epochs + 1):
-        score, epslen = run_trajectory(agent, train_fn)
+        score, epslen = agent.run_trajectory(agent, train_fn)
 
         scores.append(score)
         epslens.append(epslen)
@@ -102,14 +68,13 @@ def train(agent, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                t, _ = timeit(log, **dict(agent=agent, 
-                                Timing='Train', 
-                                Iteration=k,
-                                Score=score, 
-                                ScoreMean=score_mean,
-                                ScoreStd=score_std,
-                                EpsLenMean=epslen_mean,
-                                EpsLenStd=epslen_std))
+                agent.log(Timing='Train', 
+                            Episodes=k,
+                            Score=score, 
+                            ScoreMean=score_mean,
+                            ScoreStd=score_std,
+                            EpsLenMean=epslen_mean,
+                            EpsLenStd=epslen_std)
 
         if k % 100 == 0:
             eval(agent, k, interval, test_scores, test_epslens, render)

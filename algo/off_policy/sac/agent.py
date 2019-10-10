@@ -22,7 +22,6 @@ class Agent(OffPolicyOperation):
                  device=None):
         self.raw_temperature = args['temperature']
         self.critic_loss_type = args['loss_type']
-        self.priority_type = args['priority']
 
         super().__init__(name,
                          args,

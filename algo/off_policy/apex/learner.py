@@ -24,7 +24,7 @@ def get_learner(BaseClass, *args, **kwargs):
                     log_params=False, 
                     log_stats=False, 
                     device=None):
-            
+            env_args['n_envs'] = 1
             super().__init__(name, 
                             args, 
                             env_args,

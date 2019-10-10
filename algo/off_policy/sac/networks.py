@@ -90,18 +90,8 @@ class SoftPolicy(Module):
 
             # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
             logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
-        
-        if return_det_action:
-            x_det = state
-            with tf.variable_scope(name, reuse=True):
-                for u in units:
-                    x_det = self.dense_norm_activation(x_det, u, norm=norm)
 
-                mean_det = self.dense(x_det, action_dim)
-        else:
-            mean_det = None
-
-        return mean, logstd, mean_det
+        return mean, logstd, mean
 
     def _squash_correction(self, action, logpi):
         with tf.name_scope('squash'):

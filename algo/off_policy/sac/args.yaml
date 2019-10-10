@@ -21,7 +21,6 @@ agent:
     loss_type: mse            # huber or mse
     n_steps: 3
     priority: Q               # Q or V
-    policy_delay: 1
     n_epochs: 400
     
     Policy:
