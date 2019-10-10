@@ -13,47 +13,34 @@ from utility.run_avg import RunningMeanStd
 from algo.off_policy.apex.buffer import LocalBuffer
 from utility.debug_tools import timeit
 
-    
-def run_trajectory(agent, buffer=None, render=False, random_action=False, test=False):
-    env = agent.env
-    state = env.reset()
-    for i in range(env.max_episode_steps):
-        if render:
-            env.render()
-        action = env.random_action() if random_action else agent.act(state, deterministic=test)
-        next_state, reward, done, _ = env.step(action)
-        if done:
-            reward = -10
-        if buffer:
-            buffer.add(state, action, reward, done)
-        state = next_state
-        if done:
-            break
-
-    return env.get_score(), env.get_length()
 
 def eval(agent, eval_t, start_episodes, interval, scores, epslens, render):
     for i in range(1, interval + 1):
         eval_t += 1
-        score, epslen = run_trajectory(agent, render=render, test=True)
+        score, epslen = agent.run_trajectory(render=render, test=True)
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
-            agent.log(Steps=eval_t,
-                    Timing='Eval', 
-                    Episodes=start_episodes+i,
-                    Score=score, 
-                    ScoreMean=np.mean(scores),
-                    ScoreStd=np.std(scores),
-                    EpsLenMean=np.mean(epslens),
-                    EpsLenStd=np.std(epslens))
+            agent.rl_log(Steps=eval_t,
+                        Timing='Eval', 
+                        Episodes=start_episodes+i,
+                        Score=score, 
+                        ScoreMean=np.mean(scores),
+                        ScoreStd=np.std(scores),
+                        EpsLenMean=np.mean(epslens),
+                        EpsLenStd=np.std(epslens))
     
     return eval_t
 
 def train(agent, buffer, n_epochs, render):
+    def train_fn(state, action, reward, done, i):
+        if done:
+            reward = -10
+        buffer.add(state, action, reward, done)
+
     def collect_data(agent, buffer, random_action=False):
         buffer.reset()
-        score, epslen = run_trajectory(agent, buffer, random_action=random_action)
+        score, epslen = agent.run_trajectory(train_fn, random_action=random_action)
         buffer['priority'][:] = agent.buffer.top_priority
         agent.buffer.merge(buffer, buffer.idx)
 
@@ -96,14 +83,14 @@ def train(agent, buffer, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                agent,log(Steps=train_t,
-                        Timing='Train', 
-                        Episodes=k,
-                        Score=score, 
-                        ScoreMean=score_mean,
-                        ScoreStd=score_std,
-                        EpsLenMean=epslen_mean,
-                        EpsLenStd=epslen_std)
+                agent.rl_log(Steps=train_t,
+                            Timing='Train', 
+                            Episodes=k,
+                            Score=score, 
+                            ScoreMean=score_mean,
+                            ScoreStd=score_std,
+                            EpsLenMean=epslen_mean,
+                            EpsLenStd=epslen_std)
 
         if k % 100 == 0:
             eval_t = eval(agent, eval_t, k-100, interval, test_scores, test_epslens, render)

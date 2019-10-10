@@ -153,6 +153,11 @@ class Agent(OffPolicyOperation):
             with tf.name_scope('loss'):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
                 tf.summary.scalar('Q_loss_', self.Q_loss)
+
+            with tf.name_scope('Q'):
+                stats_summary('Q', self.Q_nets.Q)
+                stats_summary('Q_with_actor', self.Q_nets.Q_with_actor)
+
             if self.raw_temperature == 'auto':
                 with tf.name_scope('temperature'):
                     stats_summary('alpha', self.alpha)

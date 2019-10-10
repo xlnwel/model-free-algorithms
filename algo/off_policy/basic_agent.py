@@ -89,7 +89,7 @@ class OffPolicyOperation(Model, ABC):
     def add_data(self, state, action, reward, done):
         self.buffer.add(state, action, reward, done)
 
-    def run_trajectory(self, fn, render=False, random_action=False, test=False):
+    def run_trajectory(self, fn=None, render=False, random_action=False, test=False):
         """ run a trajectory, fn is a function executed after each environment step """
         env = self.env
         state = env.reset()
@@ -98,7 +98,8 @@ class OffPolicyOperation(Model, ABC):
                 env.render()
             action = env.random_action() if random_action else self.act(state, deterministic=test)
             next_state, reward, done, _ = env.step(action)
-            fn(state, action, reward, done, i)
+            if fn:
+                fn(state, action, reward, done, i)
             state = next_state
             if done:
                 break
@@ -112,27 +113,21 @@ class OffPolicyOperation(Model, ABC):
         pwc('Start Learning...', color='cyan')
         
         i = 0
-        learn_times = deque(maxlen=1000)
-        eval_times = deque(maxlen=100)
         scores = deque(maxlen=100)
         epslens = deque(maxlen=100)
         while True:
             i += 1
-            learn_t, _ = timeit(self.learn)
-            learn_times.append(learn_t)
+            self.learn()
             if i % 1000 == 0:
                 for _ in range(100):
-                    eval_t, (score, epslen) = timeit(self.run_trajectory(lambda: None, test=True))
-                    eval_times.append(eval_t)
-                self.log(Timing='Eval',
-                        LearnSteps=i,
-                        LearnTime=np.sum(learn_times),
-                        EvalTime=np.sum(eval_times),
-                        Score=score,
-                        ScoreMean=np.mean(scores),
-                        ScoreStd=np.std(scores),
-                        EpsLenMean=np.mean(epslens),
-                        EpsLenStd=np.std(epslens))
+                    score, epslen = self.run_trajectory(lambda: None, test=True)
+                self.rl_log(Timing='Eval',
+                            Steps=i,
+                            Score=score,
+                            ScoreMean=np.mean(scores),
+                            ScoreStd=np.std(scores),
+                            EpsLenMean=np.mean(epslens),
+                            EpsLenStd=np.std(epslens))
 
     def learn(self):
         if self.log_tensorboard:
@@ -155,9 +150,9 @@ class OffPolicyOperation(Model, ABC):
         self.update_step += 1
         self.buffer.update_priorities(priority, saved_mem_idxs)
     
-    def log(self, **kwargs):
+    def rl_log(self, **kwargs):
         assert 'Timing' in kwargs
-        assert 'Episodes' in kwargs
+        assert 'Episodes' in kwargs or 'Steps' in kwargs
         assert 'Score' in kwargs
         assert 'ScoreMean' in kwargs
         assert 'ScoreStd' in kwargs
