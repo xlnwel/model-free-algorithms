@@ -35,7 +35,6 @@ class OffPolicyOperation(Model, ABC):
                  device=None):
         # hyperparameters
         self.gamma = args['gamma'] if 'gamma' in args else .99
-        self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1.
         self.update_step = 0
 
         # environment info
@@ -52,9 +51,9 @@ class OffPolicyOperation(Model, ABC):
         # if action is discrete, then it has only 1 dimension
         action_dim = 1 if self.env.is_action_discrete else self.action_dim
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.env.state_space, action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.state_space, action_dim)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
@@ -87,8 +86,6 @@ class OffPolicyOperation(Model, ABC):
         return np.squeeze(action)
 
     def add_data(self, state, action, reward, done):
-        if not done:
-            reward *= self.reward_scale
         self.buffer.add(state, action, reward, done)
 
     def background_learning(self):

@@ -7,11 +7,10 @@ env:
     seed: 0
 agent:
     algorithm: sac
-    temperature: 0.01
+    temperature: auto   # auto or some float, e.g., 0.01
     gamma: &gamma 0.99
     batch_size: 256
     update_freq: 1      # Update every # environment steps
-    reward_scale: 5
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -44,7 +43,7 @@ agent:
         decay_rate: *decay_rate
         decay_steps: *decay_steps
     Temperature:
-        type: simple
+        type: state_action
         noisy: False
         # args for optimizer
         learning_rate: *policy_lr
@@ -58,7 +57,9 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # proportional
-    normalize_state: True
+    normalize_state: False
+    normalize_reward: False
+    reward_scale: 5
 
     alpha: 0.4
     beta0: 0.4

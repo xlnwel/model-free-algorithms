@@ -2,6 +2,7 @@ import threading
 import numpy as np
 
 from utility.debug_tools import assert_colorize
+from utility.run_avg import RunningMeanStd
 from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 
@@ -11,11 +12,17 @@ class Replay:
         self.memory = {}
 
         self.normalize_state = args['normalize_state']
+        self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1.
 
         # params for general replay buffer
         self.capacity = int(float(args['capacity']))
         self.min_size = int(float(args['min_size']))
         self.batch_size = args['batch_size']
+
+        # if args['normalize_state']:
+        #     self.running_state_stats = RunningMeanStd(shape=(1, *state_space))
+        if args['normalize_reward']:
+            self.running_reward_stats = RunningMeanStd()
 
         self.n_steps = args['n_steps']
         self.gamma = args['gamma']
@@ -36,6 +43,14 @@ class Replay:
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
 
+    # @property
+    # def normalize_state(self):
+    #     return hasattr(self, 'running_state_stats')
+
+    @property
+    def normalize_reward(self):
+        return hasattr(self, 'running_reward_stats')
+
     @property
     def good_to_learn(self):
         return len(self) >= self.min_size
@@ -55,13 +70,13 @@ class Replay:
             samples = self._sample()
 
         if not hasattr(self, 'state_mean') or hasattr(self, 'state_std'):
-            self.state_mean = np.mean(self['state'], axis=1)
-            self.state_std = np.std(self['state'], axis=1)
+            self.state_mean = np.mean(self['state'], axis=0)
+            self.state_std = np.std(self['state'], axis=0)
         
         IS_ratios, indexes, samples = samples
         if self.normalize_state:
-            samples[0] = (samples[0] - self.state_mean) / self.state_std
-            samples[3] = (samples[3] - self.state_mean) / self.state_std
+            samples[0] = (samples[0] - self.state_mean) / (self.state_std+1e4)
+            samples[3] = (samples[3] - self.state_mean) / (self.state_std+1e4)
 
 
         return IS_ratios, indexes, samples
@@ -121,8 +136,18 @@ class Replay:
             
             copy_buffer(self.memory, self.mem_idx, self.capacity, local_buffer, start, start + first_part)
             copy_buffer(self.memory, 0, second_part, local_buffer, start + first_part, start + length)
+
+            if self.normalize_reward:
+                # compute running reward statistics
+                reward = np.concatenate(local_buffer['reward'][start: start + first_part], 
+                                        local_buffer['reward'][start + first_part: start + length])
+                print(reward.shape)
+                self.running_reward_stats.update(reward)
         else:
             copy_buffer(self.memory, self.mem_idx, end_idx, local_buffer, start, start + length)
+            if self.normalize_reward:
+                # compute running reward statistics
+                self.running_reward_stats.update(local_buffer['reward'][start: start+length])
 
         # memory is full, recycle buffer via FIFO
         if not self.is_full and end_idx >= self.capacity:
@@ -141,10 +166,15 @@ class Replay:
         # using zero state as the terminal state
         next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
 
+        # normalize rewards
+        reward = self.memory['reward'][indexes]
+        if self.normalize_reward:
+            reward = self.running_reward_stats.normalize(reward)
+        reward *= self.reward_scale
         return (
             state,
             self.memory['action'][indexes],
-            self.memory['reward'][indexes],
+            reward,
             next_state,
             self.memory['done'][indexes],
             self.memory['steps'][indexes],

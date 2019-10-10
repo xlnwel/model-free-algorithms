@@ -34,10 +34,8 @@ def parse_cmd_args():
     return args
 
 def import_main(algorithm):
-    if algorithm == 'td3' or algorithm == 'sac':
-        from algo.off_policy.single_train import main
-    elif algorithm == 'rainbow-iqn':
-        from algo.off_policy.single_train import main
+    if algorithm == 'td3' or algorithm == 'sac' or algorithm == 'rainbow-iqn':
+        from algo.off_policy.single_train_v2 import main
     elif algorithm.startswith('apex'):
         from algo.off_policy.distributed_train import main
     elif algorithm == 'ppo':
@@ -104,9 +102,10 @@ if __name__ == '__main__':
         elif algorithm == 'a2c':
             gs()
         elif algorithm == 'td3':
-            gs()
+            gs(batch_size=[128, 256])
         elif algorithm == 'sac':
-            gs()
+            # gs()
+            gs(reward_scale=[1, 5], normalize_reward=[False, True])
         elif algorithm == 'rainbow-iqn':
             gs()
         elif algorithm == 'apex-td3':

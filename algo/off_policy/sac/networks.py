@@ -42,21 +42,22 @@ class SoftPolicy(Module):
         return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.variable_scope + '/target')
 
     def _build_graph(self):
-        self.action_det, self.action, self.logpi = self._build_policy(self.state, 'main', False)
+        self.action_det, self.action, self.logpi = self._build_policy(self.state, True, 'main', False)
         if self.has_target_net:
-            _, self.next_action, self.next_logpi = self._build_policy(self.next_state, 'target', False)
+            _, self.next_action, self.next_logpi = self._build_policy(self.next_state, False, 'target', False)
         else:
-            _, self.next_action, self.next_logpi = self._build_policy(self.next_state, 'main', True)
+            _, self.next_action, self.next_logpi = self._build_policy(self.next_state, False, 'main', True)
 
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
-    def _build_policy(self, state, name, reuse):
+    def _build_policy(self, state, return_det_action, name, reuse):
         with tf.variable_scope(name, reuse=reuse):
             mean, logstd, action_det = self._stochastic_policy_net(state, 
                                                                    self.args['units'], 
                                                                    self.action_dim, 
                                                                    self.norm, 
-                                                                   self.noisy_sigma)
+                                                                   self.noisy_sigma,
+                                                                   return_det_action)
 
             action_distribution = self.env.action_dist_type((mean, logstd))
 
@@ -68,7 +69,7 @@ class SoftPolicy(Module):
             
         return action_det, action, logpi
 
-    def _stochastic_policy_net(self, state, units, action_dim, norm, noisy_sigma, name='policy_net'):
+    def _stochastic_policy_net(self, state, units, action_dim, norm, noisy_sigma, return_det_action, name='policy_net'):
         noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=noisy_sigma)
         x = state
         self.reset_counter('noisy')
@@ -90,12 +91,15 @@ class SoftPolicy(Module):
             # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
             logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
         
-        x_det = state
-        with tf.variable_scope(name, reuse=True):
-            for u in units:
-                x_det = self.dense_norm_activation(x_det, u, norm=norm)
+        if return_det_action:
+            x_det = state
+            with tf.variable_scope(name, reuse=True):
+                for u in units:
+                    x_det = self.dense_norm_activation(x_det, u, norm=norm)
 
-            mean_det = self.dense(x_det, action_dim)
+                mean_det = self.dense(x_det, action_dim)
+        else:
+            mean_det = None
 
         return mean, logstd, mean_det
 

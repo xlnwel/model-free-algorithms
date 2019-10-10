@@ -46,6 +46,7 @@ class PrioritizedReplay(Replay):
 
     def update_priorities(self, priorities, saved_mem_idxs):
         with self.locker:
+            self.top_priority = max(np.max(priorities), self.top_priority)
             for priority, mem_idx in zip(priorities, saved_mem_idxs):
                 self.data_structure.update(priority, mem_idx)
 
@@ -56,6 +57,7 @@ class PrioritizedReplay(Replay):
     @override(Replay)
     def _merge(self, local_buffer, length, start=0):
         end_idx = self.mem_idx + length
+        assert np.all(local_buffer['priority'] != 0)
         for idx, mem_idx in enumerate(range(self.mem_idx, end_idx)):
             self.data_structure.update(local_buffer['priority'][idx], mem_idx % self.capacity)
             
