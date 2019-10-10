@@ -6,8 +6,9 @@ import numpy as np
 class RunningMeanStd(object):
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
     def __init__(self, epsilon=1e-4, shape=()):
-        self.mean = np.zeros(shape, 'float64')
-        self.var = np.ones(shape, 'float64')
+        self.mean = np.zeros(shape)
+        self.var = np.ones(shape)
+        self.epsilon = epsilon
         self.count = epsilon
 
     def update(self, x):
@@ -31,3 +32,6 @@ class RunningMeanStd(object):
         self.mean = new_mean
         self.var = new_var
         self.count = new_count
+
+    def normalize(self, x):
+        return (x - self.mean) / (self.var + self.epsilon)
