@@ -69,17 +69,7 @@ class Replay:
         with self.locker:
             samples = self._sample()
 
-        if not hasattr(self, 'state_mean') or hasattr(self, 'state_std'):
-            self.state_mean = np.mean(self['state'], axis=0)
-            self.state_std = np.std(self['state'], axis=0)
-        
-        IS_ratios, indexes, samples = samples
-        if self.normalize_state:
-            samples[0] = (samples[0] - self.state_mean) / (self.state_std+1e4)
-            samples[3] = (samples[3] - self.state_mean) / (self.state_std+1e4)
-
-
-        return IS_ratios, indexes, samples
+        return samples
 
     def merge(self, local_buffer, length, start=0):
         """ Merge a local buffer to the replay buffer, useful for distributed algorithms """
@@ -141,7 +131,6 @@ class Replay:
                 # compute running reward statistics
                 reward = np.concatenate(local_buffer['reward'][start: start + first_part], 
                                         local_buffer['reward'][start + first_part: start + length])
-                print(reward.shape)
                 self.running_reward_stats.update(reward)
         else:
             copy_buffer(self.memory, self.mem_idx, end_idx, local_buffer, start, start + length)
@@ -157,6 +146,13 @@ class Replay:
         self.mem_idx = end_idx % self.capacity
 
     def _get_samples(self, indexes):
+        def stats(x, type):
+            if type == 'mean':
+                return np.mean(x, axis=1, keepdims=True)
+            elif type == 'std':
+                return np.std(x, axis=1, keepdims=True)
+            else:
+                raise NotImplementedError
         indexes = np.array(indexes) # convert tuple to array
 
         state = self.memory['state'][indexes] 
@@ -165,6 +161,13 @@ class Replay:
         assert indexes.shape == next_indexes.shape
         # using zero state as the terminal state
         next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
+
+        if self.normalize_state:
+            state = (state - stats(state, 'mean')) / (stats(state, 'std') + 1e4)
+            next_state = (next_state - stats(next_state, 'mean')) / (stats(next_state, 'std') + 1e4)
+        # if self.normalize_state:
+        #     state = self.running_state_stats.normalize(state)
+        #     next_state = self.running_state_stats.normalize(next_state)
 
         # normalize rewards
         reward = self.memory['reward'][indexes]

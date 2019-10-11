@@ -45,7 +45,9 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # local or proportional
-    normalize_state: True
+    normalize_state: False
+    normalize_reward: True
+    reward_scale: 5
 
     alpha: 0.5
     beta0: 0.4

@@ -14,21 +14,21 @@ from algo.off_policy.apex.buffer import LocalBuffer
 from utility.debug_tools import timeit
 
 
-def eval(agent, eval_t, start_episodes, interval, scores, epslens, render):
+def evaluate(agent, eval_t, start_episodes, interval, scores, epslens, render):
     for i in range(1, interval + 1):
         eval_t += 1
-        score, epslen = agent.run_trajectory(render=render, test=True)
+        score, epslen = agent.run_trajectory(render=render, det_action=True)
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
-            agent.rl_log(Steps=eval_t,
-                        Timing='Eval', 
-                        Episodes=start_episodes+i,
-                        Score=score, 
-                        ScoreMean=np.mean(scores),
-                        ScoreStd=np.std(scores),
-                        EpsLenMean=np.mean(epslens),
-                        EpsLenStd=np.std(epslens))
+            agent.rl_log(dict(Steps=eval_t,
+                            Timing='Eval', 
+                            Episodes=start_episodes+i,
+                            Score=score, 
+                            ScoreMean=np.mean(scores),
+                            ScoreStd=np.std(scores),
+                            EpsLenMean=np.mean(epslens),
+                            EpsLenStd=np.std(epslens)))
     
     return eval_t
 
@@ -40,7 +40,7 @@ def train(agent, buffer, n_epochs, render):
 
     def collect_data(agent, buffer, random_action=False):
         buffer.reset()
-        score, epslen = agent.run_trajectory(train_fn, random_action=random_action)
+        score, epslen = agent.run_trajectory(fn=train_fn, random_action=random_action)
         buffer['priority'][:] = agent.buffer.top_priority
         agent.buffer.merge(buffer, buffer.idx)
 
@@ -83,17 +83,17 @@ def train(agent, buffer, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                agent.rl_log(Steps=train_t,
-                            Timing='Train', 
-                            Episodes=k,
-                            Score=score, 
-                            ScoreMean=score_mean,
-                            ScoreStd=score_std,
-                            EpsLenMean=epslen_mean,
-                            EpsLenStd=epslen_std)
+                agent.rl_log(dict(Steps=train_t,
+                                Timing='Train', 
+                                Episodes=k,
+                                Score=score, 
+                                ScoreMean=score_mean,
+                                ScoreStd=score_std,
+                                EpsLenMean=epslen_mean,
+                                EpsLenStd=epslen_std))
 
         if k % 100 == 0:
-            eval_t = eval(agent, eval_t, k-100, interval, test_scores, test_epslens, render)
+            eval_t = evaluate(agent, eval_t, k-100, interval, test_scores, test_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

@@ -15,7 +15,7 @@ class LocalBuffer(dict):
         self.fake_ratio = np.zeros(self.capacity)
         self.fake_ids = np.zeros(self.capacity, dtype=np.int32)
 
-        init_buffer(self, self.capacity, state_space, action_dim, True)
+        init_buffer(self, self.capacity, state_space, action_dim, True, state_extra_space=1)
         
         self.idx = 0
 

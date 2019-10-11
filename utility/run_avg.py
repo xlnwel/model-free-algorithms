@@ -17,21 +17,26 @@ class RunningMeanStd(object):
         self.update_from_moments(batch_mean, batch_var, batch_count)
 
     def update_from_moments(self, batch_mean, batch_var, batch_count):
-        delta = batch_mean - self.mean
-        total_count = self.count + batch_count
+        if self.count == self.epsilon:
+            self.mean = batch_mean
+            self.var = batch_var
+            self.count = batch_count
+        else:
+            delta = batch_mean - self.mean
+            total_count = self.count + batch_count
 
-        new_mean = self.mean + delta * batch_count / total_count
-        # no minus one here. To honor the original implementation, I leave it as-is
-        m_a = self.var * (self.count)
-        m_b = batch_var * (batch_count)
-        M2 = m_a + m_b + np.square(delta) * self.count * batch_count / (self.count + batch_count)
-        new_var = M2 / (self.count + batch_count)
+            new_mean = self.mean + delta * batch_count / total_count
+            # no minus one here. To honor the original implementation, I leave it as-is
+            m_a = self.var * (self.count)
+            m_b = batch_var * (batch_count)
+            M2 = m_a + m_b + np.square(delta) * self.count * batch_count / (self.count + batch_count)
+            new_var = M2 / (self.count + batch_count - 1)
 
-        new_count = batch_count + self.count
+            new_count = batch_count + self.count
 
-        self.mean = new_mean
-        self.var = new_var
-        self.count = new_count
+            self.mean = new_mean
+            self.var = new_var
+            self.count = new_count
 
     def normalize(self, x):
         return (x - self.mean) / (self.var + self.epsilon)

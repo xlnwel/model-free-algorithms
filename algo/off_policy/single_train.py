@@ -12,22 +12,19 @@ from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
 
 
-def eval(agent, k, interval, scores, epslens, render):
-    def eval_fn(state, action, reward, done, i):
-        pass    # do nothing at eval time
-
+def evaluate(agent, k, interval, scores, epslens, render):
     for i in range(1, interval + 1):
-        score, epslen = agent.run_trajectory(eval_fn, render=render, test=True)
+        score, epslen = agent.run_trajectory(render=render, det_action=True)
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
-            agent.log(Timing='Eval', 
-                    Episodes=k-100+i,
-                    Score=score, 
-                    ScoreMean=np.mean(scores),
-                    ScoreStd=np.std(scores),
-                    EpsLenMean=np.mean(epslens),
-                    EpsLenStd=np.std(epslens))
+            agent.rl_log(dict(Timing='Eval', 
+                            Episodes=k-100+i,
+                            Score=score, 
+                            ScoreMean=np.mean(scores),
+                            ScoreStd=np.std(scores),
+                            EpsLenMean=np.mean(epslens),
+                            EpsLenStd=np.std(epslens)))
 
 def train(agent, n_epochs, render):
     def collection_fn(state, action, reward, done, i):
@@ -46,12 +43,12 @@ def train(agent, n_epochs, render):
 
     utils.pwc(f'Data collection for state normalization')
     while not agent.buffer.good_to_learn:
-        agent.run_trajectory(agent, collection_fn, random_action=True)
+        agent.run_trajectory(fn=collection_fn, random_action=True)
     assert agent.buffer.good_to_learn
     utils.pwc(f'Training starts')
 
     for k in range(1, n_epochs + 1):
-        score, epslen = agent.run_trajectory(agent, train_fn)
+        score, epslen = agent.run_trajectory(fn=train_fn)
 
         scores.append(score)
         epslens.append(epslen)
@@ -68,16 +65,16 @@ def train(agent, n_epochs, render):
                                     global_step=k)
             
             if hasattr(agent, 'logger'):
-                agent.log(Timing='Train', 
-                            Episodes=k,
-                            Score=score, 
-                            ScoreMean=score_mean,
-                            ScoreStd=score_std,
-                            EpsLenMean=epslen_mean,
-                            EpsLenStd=epslen_std)
+                agent.rl_log(dict(Timing='Train', 
+                                Episodes=k,
+                                Score=score, 
+                                ScoreMean=score_mean,
+                                ScoreStd=score_std,
+                                EpsLenMean=epslen_mean,
+                                EpsLenStd=epslen_std))
 
         if k % 100 == 0:
-            eval(agent, k, interval, test_scores, test_epslens, render)
+            evaluate(agent, k, interval, test_scores, test_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

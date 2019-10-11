@@ -37,7 +37,7 @@ class Agent(OffPolicyOperation):
 
     def _build_graph(self):
         if 'gpu' in self.device:
-            with tf.device('/cpu: 0'):
+            with tf.device('/CPU: 0'):
                 self.data = self._prepare_data(self.buffer)
         else:
             self.data = self._prepare_data(self.buffer)
@@ -155,10 +155,13 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('Q_loss_', self.Q_loss)
 
             with tf.name_scope('Q'):
-                stats_summary('Q', self.Q_nets.Q)
                 stats_summary('Q_with_actor', self.Q_nets.Q_with_actor)
 
             if self.raw_temperature == 'auto':
                 with tf.name_scope('temperature'):
                     stats_summary('alpha', self.alpha)
                     stats_summary('alpha_loss', self.alpha_loss)
+
+            # with tf.name_scope('state'):
+            #     for i, s in enumerate(tf.unstack(self.data['state'], axis=1)):
+            #         tf.summary.histogram(f'dim_{i}', s)

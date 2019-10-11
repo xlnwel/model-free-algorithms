@@ -9,7 +9,7 @@ from utility.utils import pwc
 
 def get_worker(BaseClass, *args, **kwargs):
 
-    @ray.remote(num_cpus=1)
+    @ray.remote()
     class Worker(BaseClass):
         """ Interface """
         def __init__(self, 
@@ -23,9 +23,9 @@ def get_worker(BaseClass, *args, **kwargs):
                     save=False, 
                     device=None):
             self.no = worker_no
-            self.weight_update_freq = weight_update_freq    # update weights 
+            self.weight_update_freq = weight_update_freq    # weight update frequency 
             buffer_args['type'] = 'local'
-            buffer_args['local_capacity'] = env_args['max_episode_steps']
+            buffer_args['local_capacity'] = env_args['max_episode_steps'] * weight_update_freq
 
             super().__init__(name, 
                             args, 
@@ -39,6 +39,12 @@ def get_worker(BaseClass, *args, **kwargs):
             return self.sess.run(self.priority)
 
         def sample_data(self, learner):
+            self.sampling_imp(learner, self.no == 0)
+
+        def sampling_imp(self, learner, det_action):
+            def fn(state, action, reward, done, i):
+                reward = -10
+                self.buffer.add(state, action, reward, done)
             # I intend not to synchronize the worker's weights at the beginning for initial diversity 
             score_deque = deque(maxlen=100)
             epslen_deque = deque(maxlen=100)
@@ -46,24 +52,13 @@ def get_worker(BaseClass, *args, **kwargs):
             t = 0
             
             while True:
-                state = self.env.reset()
+                while self.buffer.idx < self.buffer.capacity - self.env.max_episode_steps:
+                    score, epslen, state = self.run_trajectory(fn, det_action=det_action)
 
-                for _ in range(self.max_path_length):
-                    t += 1
-                    action = self.act(state)
-                    next_state, reward, done, _ = self.env.step(action)
-                    
-                    self.buffer.add(state, action, reward, done)
-
-                    state = next_state
-
-                    if done:
-                        break
-
-                last_state = np.zeros_like(state) if done else next_state
+                last_state = np.zeros_like(state) if self.buffer['done'][self.buffer.idx-1] else state
                 self.buffer.add_last_state(last_state)
                 self.buffer['priority'] = self.compute_priorities()
-                # push samples to the central buffer after each episode
+                # push samples to the central buffer
                 learner.merge_buffer.remote(dict(self.buffer), self.buffer.idx)
                 self.buffer.reset()
 

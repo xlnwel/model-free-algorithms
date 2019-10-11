@@ -11,3 +11,4 @@ requests
 setproctitle
 ray
 gym
+sympy

@@ -11,7 +11,7 @@
 - [x] PER       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/replay)]
 - [x] GAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
 - [x] NAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
-
+- [x] Adaptive Temperature for SAC [[code]()]
 ## Overall Architecture
 
 <p align="center">

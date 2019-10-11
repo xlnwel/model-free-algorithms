@@ -89,14 +89,14 @@ class OffPolicyOperation(Model, ABC):
     def add_data(self, state, action, reward, done):
         self.buffer.add(state, action, reward, done)
 
-    def run_trajectory(self, fn=None, render=False, random_action=False, test=False):
+    def run_trajectory(self, fn=None, render=False, random_action=False, det_action=False, return_state=False):
         """ run a trajectory, fn is a function executed after each environment step """
         env = self.env
         state = env.reset()
         for i in range(env.max_episode_steps):
             if render:
                 env.render()
-            action = env.random_action() if random_action else self.act(state, deterministic=test)
+            action = env.random_action() if random_action else self.act(state, deterministic=det_action)
             next_state, reward, done, _ = env.step(action)
             if fn:
                 fn(state, action, reward, done, i)
@@ -104,30 +104,10 @@ class OffPolicyOperation(Model, ABC):
             if done:
                 break
 
-        return env.get_score(), env.get_length()
-        
-    def background_learning(self):
-        from utility.debug_tools import timeit
-        while not self.buffer.good_to_learn:
-            time.sleep(1)
-        pwc('Start Learning...', color='cyan')
-        
-        i = 0
-        scores = deque(maxlen=100)
-        epslens = deque(maxlen=100)
-        while True:
-            i += 1
-            self.learn()
-            if i % 1000 == 0:
-                for _ in range(100):
-                    score, epslen = self.run_trajectory(lambda: None, test=True)
-                self.rl_log(Timing='Eval',
-                            Steps=i,
-                            Score=score,
-                            ScoreMean=np.mean(scores),
-                            ScoreStd=np.std(scores),
-                            EpsLenMean=np.mean(epslens),
-                            EpsLenStd=np.std(epslens))
+        if return_state:
+            return env.get_score(), env.get_length(), state
+        else:
+            return env.get_score(), env.get_length()
 
     def learn(self):
         if self.log_tensorboard:
@@ -150,7 +130,8 @@ class OffPolicyOperation(Model, ABC):
         self.update_step += 1
         self.buffer.update_priorities(priority, saved_mem_idxs)
     
-    def rl_log(self, **kwargs):
+    def rl_log(self, kwargs):
+        assert isinstance(kwargs, dict)
         assert 'Timing' in kwargs
         assert 'Episodes' in kwargs or 'Steps' in kwargs
         assert 'Score' in kwargs
