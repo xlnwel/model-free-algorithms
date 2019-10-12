@@ -26,7 +26,7 @@ def run_trajectory(agent, fn, render, random_action=False):
         if done:
             break
 
-    return env.get_score(), env.get_length()
+    return env.get_score(), env.get_epslen()
 
 def eval(agent, k, interval, render, print_terminal_info):
     def eval_fn(state, action, reward, done, i):

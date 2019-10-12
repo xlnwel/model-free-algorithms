@@ -68,7 +68,7 @@ def get_worker(BaseClass, *args, **kwargs):
                 self.buffer.reset()
 
                 score = self.env.get_score()
-                epslen = self.env.get_length()
+                epslen = self.env.get_epslen()
                 episode_i += 1
                 score_deque.append(score)
                 epslen_deque.append(epslen)

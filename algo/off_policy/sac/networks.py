@@ -56,7 +56,7 @@ class SoftPolicy(Module):
     def _squash_correction(self, action, logpi):
         with tf.name_scope('squash'):
             action_new = tf.tanh(action)
-            sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1)
+            sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1, keepdims=True)
             logpi -= sub
 
         return action_new, logpi

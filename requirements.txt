@@ -1,5 +1,6 @@
-seaborn
+numpy
 matplotlib
+seaborn
 pandas
 box2d
 box2d-kengz
@@ -11,3 +12,4 @@ requests
 setproctitle
 ray
 gym
+sympy

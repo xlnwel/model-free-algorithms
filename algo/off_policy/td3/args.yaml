@@ -5,6 +5,8 @@ env:
     log_video: False
     max_episode_steps: 1000
     seed: 0
+    n_action_repetition: 1
+    clip_reward: none
 agent:
     algorithm: td3
     gamma: 0.99

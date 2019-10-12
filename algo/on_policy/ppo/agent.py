@@ -99,7 +99,7 @@ class Agent(Model):
                 break
 
         pwc(f'Demonstration score:\t{self.env_vec.get_score()}', 'green')
-        pwc(f'Demonstration length:\t{self.env_vec.get_length()}', 'green')
+        pwc(f'Demonstration length:\t{self.env_vec.get_epslen()}', 'green')
 
     def shuffle_buffer(self):
         if not self.use_lstm:
@@ -194,7 +194,7 @@ class Agent(Model):
 
         self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount, self.mask_data)
         
-        return self.env_vec.get_score(), self.env_vec.get_length()
+        return self.env_vec.get_score(), self.env_vec.get_epslen()
 
     def _optimize(self, timestep=None):
         # construct policy fetches
