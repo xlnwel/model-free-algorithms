@@ -2,11 +2,12 @@
 https://github.com/openai/baselines/blob/master/baselines/common/wrappers.py
 """
 
+import numpy as np
 import gym
 
 class TimeLimit(gym.Wrapper):
     def __init__(self, env, max_episode_steps=None):
-        super(TimeLimit, self).__init__(env)
+        super().__init__(env)
         self._max_episode_steps = max_episode_steps
         self._elapsed_steps = 0
 
@@ -24,7 +25,6 @@ class TimeLimit(gym.Wrapper):
 
 class ClipActionsWrapper(gym.Wrapper):
     def step(self, action):
-        import numpy as np
         action = np.nan_to_num(action)
         action = np.clip(action, self.action_space.low, self.action_space.high)
         return self.env.step(action)
@@ -32,3 +32,41 @@ class ClipActionsWrapper(gym.Wrapper):
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)
 
+class EnvStats(gym.Wrapper):
+    """ Provide Environment Stats Records """
+    def reset(self):
+        self.score = 0
+        self.epslen = 0
+        self.early_done = 0
+        self.mask = 1
+        
+        return self.env.reset()
+
+    def step(self, action):
+        self.mask = 1 - self.early_done
+        next_state, reward, done, info = self.env.step(action)
+        self.score += 0 if self.early_done else reward
+        self.epslen += 0 if self.early_done else 1
+        self.early_done = done
+
+        return next_state, reward, done, info
+
+    def get_mask(self):
+        """ Get mask at the current step. Should only be called after self.step """
+        return self.mask
+
+    def get_score(self):
+        return self.score
+    
+    def get_epslen(self):
+        return self.epslen
+
+def get_wrapper_by_name(env, classname):
+    currentenv = env
+    while True:
+        if classname in currentenv.__class__.__name__:
+            return currentenv
+        elif isinstance(env, gym.Wrapper):
+            currentenv = currentenv.env
+        else:
+            raise ValueError(f"Couldn't find wrapper named {classname}")

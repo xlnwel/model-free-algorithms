@@ -283,7 +283,7 @@ class Layer():
                                         initializer=kernel_initializer,
                                         regularizer=self.l2_regularizer)
             noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
-                                        initializer=tf.constant_initializer(sigma / np.sqrt(features)))
+                                        initializer=tf.constant_initializer(sigma / np.sqrt(units)))
             
             # output of the noisy layer
             x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b

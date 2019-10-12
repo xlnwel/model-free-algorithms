@@ -80,11 +80,6 @@ class SoftPolicy(Module):
                 layer = self.dense_norm_activation if i < len(units) - n_noisy else noisy_norm_activation
                 x = layer(x, u, norm=norm)
 
-            # if n_noisy > 0:
-            #     mean = self.noisy(x, action_dim)
-            #     logstd = self.noisy(x, action_dim)
-            # else:
-            #     
             mean = self.dense(x, action_dim)
             logstd = self.dense(x, action_dim)
 

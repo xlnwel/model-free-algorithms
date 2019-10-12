@@ -99,7 +99,7 @@ class Agent(Model):
                 break
 
         pwc(f'Demonstration score:\t{self.env_vec.get_score()}', 'green')
-        pwc(f'Demonstration length:\t{self.env_vec.get_length()}', 'green')
+        pwc(f'Demonstration length:\t{self.env_vec.get_epslen()}', 'green')
 
     def shuffle_buffer(self):
         if not self.use_lstm:
@@ -194,7 +194,7 @@ class Agent(Model):
 
         self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount, self.mask_data)
         
-        return self.env_vec.get_score(), self.env_vec.get_length()
+        return self.env_vec.get_score(), self.env_vec.get_epslen()
 
     def _optimize(self, timestep=None):
         # construct policy fetches
@@ -269,8 +269,8 @@ class Agent(Model):
                 
                 if self.env_phs['mask_loss'] is not None:
                     stats_summary('V_mask', self.ac.V * self.env_phs['mask_loss'])
-                    stats_summary('advantage_mask', self.env_phs['advantage']* self.env_phs['mask_loss'])
-                    stats_summary('return_mask', self.env_phs['return']* self.env_phs['mask_loss'])
+                    stats_summary('advantage_mask', self.env_phs['advantage'] * self.env_phs['mask_loss'])
+                    stats_summary('return_mask', self.env_phs['return'] * self.env_phs['mask_loss'])
 
             if self.mask_loss:
                 with tf.name_scope('mask'):

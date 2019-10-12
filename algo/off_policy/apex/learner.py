@@ -50,29 +50,28 @@ def get_learner(BaseClass, *args, **kwargs):
         def merge_buffer(self, local_buffer, length):
             self.buffer.merge(local_buffer, length)
 
-    def background_learning(self):
-        from utility.debug_tools import timeit
-        while not self.buffer.good_to_learn:
-            time.sleep(1)
-        pwc('Start Learning...', color='cyan')
-        
-        i = 0
-        scores = deque(maxlen=100)
-        epslens = deque(maxlen=100)
-        while True:
-            i += 1
-            self.learn()
-            if i % 1000 == 0:
-                pwc('Start Evaluation...', color='cyan')
-                for _ in range(100):
-                    score, epslen = self.run_trajectory(lambda: None, test=True)
-                self.rl_log(Timing='Eval',
-                            Steps=i,
-                            Score=score,
-                            ScoreMean=np.mean(scores),
-                            ScoreStd=np.std(scores),
-                            EpsLenMean=np.mean(epslens),
-                            EpsLenStd=np.std(epslens))
+        def background_learning(self):
+            while not self.buffer.good_to_learn:
+                time.sleep(1)
+            pwc('Start Learning...', color='cyan')
+            
+            i = 0
+            scores = deque(maxlen=100)
+            epslens = deque(maxlen=100)
+            while True:
+                i += 1
+                self.learn()
+                if i % 1000 == 0:
+                    pwc('Start Evaluation...', color='cyan')
+                    for _ in range(100):
+                        score, epslen = self.run_trajectory(lambda: None, test=True)
+                    self.rl_log(Timing='Eval',
+                                Steps=i,
+                                Score=score,
+                                ScoreMean=np.mean(scores),
+                                ScoreStd=np.std(scores),
+                                EpsLenMean=np.mean(epslens),
+                                EpsLenStd=np.std(epslens))
 
         def record_stats(self, kwargs):
             assert isinstance(kwargs, dict)

@@ -16,38 +16,32 @@ Our implementations significantly boost learning process, steadily solving [Bipe
 
 All off-policy algorithms use proportional replay as the default experience replay buffer, and noisy layers as the exploration strategy.
 
-## Experimental Results
+## Experimental Observation
 
-## Common
+### Common
 
-Adding actions at the first two levels improve performance. 
+The following observations are based on results of [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) averaged over three random seeds,
 
-Large networks slow down the learning process, and worse still, may impair the final performance, resulting in fluctuation at the convergence. This may be the result of overfitting.
+1. Adding actions to the first two layers. 
 
-Adding noisy layers at the last two dense layers significantly helps exploration.
+2. Adding noisy layers to the last two dense layers.
 
-### Rainbow-IQN
+3. Layer normalization.
 
-Double DQN, Deuling DQN, IQN are implemented and tested on CartPole-v0 and LunarLander-v2 from OpenAI's GYM. 
+4. Reward normalization and scaling. We also truncate the terminal reward. -100 is too strong, causing the running reward statistics shift. It is noteworthy that truncating the reward only helps in the case we normalize the rewards; it hurts the performance if rewards are not normalized.
 
-Distributional DQN(aka., c51) is not included since it is extremely hard to fine-tune, and IQN could be a perfect replacement of it.
+5. Although small networks are sufficient to solve BepedalWalker-v2, large networks speed up the learning process, and often result in more stable final results. Here large network suggests a deeper one --- simply increasing hidden units does not help much. We suspect this has something to do with the selection of noisy layers.
 
-For these algorithms on atari, please refer to my [another project](https://github.com/xlnwel/atari_rl)
+6. Shut down noisy layers at evaluation significantly impair the performance
 
-### TD3
+7. We test three forms of state normalization: 1) normalize with statistics computed from presampled states, 2) normalize with running stata statistics, and 3) instance normalization. None of them look promising.
 
-Applying bias correction for prioritized sampling to actor loss improves the performance.
+8. Learning rate annealing
+
+9. Action repetition
 
 ### SAC
 
-It is better to use Q-error instead of V-error as priority
+1. Value function 
 
-It is hard to tell the effect of noisy layers in SAC. During experiments noisy layers in deed speed up the learning process. 
-
-Bias correction for prioritized sampling helps.
-
-### Ape-X
-
-Ape-X requires a larger batch size than general single-process algorithms.
-
-Do not use noisy layers in Apex-X with SAC.
+2. Adaptvie temporature based on state-action performs best in practice.

@@ -147,6 +147,8 @@ class Replay:
 
     def _get_samples(self, indexes):
         def stats(x, type):
+            """ stats for instance normalization """
+            assert (x.shape) == 2
             if type == 'mean':
                 return np.mean(x, axis=1, keepdims=True)
             elif type == 'std':
@@ -159,8 +161,8 @@ class Replay:
         # squeeze steps since it is of shape [None, 1]
         next_indexes = (indexes + np.squeeze(self.memory['steps'][indexes])) % self.capacity
         assert indexes.shape == next_indexes.shape
-        # using zero state as the terminal state
-        next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
+
+        next_state = self.memory['state'][next_indexes]
 
         if self.normalize_state:
             state = (state - stats(state, 'mean')) / (stats(state, 'std') + 1e4)

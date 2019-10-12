@@ -99,7 +99,7 @@ class Agent(OffPolicyOperation):
                     self.graph,
                     data['state'],
                     data['next_state'],
-                    data['action'], 
+                    data['action'],
                     actor,
                     self.action_dim,
                     scope_prefix=scope_prefix,
@@ -136,7 +136,7 @@ class Agent(OffPolicyOperation):
     
     def _alpha_loss(self, log_alpha, logpi, target_entropy):
         with tf.name_scope('alpha_loss'):
-            return -tf.reduce_mean(log_alpha * tf.stop_gradient(logpi + target_entropy))
+            return -tf.reduce_mean(self.data['IS_ratio'] * log_alpha * tf.stop_gradient(logpi + target_entropy))
 
     def _initialize_target_net(self):
         self.sess.run(self.Q_nets.init_target_op)
@@ -156,6 +156,7 @@ class Agent(OffPolicyOperation):
 
             with tf.name_scope('Q'):
                 stats_summary('Q_with_actor', self.Q_nets.Q_with_actor)
+                stats_summary('reward', self.data['reward'], hist=True)
 
             if self.raw_temperature == 'auto':
                 with tf.name_scope('temperature'):

@@ -34,8 +34,8 @@ def evaluate(agent, eval_t, start_episodes, interval, scores, epslens, render):
 
 def train(agent, buffer, n_epochs, render):
     def train_fn(state, action, reward, done, i):
-        if done:
-            reward = -10
+        if done and reward < -95.: # avoid numeric issue
+            reward = -10.
         buffer.add(state, action, reward, done)
 
     def collect_data(agent, buffer, random_action=False):
@@ -110,7 +110,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         raise NotImplementedError
 
     agent_args['env_stats']['times'] = 1
-    sess_config = get_sess_config(1)
+    sess_config = get_sess_config(2)
 
     agent = Agent('Agent', agent_args, env_args, buffer_args, 
                   sess_config=sess_config, log=True,

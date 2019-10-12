@@ -105,9 +105,9 @@ class OffPolicyOperation(Model, ABC):
                 break
 
         if return_state:
-            return env.get_score(), env.get_length(), state
+            return env.get_score(), env.get_epslen(), state
         else:
-            return env.get_score(), env.get_length()
+            return env.get_score(), env.get_epslen()
 
     def learn(self):
         if self.log_tensorboard:

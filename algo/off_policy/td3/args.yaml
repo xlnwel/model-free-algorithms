@@ -33,7 +33,7 @@ agent:
         decay_steps: &decay_steps 1e4
         
     critic:
-        units: [512, 256, 256]
+        units: [512, 512, 256]
         loss_type: mse   # huber or mse
         layernorm: True
         # args for optimizer
@@ -49,8 +49,8 @@ agent:
 buffer:
     type: proportional # local or proportional
     normalize_state: False
-    normalize_reward: True
-    reward_scale: 5
+    normalize_reward: False
+    reward_scale: 1
 
     alpha: 0.4
     beta0: 0.4

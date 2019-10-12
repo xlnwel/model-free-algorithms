@@ -43,7 +43,8 @@ def get_worker(BaseClass, *args, **kwargs):
 
         def sampling_imp(self, learner, det_action):
             def fn(state, action, reward, done, i):
-                reward = -10
+                if done and reward < -95.:
+                    reward = -10
                 self.buffer.add(state, action, reward, done)
             # I intend not to synchronize the worker's weights at the beginning for initial diversity 
             score_deque = deque(maxlen=100)
@@ -55,15 +56,14 @@ def get_worker(BaseClass, *args, **kwargs):
                 while self.buffer.idx < self.buffer.capacity - self.env.max_episode_steps:
                     score, epslen, state = self.run_trajectory(fn, det_action=det_action)
 
-                last_state = np.zeros_like(state) if self.buffer['done'][self.buffer.idx-1] else state
-                self.buffer.add_last_state(last_state)
+                self.buffer.add_last_state(state)
                 self.buffer['priority'] = self.compute_priorities()
                 # push samples to the central buffer
                 learner.merge_buffer.remote(dict(self.buffer), self.buffer.idx)
                 self.buffer.reset()
 
                 score = self.env.get_score()
-                epslen = self.env.get_length()
+                epslen = self.env.get_epslen()
                 episode_i += 1
                 score_deque.append(score)
                 epslen_deque.append(epslen)

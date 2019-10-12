@@ -104,6 +104,7 @@ if __name__ == '__main__':
         elif algorithm == 'td3':
             gs(batch_size=[128, 256])
         elif algorithm == 'sac':
+            # gs()
             gs()
         elif algorithm == 'rainbow-iqn':
             gs()

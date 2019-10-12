@@ -68,7 +68,7 @@ def main():
     if len(args.logdir) != 1:
         dirs = [f'logs/{d}' for d in args.logdir]
     else:
-        dirs = glob.glob(f'logs/{args.logdir[0]}/logs/GS-*')
+        dirs = glob.glob(f'logs/{args.logdir[0]}/logs/GS*')
 
     # set up legends
     if args.legend:

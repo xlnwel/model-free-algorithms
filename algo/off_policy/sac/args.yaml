@@ -3,7 +3,8 @@ env:
     name: &env_name BipedalWalker-v2
     video_path: video
     log_video: False
-    max_episode_steps: 1000
+    max_episode_steps: 1000 # 1500 for BipedalWalkerHardcore-v2
+    n_action_repetition: 1
     seed: 0
 agent:
     algorithm: sac
@@ -31,7 +32,7 @@ agent:
         target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
-        decay_rate: &decay_rate .95
+        decay_rate: &decay_rate 0.95
         decay_steps: &decay_steps 1e4
     Q:
         polyak: .995      # moving average rate
@@ -57,8 +58,8 @@ agent:
 buffer:
     type: proportional # proportional
     normalize_state: False
-    normalize_reward: True
-    reward_scale: 5
+    normalize_reward: False
+    reward_scale: 1
 
     alpha: 0.4
     beta0: 0.4

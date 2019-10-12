@@ -5,7 +5,7 @@ import ray
 from utility import tf_distributions
 from utility.debug_tools import assert_colorize
 from utility.utils import pwc
-from env.wrappers import TimeLimit
+from env.wrappers import TimeLimit, EnvStats
 
 def action_dist_type(env):
     if isinstance(env.action_space, gym.spaces.Discrete):
@@ -15,60 +15,18 @@ def action_dist_type(env):
     else:
         raise NotImplementedError
 
-class envstats:
-    """ Provide Environment Stats Records """
-    def __init__(self, env_type):
-        self.EnvType = env_type
-        self.score = 0
-        self.eps_len = 0
-        self.early_done = 0
-        self.mask = 0
-        
-        self.env_reset = env_type.reset
-        self.EnvType.reset = self.reset
-        self.env_step = env_type.step
-        self.EnvType.step = self.step
-        self.EnvType.get_mask = self.get_mask
 
-        self.EnvType.get_score = lambda _: self.score
-        self.EnvType.get_length = lambda _: self.eps_len
-
-    def __call__(self, *args, **kwargs):
-        self.env = self.EnvType(*args, **kwargs)
-
-        return self.env
-
-    def get_mask(self):
-        """ Get mask at the current step. Should only be called after self.step """
-        return self.mask
-
-    def reset(self):
-        self.score = 0
-        self.eps_len = 0
-        self.early_done = np.squeeze(np.zeros(self.env.n_envs))
-        self.mask = np.squeeze(np.ones(self.env.n_envs))
-        
-        return self.env_reset(self.env)
-
-    def step(self, action):
-        self.mask = 1 - self.early_done
-        next_state, reward, done, info = self.env_step(self.env, action)
-        self.score += np.where(self.early_done, 0, reward)
-        self.eps_len += np.where(self.early_done, 0, 1)
-        self.early_done = np.array(done)
-
-        return next_state, reward, done, info
-
-@envstats
 class GymEnv:
     def __init__(self, args):
-        self.env = env = gym.make(args['name'])
+        env = gym.make(args['name'])
+        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
+                                    else env.spec.max_episode_steps
         # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
         if 'log_video' in args and args['log_video']:
-            pwc(f'video will be logged at {args["video_path"]}')
-            self.env = env = gym.wrappers.Monitor(TimeLimit(self.env, args['max_episode_steps']), args['video_path'], force=True)
-
-        env.seed(('seed' in args and args['seed']) or 42)
+            pwc(f'video will be logged at {args["video_path"]}', 'cyan')
+            env = gym.wrappers.Monitor(TimeLimit(self.env, self.max_episode_steps), args['video_path'], force=True)
+        self.env = env = EnvStats(env)
+        env.seed(args['seed'] if 'seed' in args else 42)
 
         self.state_space = env.observation_space.shape
 
@@ -77,8 +35,7 @@ class GymEnv:
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = 1
-        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
-                                    else env.spec.max_episode_steps
+        self.n_action_repetition = args['n_action_repetition'] if 'n_action_repetition' in args else 1
 
     def reset(self):
         return self.env.reset()
@@ -88,17 +45,34 @@ class GymEnv:
         
     def step(self, action):
         action = np.squeeze(action)
-        return self.env.step(action)
+        cumulative_reward = 0
+        for i in range(self.n_action_repetition):
+            next_state, reward, done, info = self.env.step(action)
+            cumulative_reward += reward
+            if done:
+                break
+        return next_state, cumulative_reward, done, info
 
     def render(self):
         return self.env.render()
 
-@envstats
+    def get_mask(self):
+        """ Get mask at the current step. Should only be called after self.step """
+        return self.env.get_mask()
+
+    def get_score(self):
+        return self.env.get_score()
+    
+    def get_epslen(self):
+        return self.env.get_epslen()
+
+
 class GymEnvVec:
     def __init__(self, args):
         assert_colorize('n_envs' in args, f'Please specify n_envs in args.yaml beforehand')
         n_envs = args['n_envs']
         self.envs = [gym.make(args['name']) for i in range(n_envs)]
+        self.envs = [EnvStats(env) for env in self.envs]
         [env.seed(args['seed'] + 10 * i) for i, env in enumerate(self.envs)]
 
         env = self.envs[0]
@@ -111,10 +85,28 @@ class GymEnvVec:
         self.n_envs = n_envs
         self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
+        self.n_action_repetition = args['n_action_repetition'] if 'n_action_repetition' in args else 1
 
     def reset(self):
         return [env.reset() for env in self.envs]
     
     def step(self, actions):
         actions = np.squeeze(actions)
-        return list(zip(*[env.step(a) for env, a in zip(self.envs, actions)]))
+        step_imp = lambda actions: list(zip(*[env.step(a) for env, a in zip(self.envs, actions)]))
+
+        cumulative_reward = np.zeros(actions.shape[0])
+        for _ in range(self.n_action_repetition):
+            next_state, reward, done, info = step_imp(actions)
+            mask = self.get_mask()
+            cumulative_reward += np.where(mask, reward, 0)
+
+        return next_state, reward, done, info
+
+    def get_mask(self):
+        return [env.get_mask() for env in self.envs]
+
+    def get_score(self):
+        return [env.get_score() for env in self.envs]
+
+    def get_epslen(self):
+        return [env.get_epslen() for env in self.envs]
