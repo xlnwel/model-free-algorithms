@@ -14,6 +14,7 @@ def parse_cmd_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--algorithm', '-a',
                         type=str,
+                        nargs='*',
                         choices=['td3', 'sac', 'apex-td3', 'apex-sac', 'ppo', 'a2c',
                                  'rainbow-iqn'])
     parser.add_argument('--render', '-r',
@@ -71,47 +72,48 @@ def get_arg_file(algorithm):
 
 if __name__ == '__main__':
     cmd_args = parse_cmd_args()
-    algorithm = cmd_args.algorithm
+    algorithm = list(cmd_args.algorithm)
     
-    arg_file = get_arg_file(algorithm)
-    main = import_main(algorithm)
-    
-    render = cmd_args.render
+    for algo in algorithm:
+        arg_file = get_arg_file(algo)
+        main = import_main(algo)
+        
+        render = cmd_args.render
 
-    if cmd_args.checkpoint != '':
-        args = load_args(arg_file)
-        env_args = args['env']
-        agent_args = args['agent']
-        buffer_args = args['buffer'] if 'buffer' in args else {}
-        checkpoint = cmd_args.checkpoint
-        assert_colorize(os.path.exists(checkpoint), 'Model file does not exists')
-        agent_args['model_root_dir'], agent_args['model_name'] = os.path.split(checkpoint)
-        agent_args['log_root_dir'], _ = os.path.split(agent_args['model_root_dir'])
-        agent_args['log_root_dir'] += '/logs'
+        if cmd_args.checkpoint != '':
+            args = load_args(arg_file)
+            env_args = args['env']
+            agent_args = args['agent']
+            buffer_args = args['buffer'] if 'buffer' in args else {}
+            checkpoint = cmd_args.checkpoint
+            assert_colorize(os.path.exists(checkpoint), 'Model file does not exists')
+            agent_args['model_root_dir'], agent_args['model_name'] = os.path.split(checkpoint)
+            agent_args['log_root_dir'], _ = os.path.split(agent_args['model_root_dir'])
+            agent_args['log_root_dir'] += '/logs'
 
-        main(env_args, agent_args, buffer_args, render=render)
-    else:
-        prefix = cmd_args.prefix
-        if algorithm.startswith('apex'):
-            prefix = f'{prefix}-apex' if prefix else 'apex'
-        # Although random parameter search is in general better than grid search, 
-        # we here continue to go with grid search since it is easier to deal with architecture search
-        gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
-
-        # Grid search happens here
-        if algorithm == 'ppo':
-            gs()
-        elif algorithm == 'a2c':
-            gs()
-        elif algorithm == 'td3':
-            gs()
-        elif algorithm == 'sac':
-            gs()
-        elif algorithm == 'rainbow-iqn':
-            gs()
-        elif algorithm == 'apex-td3':
-            gs()
-        elif algorithm == 'apex-sac':
-            gs()
+            main(env_args, agent_args, buffer_args, render=render)
         else:
-            raise NotImplementedError
+            prefix = cmd_args.prefix
+            if algo.startswith('apex'):
+                prefix = f'{prefix}-apex' if prefix else 'apex'
+            # Although random parameter search is in general better than grid search, 
+            # we here continue to go with grid search since it is easier to deal with architecture search
+            gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
+
+            # Grid search happens here
+            if algo == 'ppo':
+                gs()
+            elif algo == 'a2c':
+                gs()
+            elif algo == 'td3':
+                gs()
+            elif algo == 'sac':
+                gs()
+            elif algo == 'rainbow-iqn':
+                gs()
+            elif algo == 'apex-td3':
+                gs()
+            elif algo == 'apex-sac':
+                gs()
+            else:
+                raise NotImplementedError
