@@ -39,10 +39,11 @@ class SoftPolicy(Module):
         self.action, self.logpi = self._squash_correction(orig_action, orig_logpi)
 
     def _stochastic_policy_net(self, state, units, action_dim, norm):
+        noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=self.args['noisy_sigma'])
         x = state
         with tf.variable_scope('policy_net'):
             for i, u in enumerate(units):
-                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else self.noisy_norm_activation
+                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
                 x = layer(x, u, norm=norm)
 
             mean = self.dense(x, action_dim)
@@ -165,3 +166,67 @@ class SoftQ(Module):
             x = self.dense(x, 1, name='Q')
 
         return x
+
+class Temperature(Module):
+    def __init__(self,
+                 name,
+                 args,
+                 graph,
+                 state,
+                 next_state,
+                 policy,
+                 scope_prefix='',
+                 log_tensorboard=False,
+                 log_params=False):
+        self.state = state
+        self.next_state = next_state
+        self.action = policy.action
+        self.next_action = policy.next_action
+        self.type = args['type']
+        super().__init__(name, 
+                         args, 
+                         graph, 
+                         scope_prefix=scope_prefix,
+                         log_tensorboard=log_tensorboard,
+                         log_params=log_params)
+
+    """ Implementation """
+    def _build_graph(self):
+        if self.type == 'simple':
+            self.log_alpha, self.alpha = self._simple_alpha()
+            self.next_alpha = self.alpha    # used if the state value function is omitted
+        elif self.type == 'state':
+            self.log_alpha, self.alpha = self._state_alpha(self.state)
+            _, self.next_alpha = self._state_alpha(self.next_state, reuse=True)
+        elif self.type == 'state_action':
+            self.log_alpha, self.alpha = self._state_action_alpha(self.state, self.action)
+            _, self.next_alpha = self._state_action_alpha(self.next_state, self.next_action, reuse=True)
+
+    def _simple_alpha(self):
+        with tf.variable_scope('temperature'):
+            log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=0.)
+            alpha = tf.exp(log_alpha)
+
+        return log_alpha, alpha
+
+    def _state_alpha(self, state, reuse=False):
+        self.reset_counter('noisy')
+        with tf.variable_scope('temperature', reuse=reuse):
+            x = state
+            x = self.noisy(x, 1) if self.args['noisy'] else self.dense(x, 1)
+
+            log_alpha = x
+            alpha = tf.exp(log_alpha)
+        
+        return log_alpha, alpha
+
+    def _state_action_alpha(self, state, action, reuse=False):
+        self.reset_counter('noisy')
+        with tf.variable_scope('temperature', reuse=reuse):
+            x = tf.concat([state, action], axis=1)
+            x = self.noisy(x, 1) if self.args['noisy'] else self.dense(x, 1)
+
+            log_alpha = x
+            alpha = tf.exp(log_alpha)
+        
+        return log_alpha, alpha

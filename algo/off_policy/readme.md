@@ -10,44 +10,36 @@ Here we demonstrate the learning curve **at training time**. One could conceives
 
 Our implementations significantly boost learning process, steadily solving [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) in 200-400 episodes compared to the best implementation in the [Leaderboard](https://github.com/openai/gym/wiki/Leaderboard#bipedalwalker-v2), which occasionally solves it in 800 episodes.
 
-## Implementation Details
+## Experimental Observation
 
-### Some Implementation Details
+### Common
 
-All off-policy algorithms use proportional replay as the default experience replay buffer, and noisy layers as the exploration strategy.
+The following observations are based on results of [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) averaged over three random seeds,
 
-## Experimental Results
+1. Adding actions to the first two layers. 
 
-## Common
+2. Adding noisy layers to the last two dense layers.
 
-Adding actions at the first two levels improve performance. 
+3. Layer normalization.
 
-Large networks slow down the learning process, and worse still, may impair the final performance, resulting in fluctuation at the convergence. This may be the result of overfitting.
+4. Reward normalization and scaling. We also truncate the terminal reward. -100 is too strong, causing the running reward statistics shift. It is noteworthy that truncating the reward only helps in the case we normalize the rewards; it hurts the performance if rewards are not normalized.
 
-Adding noisy layers at the last two dense layers significantly helps exploration.
+5. Although small networks are sufficient to solve BepedalWalker-v2, large networks speed up the learning process, and often result in more stable final results. Here large network suggests a deeper one --- simply increasing hidden units does not help much. We suspect this has something to do with the selection of noisy layers.
 
-### Rainbow-IQN
+6. Shut down noisy layers at evaluation significantly impair the performance
 
-Double DQN, Deuling DQN, IQN are implemented and tested on CartPole-v0 and LunarLander-v2 from OpenAI's GYM. 
+7. We test three forms of state normalization: 1) normalize with statistics computed from presampled states, 2) normalize with running stata statistics, and 3) instance normalization. None of them look promising.
 
-Distributional DQN(aka., c51) is not included since it is extremely hard to fine-tune, and IQN could be a perfect replacement of it.
+8. Learning rate annealing
 
-For these algorithms on atari, please refer to my [another project](https://github.com/xlnwel/atari_rl)
-
-### TD3
-
-Applying bias correction for prioritized sampling to actor loss improves the performance.
+9. Action repetition
 
 ### SAC
 
-It is better to use Q-error instead of V-error as priority
+1. Value function 
 
-It is hard to tell the effect of noisy layers in SAC. During experiments noisy layers in deed speed up the learning process. 
+2. Adaptvie temporature based on state-action performs best in practice.
 
-Bias correction for prioritized sampling helps.
+### TD3
 
-### Ape-X
-
-Ape-X requires a larger batch size than general single-process algorithms.
-
-Do not use noisy layers in Apex-X with SAC.
+1. TD3 does not work well with reward clipping and reward scaling. In fact, plain reward works fine with TD3

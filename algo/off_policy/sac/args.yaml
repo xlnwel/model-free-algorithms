@@ -6,7 +6,7 @@ env:
     max_episode_steps: 1000
     seed: 0
     n_action_repetition: 1
-    clip_reward: none
+    clip_reward: -10
 agent:
     algorithm: sac
     temperature: 0.01
@@ -22,7 +22,7 @@ agent:
 
     loss_type: mse            # huber or mse
     n_steps: 3
-    priority: Q               # Q or V
+    priority_source: Q               # Q or V
     policy_delay: 1
     n_epochs: 400
     
@@ -32,7 +32,7 @@ agent:
         units: [512, 256, 128]
         layernorm: True
         # args for optimizer
-        learning_rate: 1e-4
+        learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
     V:
@@ -51,6 +51,13 @@ agent:
         learning_rate: *critic_lr
         decay_rate: *decay_rate
         decay_steps: *decay_steps
+    Temperature:
+        type: state_action
+        noisy: False
+        # args for optimizer
+        learning_rate: *policy_lr
+        decay_rate: *decay_rate
+        decay_steps: *decay_steps
 
     env_stats:
         times: 1
@@ -60,7 +67,7 @@ agent:
 buffer:
     type: proportional # proportional
     normalize_reward: True
-    reward_scale: 1
+    reward_scale: 5
 
     alpha: 0.4
     beta0: 0.4
