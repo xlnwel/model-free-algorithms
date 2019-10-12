@@ -46,6 +46,7 @@ class Agent(OffPolicyOperation):
         self.actor, self.V_nets, self.Q_nets = self._create_nets(self.data)
         
         self.action = self.actor.action
+        self.action_det = self.actor.mean
         self.logpi = self.actor.logpi
 
         self.priority, losses = self._loss(self.actor, self.V_nets, self.Q_nets, self.logpi)

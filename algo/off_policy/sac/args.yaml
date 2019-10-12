@@ -24,7 +24,7 @@ agent:
     n_steps: 3
     priority: Q               # Q or V
     policy_delay: 1
-    n_epochs: 1000
+    n_epochs: 400
     
     policy:
         n_noisy: 2
@@ -54,7 +54,7 @@ agent:
 
     env_stats:
         times: 1
-        stats: [score_mean, score_std, epslen_mean, epslen_std]
+        stats: [score, score_mean, score_std, epslen_mean, epslen_std]
 
 # argumennts for prioritized replay
 buffer:

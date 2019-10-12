@@ -21,7 +21,7 @@ agent:
     model_name: baseline
 
     n_steps: 3
-    n_epochs: 1000
+    n_epochs: 400
     
     actor:
         n_noisy: 2          # number of noisy layer
@@ -44,7 +44,7 @@ agent:
 
     env_stats:
         times: 1
-        stats: [score_mean, score_std, epslen_mean, epslen_std]
+        stats: [score, score_mean, score_std, epslen_mean, epslen_std]
 
 # argumennts for prioritized replay
 buffer:

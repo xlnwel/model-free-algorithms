@@ -77,31 +77,35 @@ class OffPolicyOperation(Model, ABC):
     def max_path_length(self):
         return self.env.max_episode_steps
     
-    def act(self, state):
+    def act(self, state, deterministic=False):
         state = state.reshape((-1, *self.state_space))
-        action = self.sess.run(self.action, feed_dict={self.data['state']: state})
+        action_tf = self.action_det if deterministic else self.action
+        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
         
         return np.squeeze(action)
 
     def add_data(self, state, action, reward, done):
         self.buffer.add(state, action, reward, done)
 
-    def background_learning(self):
-        from utility.debug_tools import timeit
-        while not self.buffer.good_to_learn:
-            time.sleep(1)
-        pwc('Start Learning...', color='green')
-        
-        i = 0
-        lt = []
-        while True:
-            i += 1
-            duration, _ = timeit(self.learn)
-            lt.append(duration)
-            if i % 1000 == 0:
-                pwc(f'{self.model_name}:\tTakes {np.sum(lt):3.2f}s to learn 1000 times', color='green')
-                i = 0
-                lt = []
+    def run_trajectory(self, fn=None, render=False, random_action=False, deterministic_action=False, return_state=False):
+        """ run a trajectory, fn is a function executed after each environment step """
+        env = self.env
+        state = env.reset()
+        for i in range(env.max_episode_steps):
+            if render:
+                env.render()
+            action = env.random_action() if random_action else self.act(state, deterministic=deterministic_action)
+            next_state, reward, done, _ = env.step(action)
+            if fn:
+                fn(state, action, reward, done, i)
+            state = next_state
+            if done:
+                break
+
+        if return_state:
+            return env.get_score(), env.get_epslen(), state
+        else:
+            return env.get_score(), env.get_epslen()
 
     def learn(self):
         if self.log_tensorboard:
@@ -109,7 +113,7 @@ class OffPolicyOperation(Model, ABC):
                                                                   self.data['saved_mem_idxs'], 
                                                                   self.opt_op, 
                                                                   self.graph_summary])
-            if self.update_step % 100 == 0:
+            if self.update_step % 1000 == 0:
                 self.writer.add_summary(summary, self.update_step)
         else:
             priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
@@ -124,6 +128,22 @@ class OffPolicyOperation(Model, ABC):
         self.update_step += 1
         self.buffer.update_priorities(priority, saved_mem_idxs)
     
+    def rl_log(self, kwargs):
+        assert isinstance(kwargs, dict)
+        assert 'Timing' in kwargs
+        assert 'Episodes' in kwargs or 'Steps' in kwargs
+        assert 'Score' in kwargs
+        assert 'ScoreMean' in kwargs
+        assert 'ScoreStd' in kwargs
+
+        log_info = {
+            'ModelName': f'{self.args["algorithm"]}-{self.model_name}'
+        }
+        log_info.update(kwargs)
+
+        [self.log_tabular(k, v) for k, v in log_info.items()]
+        self.dump_tabular()
+
     """ Implementation """
     @abstractmethod
     def _build_graph(self):

@@ -52,7 +52,7 @@ class Agent(OffPolicyOperation):
             self.data = self._prepare_data(self.buffer)
             
         self.actor, self.critic, self.target_actor, self.target_critic = self._create_main_target_actor_critic()
-        self.action = self.actor.action
+        self.action_det = self.action = self.actor.action
 
         self.priority, self.actor_loss, self.critic_loss = self._loss()
         self.loss = self.actor_loss + self.critic_loss

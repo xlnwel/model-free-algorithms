@@ -28,9 +28,9 @@ class SoftPolicy(Module):
                          log_params=log_params)
 
     def _build_graph(self):
-        mean, logstd = self._stochastic_policy_net(self.state, self.args['units'], self.action_dim, self.norm)
+        self.mean, logstd = self._stochastic_policy_net(self.state, self.args['units'], self.action_dim, self.norm)
 
-        self.action_distribution = self.env.action_dist_type((mean, logstd))
+        self.action_distribution = self.env.action_dist_type((self.mean, logstd))
 
         orig_action = self.action_distribution.sample()
         orig_logpi = self.action_distribution.logp(orig_action)
