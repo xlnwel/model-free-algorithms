@@ -61,7 +61,7 @@ class Agent(OffPolicyOperation):
                                             log_tensorboard=self.log_tensorboard,
                                             log_params=self.log_params)
             self.alpha = self.temperature.alpha
-            self.next_alpha = self.temperature.next_alpha
+            # self.next_alpha = self.temperature.next_alpha
             target_entropy = -self.action_dim
             self.alpha_loss = self._alpha_loss(self.temperature.log_alpha, self.logpi, target_entropy)
             _, _, _, _, temp_op = self.temperature._optimization_op(self.alpha_loss)
@@ -71,7 +71,7 @@ class Agent(OffPolicyOperation):
             # we neutralize the effect by scaling the temperature here
             # see my blog for more info https://xlnwel.github.io/blog/reinforcement%20learning/SAC/
             self.alpha = self.raw_temperature * self.buffer.reward_scale
-            self.next_alpha = self.alpha
+            # self.next_alpha = self.alpha
 
         self.priority, losses = self._loss(self.actor, self.V_nets, self.Q_nets, self.logpi)
         self.actor_loss, self.V_loss, self.Q_loss, self.loss = losses

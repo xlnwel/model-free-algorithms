@@ -178,10 +178,11 @@ class Temperature(Module):
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
+        # next_* are used if the state value function is omitted
         self.state = state
         self.next_state = next_state
         self.action = policy.action
-        self.next_action = policy.next_action
+        # self.next_action = policy.next_action
         self.type = args['type']
         super().__init__(name, 
                          args, 
@@ -194,13 +195,13 @@ class Temperature(Module):
     def _build_graph(self):
         if self.type == 'simple':
             self.log_alpha, self.alpha = self._simple_alpha()
-            self.next_alpha = self.alpha    # used if the state value function is omitted
+            # self.next_alpha = self.alpha    
         elif self.type == 'state':
             self.log_alpha, self.alpha = self._state_alpha(self.state)
-            _, self.next_alpha = self._state_alpha(self.next_state, reuse=True)
+            # _, self.next_alpha = self._state_alpha(self.next_state, reuse=True)
         elif self.type == 'state_action':
             self.log_alpha, self.alpha = self._state_action_alpha(self.state, self.action)
-            _, self.next_alpha = self._state_action_alpha(self.next_state, self.next_action, reuse=True)
+            # _, self.next_alpha = self._state_action_alpha(self.next_state, self.next_action, reuse=True)
 
     def _simple_alpha(self):
         with tf.variable_scope('temperature'):

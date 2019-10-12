@@ -9,7 +9,7 @@ env:
     clip_reward: -10
 agent:
     algorithm: sac
-    temperature: 0.01
+    temperature: auto
     gamma: &gamma 0.99
     batch_size: 128
     update_freq: 1      # Update every # environment steps
@@ -41,7 +41,6 @@ agent:
         layernorm: True
         # args for optimizer
         learning_rate: &critic_lr 3e-4
-        layernorm: True
         decay_rate: *decay_rate
         decay_steps: *decay_steps
     Q:
