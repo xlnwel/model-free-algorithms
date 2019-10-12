@@ -74,6 +74,7 @@ if __name__ == '__main__':
     cmd_args = parse_cmd_args()
     algorithm = list(cmd_args.algorithm)
     
+    processes = []
     for algo in algorithm:
         arg_file = get_arg_file(algo)
         main = import_main(algo)
@@ -102,18 +103,19 @@ if __name__ == '__main__':
 
             # Grid search happens here
             if algo == 'ppo':
-                gs()
+                processes += gs()
             elif algo == 'a2c':
-                gs()
+                processes += gs()
             elif algo == 'td3':
-                gs()
+                processes += gs()
             elif algo == 'sac':
-                gs()
+                processes += gs()
             elif algo == 'rainbow-iqn':
-                gs()
+                processes += gs()
             elif algo == 'apex-td3':
-                gs()
+                processes += gs()
             elif algo == 'apex-sac':
-                gs()
+                processes += gs()
             else:
                 raise NotImplementedError
+    [p.join() for p in processes]
