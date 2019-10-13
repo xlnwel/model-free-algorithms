@@ -72,6 +72,8 @@ Scott Fujimoto et al. Addressing Function Approximation Error in Actor-Critic Me
 
 Tuomas Haarnoja et al. Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor.
 
+Tuomas Haarnoja et al. Soft Actor-Critic Algorithms and Applications
+
 Dan Horgan et al. Distributed Prioritized Experience Replay 
 
 Hado van Hasselt et al. Deep Reinforcement Learning with Double Q-Learning

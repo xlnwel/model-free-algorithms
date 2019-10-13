@@ -110,7 +110,8 @@ class Agent(OffPolicyOperation):
 
     def _alpha_loss(self, log_alpha, logpi, target_entropy):
         with tf.name_scope('alpha_loss'):
-            return -tf.reduce_mean(self.data['IS_ratio'] * log_alpha * tf.stop_gradient(logpi + target_entropy))
+            # return -tf.reduce_mean(self.data['IS_ratio'] * log_alpha * tf.stop_gradient(logpi + target_entropy))
+            return -tf.reduce_mean(log_alpha * tf.stop_gradient(logpi + target_entropy))
 
     def _loss(self, policy, Qs, logpi):
         with tf.name_scope('loss'):
@@ -153,11 +154,10 @@ class Agent(OffPolicyOperation):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
                 tf.summary.scalar('Q_loss_', self.Q_loss)
 
-            with tf.name_scope('value'):
-                stats_summary('Q_with_actor', self.Q_nets.Q_with_actor)
-                stats_summary('reward', self.data['reward'], hist=True)
-
-            if self.raw_temperature == 'auto':
-                with tf.name_scope('temperature'):
+            with tf.name_scope('info'):
+                stats_summary('Q_with_actor', self.Q_nets.Q_with_actor, max=True)
+                stats_summary('reward', self.data['reward'], min=True, hist=True)
+                stats_summary('priority', self.priority, hist=True)
+                if self.raw_temperature == 'auto':
                     stats_summary('alpha', self.alpha)
                     stats_summary('alpha_loss', self.alpha_loss)

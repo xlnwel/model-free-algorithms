@@ -4,10 +4,10 @@ import numpy as np
 from utility.utils import colorize, pwc
 
 
-def timeit(func, args=[], name=None, to_print=False):
+def timeit(func, *args, name=None, to_print=False, **kwargs):
 	start_time = gmtime()
 	start = time()
-	result = func(*args)
+	result = func(*args, **kwargs)
 	end = time()
 	end_time = gmtime()
 
@@ -28,7 +28,7 @@ def display_var_info(vars, name='trainable'):
     for v in vars:
         name = v.name
         if '/Adam' in name or 'beta1_power' in name or 'beta2_power' in name: continue
-        v_params = np.prod(v.shape.as_list())
+        v_params = int(np.prod(v.shape.as_list()))
         count_params += v_params
         if '/b:' in name or '/biases' in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
         pwc(f'   {name}{" "*(100-len(name))} {v_params:d} params {v.shape}', 'yellow')

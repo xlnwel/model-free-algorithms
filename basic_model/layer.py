@@ -291,6 +291,7 @@ class Layer():
             if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
                 tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
                 tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
+                tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
 
             x = x + y
 
@@ -324,6 +325,7 @@ class Layer():
             if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
                 tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
                 tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
+                tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
                 
             x = x + y
 
@@ -558,7 +560,8 @@ class Layer():
     """ Auxiliary functions """
     def reset_counter(self, name):
         counter = name + '_counter'
-        setattr(self, counter, -1)   # to avoid scope name conflict caused by _dense_resnet_norm_activation
+        if hasattr(self, counter):
+            setattr(self, counter, -1)   # to avoid scope name conflict caused by _dense_resnet_norm_activation
 
     def get_name(self, name, default_name):
         if name is None:

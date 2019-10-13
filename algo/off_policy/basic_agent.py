@@ -51,9 +51,9 @@ class OffPolicyOperation(Model, ABC):
         # if action is discrete, then it has only 1 dimension
         action_dim = 1 if self.env.is_action_discrete else self.action_dim
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.env.state_space, action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.env.state_space, action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.state_space, action_dim)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])

@@ -86,15 +86,16 @@ class Replay:
 
             if done:
                 # flush all elements in temporary buffer to memory if an episode is done
-                self.merge(self.tb, self.tb_capacity if self.tb_full else self.tb_idx)
+                self.merge(self.tb, self.tb_idx or self.tb_capacity)
+                assert self.tb_capacity if self.tb_full else self.tb_idx == self.tb_idx or self.tb_capacity
                 self.tb_full = False
                 self.tb_idx = 0
             elif self.tb_full:
                 # add ready experiences in temporary buffer to memory
                 n_not_ready = self.n_steps - 1
                 n_ready = self.tb_capacity - n_not_ready
-                self.merge(self.tb, n_ready, self.tb_idx)
                 assert self.tb_idx == 0
+                self.merge(self.tb, n_ready)
                 copy_buffer(self.tb, 0, n_not_ready, self.tb, self.tb_capacity - n_not_ready, self.tb_capacity)
                 self.tb_idx = n_not_ready
                 self.tb_full = False
@@ -143,7 +144,7 @@ class Replay:
         next_indexes = (indexes + np.squeeze(self.memory['steps'][indexes])) % self.capacity
         assert indexes.shape == next_indexes.shape
         # using zero state as the terminal state
-        next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
+        next_state = self.memory['state'][next_indexes]
 
         # normalize rewards
         reward = self.memory['reward'][indexes]

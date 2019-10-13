@@ -107,9 +107,9 @@ if __name__ == '__main__':
             elif algo == 'a2c':
                 processes += gs()
             elif algo == 'td3':
-                processes += gs(batch_size=256)
+                processes += gs()
             elif algo == 'sac':
-                processes += gs(batch_size=256)
+                processes += gs()
             elif algo == 'rainbow-iqn':
                 processes += gs()
             elif algo == 'apex-td3':

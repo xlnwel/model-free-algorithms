@@ -149,9 +149,8 @@ class Agent(OffPolicyOperation):
             with tf.name_scope('loss'):
                 tf.summary.scalar('actor_loss_', self.actor_loss)
                 tf.summary.scalar('critic_loss_', self.critic_loss)
-            
-            with tf.name_scope('critic'):
-                stats_summary('Q_with_actor', self.critic.Q_with_actor)
 
-            with tf.name_scope('state'):
-                stats_summary('reward', self.data['reward'])
+            with tf.name_scope('info'):
+                stats_summary('Q_with_actor', self.critic.Q_with_actor, max=True, hist=True)
+                stats_summary('reward', self.data['reward'], min=True, hist=True)
+                stats_summary('priority', self.priority, hist=True, max=True)

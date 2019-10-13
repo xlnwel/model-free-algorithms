@@ -107,11 +107,11 @@ class GymEnvVec:
         actions = np.squeeze(actions)
         step_imp = lambda envs, actions: list(zip(*[env.step(a) for env, a in zip(envs, actions)]))
         
-        cumulative_reward = 0.
+        cumulative_reward = np.zeros(self.n_envs)
         for _ in range(self.n_action_repetition):
             state, reward, done, info = step_imp(self.envs, actions)
             if self.clip_reward:
-                reward = np.where(done, self.clip_reward, reward)
+                reward = np.where(done, np.maximum(reward, self.clip_reward), reward)
             cumulative_reward += reward
 
         return state, cumulative_reward, done, info
