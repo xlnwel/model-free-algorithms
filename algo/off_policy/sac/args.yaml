@@ -26,11 +26,12 @@ agent:
     policy_delay: 1
     n_epochs: 400
     
-    policy:
+    Policy:
         n_noisy: 2
         noisy_sigma: 0.4    # standard deviation for noisy layers
         units: [512, 256, 128]
         layernorm: True
+        target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
@@ -44,6 +45,7 @@ agent:
         decay_rate: *decay_rate
         decay_steps: *decay_steps
     Q:
+        polyak: .995
         units: *critic_units
         layernorm: True
         # args for optimizer

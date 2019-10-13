@@ -6,13 +6,13 @@ import tensorflow.keras as tk
 from utility.debug_tools import assert_colorize
 from layers.adain import adaptive_instance_norm
 
-def kaiming_initializer(distribution='truncated_normal', seed=None):
+def kaiming_initializer(scale=2., distribution='truncated_normal', seed=None):
     """ kaiming initializer """
-    return tk.initializers.VarianceScaling(scale=2., mode='fan_in', distribution=distribution, seed=seed)
+    return tk.initializers.VarianceScaling(scale=scale, mode='fan_in', distribution=distribution, seed=seed)
 
-def xavier_initializer(distribution='truncated_normal', seed=None):
+def xavier_initializer(scale=1., distribution='truncated_normal', seed=None):
     """ xavier initializer """
-    return tk.initializers.VarianceScaling(scale=1., mode='fan_avg', distribution=distribution, seed=seed)
+    return tk.initializers.VarianceScaling(scale=scale, mode='fan_avg', distribution=distribution, seed=seed)
 
 def constant_initializer(val):
     return tk.initializers.Constant(val)
@@ -102,7 +102,7 @@ def get_tensor(sess, name=None, op_name=None):
     else:
         return sess.graph.get_tensor_by_name(op_name + ':0')
 
-def n_step_target(reward, done, nth_value, gamma, steps=1):
+def n_step_target(reward, done, nth_value, gamma, steps):
     with tf.variable_scope('n_step_target'):
         n_step_target = tf.stop_gradient(reward 
                                         + gamma**steps

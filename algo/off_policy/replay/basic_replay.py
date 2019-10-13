@@ -18,8 +18,8 @@ class Replay:
         self.batch_size = args['batch_size']
 
         self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1
-        if args['normalize_reward']:
-            self.normalize_reward = args['normalize_reward']
+        self.normalize_reward = args['normalize_reward']
+        if self.normalize_reward:
             self.running_reward_stats = RunningMeanStd()
 
         self.n_steps = args['n_steps']
