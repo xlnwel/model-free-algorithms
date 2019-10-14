@@ -1,3 +1,5 @@
+By default, we use multi-step, PER, noisy layers in all implementations.
+
 ## Performance on BipedalWalker-v2
 
 #### Learning curve for TD3 and SAC, x-axis denotes episodes, y-axis denotes episodic reward averaged over 100 episodes at training time, three random seeds
@@ -23,35 +25,3 @@ Our implementations significantly boost learning process, steadily solving Biped
 </p>
 
 The first agent takes determinisitc actions.
-
-## Experimental Observation
-
-The following observations are based on results of [BipedalWalker-v2](https://gym.openai.com/envs/BipedalWalker-v2/) averaged over three random seeds
-
-### Common
-
-1. Adding actions to the first two layers. 
-
-2. Adding noisy layers to the last two dense layers.
-
-3. Layer normalization.
-
-4. Reward normalization and scaling. We also truncate the terminal reward. -100 is too strong, causing the running reward statistics shift. It is noteworthy that truncating the reward only helps in the case we normalize the rewards; it hurts the performance if rewards are not normalized.
-
-5. Although small networks are sufficient to solve BepedalWalker-v2, large networks speed up the learning process, and often result in more stable final results. Here large network suggests a deeper one --- simply increasing hidden units does not help much. We suspect this has something to do with the selection of noisy layers.
-
-6. Shut down noisy layers at evaluation significantly impair the performance
-
-7. We test three forms of state normalization: 1) normalize with statistics computed from presampled states, 2) normalize with running stata statistics, and 3) instance normalization. None of them look promising.
-
-8. Learning rate annealing
-
-9. Action repetition
-
-### SAC
-
-2. Adaptvie temporature based on state-action performs best in practice.
-
-### TD3
-
-1. TD3 does not work well with reward clipping and reward scaling. In fact, plain reward works fine with TD3

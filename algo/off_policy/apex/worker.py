@@ -25,7 +25,7 @@ def get_worker(BaseClass, *args, **kwargs):
             self.no = worker_no
             self.weight_update_freq = weight_update_freq    # update weights 
             buffer_args['type'] = 'local'
-            buffer_args['local_capacity'] = env_args['max_episode_steps']
+            buffer_args['local_capacity'] = env_args['max_episode_steps'] * weight_update_freq
 
             super().__init__(name, 
                             args, 

@@ -6,7 +6,7 @@ env:
     max_episode_steps: 1000
     seed: 0
     n_action_repetition: 1
-    clip_reward: -10
+    clip_reward: none
 agent:
     algorithm: sac
     temperature: auto       # auto or some float, e.g., 0.01
@@ -65,8 +65,8 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # proportional
-    normalize_reward: True
-    reward_scale: 5
+    normalize_reward: False
+    reward_scale: 1
 
     alpha: 0.4
     beta0: 0.4

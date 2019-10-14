@@ -13,16 +13,6 @@ from algo.off_policy.apex.worker import get_worker
 from algo.off_policy.apex.learner import get_learner
 
 
-def set_noisy(agent_args):
-    if agent_args['algorithm'] == 'apex-td3':
-        agent_args['actor']['noisy_sigma'] = np.random.randint(3, 7) * .1
-    elif agent_args['algorithm'] == 'apex-sac':
-        agent_args['policy']['noisy_sigma'] = np.random.randint(3, 7) * .1
-    else:
-        raise NotImplementedError
-
-    return agent_args
-
 def main(env_args, agent_args, buffer_args, render=False):
     if agent_args['algorithm'] == 'apex-td3':
         from algo.off_policy.td3.agent import Agent
@@ -54,9 +44,9 @@ def main(env_args, agent_args, buffer_args, render=False):
     for worker_no in range(n_workers):
         weight_update_freq = 1    # np.random.randint(1, 10)
         if agent_args['algorithm'] == 'apex-td3':
-            agent_args['actor']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(3, 7) * .1
+            agent_args['actor']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(4, 10) * .1
         elif agent_args['algorithm'] == 'apex-sac':
-            agent_args['Policy']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(3, 7) * .1
+            agent_args['Policy']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(4, 10) * .1
         else:
             raise NotImplementedError
         env_args['seed'] = worker_no * 10
