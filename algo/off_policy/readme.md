@@ -16,6 +16,13 @@ Our implementations significantly boost learning process, steadily solving Biped
 <img src="/results/apex-td3.png" alt="apex-td3" height="350">
 </p>
 
+### Learning curve of SAC
+
+<p align="center">
+<img src="/results/apex-sac.png" alt="apex-td3" height="350">
+</p>
+
+The first agent takes determinisitc actions.
 
 ## Experimental Observation
 
