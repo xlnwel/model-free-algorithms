@@ -144,7 +144,7 @@ class Replay:
         next_indexes = (indexes + np.squeeze(self.memory['steps'][indexes])) % self.capacity
         assert indexes.shape == next_indexes.shape
         # using zero state as the terminal state
-        next_state = self.memory['state'][next_indexes]
+        next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
 
         # normalize rewards
         reward = self.memory['reward'][indexes]

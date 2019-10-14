@@ -3,6 +3,8 @@ env:
     name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
     max_episode_steps: 1000
     seed: 0
+    n_action_repetition: 1
+    clip_reward: none
 agent:
     background_learning: True
     algorithm: apex-td3
@@ -46,7 +48,8 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # local or proportional
-    normalize_state: True
+    normalize_reward: False
+    reward_scale: 1
 
     alpha: 0.5
     beta0: 0.4

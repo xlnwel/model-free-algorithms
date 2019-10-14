@@ -16,6 +16,8 @@ class LocalBuffer(dict):
         self.fake_ids = np.zeros(self.capacity, dtype=np.int32)
 
         init_buffer(self, self.capacity, state_space, action_dim, True, extra_state=1)
+
+        self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1
         
         self.idx = 0
 

@@ -40,8 +40,10 @@ def get_worker(BaseClass, *args, **kwargs):
 
         def sample_data(self, learner):
             # I intend not to synchronize the worker's weights at the beginning for initial diversity 
-            score_deque = deque(maxlen=100)
-            epslen_deque = deque(maxlen=100)
+            train_scores = deque(maxlen=100)
+            train_epslens = deque(maxlen=100)
+            eval_scores = deque(maxlen=100)
+            eval_epslens = deque(maxlen=100)
             episode_i = 0
             t = 0
             
@@ -50,7 +52,7 @@ def get_worker(BaseClass, *args, **kwargs):
 
                 for _ in range(self.max_path_length):
                     t += 1
-                    action = self.act(state)
+                    action = self.act(state, deterministic=self.no == 0)
                     next_state, reward, done, _ = self.env.step(action)
                     
                     self.buffer.add(state, action, reward, done)
@@ -70,10 +72,10 @@ def get_worker(BaseClass, *args, **kwargs):
                 score = self.env.get_score()
                 epslen = self.env.get_epslen()
                 episode_i += 1
-                score_deque.append(score)
-                epslen_deque.append(epslen)
-                stats = dict(score=score, score_mean=np.mean(score_deque), score_std=np.std(score_deque),
-                             epslen=epslen, epslen_mean=np.mean(epslen_deque), epslen_std=np.std(score_deque),
+                train_scores.append(score)
+                train_epslens.append(epslen)
+                stats = dict(score=score, score_mean=np.mean(train_scores), score_std=np.std(train_scores),
+                             epslen=epslen, epslen_mean=np.mean(train_epslens), epslen_std=np.std(train_scores),
                              worker_no=self.no)
                             
                 learner.record_stats.remote(stats)

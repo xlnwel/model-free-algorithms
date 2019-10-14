@@ -3,6 +3,8 @@ env:
     name: &env_name BipedalWalker-v2
     max_episode_steps: 1000
     seed: 0
+    n_action_repetition: 1
+    clip_reward: none
 agent:
     background_learning: True
     algorithm: apex-sac
@@ -22,29 +24,29 @@ agent:
     policy_delay: 1
     n_epochs: 1000
     
-    policy:
-        n_noisy: 0
-        noisy_sigma: 0.4    # standard deviation for noisy layers
+    Policy:
+        n_noisy: 2
+        noisy_sigma: 0.4        # standard deviation for noisy layers
         units: [512, 256, 128]
         layernorm: True
+        target: False
         # args for optimizer
-        learning_rate: 1e-4
+        learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
-    V:
-        polyak: .995      # moving average rate
-        units: &critic_units [512, 512, 256]
+    Q:
+        polyak: .995            # moving average rate
+        units: [512, 512, 256]
         layernorm: True
         # args for optimizer
-        learning_rate: &critic_lr 3e-4
-        layernorm: True
+        learning_rate: 3e-4
         decay_rate: *decay_rate
         decay_steps: *decay_steps
-    Q:
-        units: *critic_units
-        layernorm: True
+    Temperature:
+        type: state_action
+        noisy: False
         # args for optimizer
-        learning_rate: *critic_lr
+        learning_rate: *policy_lr
         decay_rate: *decay_rate
         decay_steps: *decay_steps
 
@@ -55,7 +57,8 @@ agent:
 # argumennts for prioritized replay
 buffer:
     type: proportional # proportional
-    normalize_state: True
+    normalize_reward: False
+    reward_scale: 1
 
     alpha: 0.4
     beta0: 0.4
