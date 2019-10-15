@@ -28,7 +28,7 @@ class Replay:
         self.is_full = False
         self.mem_idx = 0
 
-        init_buffer(self.memory, self.capacity, state_space, action_dim, False)
+        init_buffer(self.memory, self.capacity, state_space, action_dim, self.n_steps == 1)
 
         # Code for single agent
         if self.n_steps > 1:
