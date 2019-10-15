@@ -1,3 +1,5 @@
+If you have any improvements and suggestions, or bump into some mistakes, welcome to open an issue.
+
 ## Algorithms Implemented
 
 - [x] TD3       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/td3)]

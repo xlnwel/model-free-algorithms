@@ -37,8 +37,8 @@ agent:
         common_dense_units: [256]
         common_lstm_units: [256]
         use_lstm: True
-        actor_units: [256]
-        critic_units: [256]
+        actor_units: [128]
+        critic_units: [128]
         # loss arguments
         clip_range: 0.2        # clip range for ppo
         entropy_coef: 0.0

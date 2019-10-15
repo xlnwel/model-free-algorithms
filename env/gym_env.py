@@ -21,7 +21,7 @@ class GymEnv:
         # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
         if 'log_video' in args and args['log_video']:
             pwc(f'video will be logged at {args["video_path"]}')
-            env = gym.wrappers.Monitor(TimeLimit(self.env, args['max_episode_steps']), args['video_path'], force=True)
+            env = gym.wrappers.Monitor(TimeLimit(env, args['max_episode_steps']), args['video_path'], force=True)
         self.env = env = EnvStats(env)
 
         env.seed(('seed' in args and args['seed']) or 42)
