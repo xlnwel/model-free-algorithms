@@ -110,8 +110,8 @@ class Agent(OffPolicyOperation):
 
     def _alpha_loss(self, log_alpha, logpi, target_entropy):
         with tf.name_scope('alpha_loss'):
-            # return -tf.reduce_mean(self.data['IS_ratio'] * log_alpha * tf.stop_gradient(logpi + target_entropy))
-            return -tf.reduce_mean(log_alpha * tf.stop_gradient(logpi + target_entropy))
+            return -tf.reduce_mean(self.data['IS_ratio'] * log_alpha * tf.stop_gradient(logpi + target_entropy))
+            # return -tf.reduce_mean(log_alpha * tf.stop_gradient(logpi + target_entropy))
 
     def _loss(self, policy, Qs, logpi):
         with tf.name_scope('loss'):

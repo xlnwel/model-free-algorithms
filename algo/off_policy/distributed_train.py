@@ -50,6 +50,11 @@ def main(env_args, agent_args, buffer_args, render=False):
         else:
             raise NotImplementedError
         env_args['seed'] = worker_no * 10
+        if render:
+            if worker_no == 0:
+                env_args['log_video'] = True
+            else:
+                env_args['log_video'] = False
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
                             weight_update_freq, sess_config=sess_config, device=f'/CPU:0')
         workers.append(worker)
