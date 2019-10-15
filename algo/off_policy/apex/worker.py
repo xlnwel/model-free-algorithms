@@ -55,7 +55,7 @@ def get_worker(BaseClass, *args, **kwargs):
                     action = self.act(state, deterministic=self.no == 0)
                     next_state, reward, done, _ = self.env.step(action)
                     
-                    self.buffer.add(state, action, reward, done)
+                    self.buffer.add_data(state, action, reward, done)
 
                     state = next_state
 

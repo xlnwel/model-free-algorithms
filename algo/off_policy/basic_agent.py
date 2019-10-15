@@ -97,7 +97,7 @@ class OffPolicyOperation(Model, ABC):
             action = env.random_action() if random_action else self.act(state, deterministic=deterministic_action)
             next_state, reward, done, _ = env.step(action)
             if fn:
-                fn(state, action, reward, done, i)
+                fn(state, action, reward, done, 1)
             state = next_state
             if done:
                 break
@@ -108,6 +108,7 @@ class OffPolicyOperation(Model, ABC):
             return env.get_score(), env.get_epslen()
 
     def learn(self):
+        
         if self.log_tensorboard:
             priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
                                                                   self.data['saved_mem_idxs'], 

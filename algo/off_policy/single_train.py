@@ -10,17 +10,18 @@ import tensorflow as tf
 from utility import utils
 from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
+from algo.off_policy.apex.buffer import LocalBuffer
 
 
-def evaluate(agent, episode_i, timestep, interval, scores, epslens, render):
+def evaluate(agent, timestep, start_episodes, interval, scores, epslens, render):
     for i in range(1, interval+1):
-        timestep += 1
         score, epslen = agent.run_trajectory(render=render, deterministic_action=True)
+        timestep += epslen
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
             agent.rl_log(dict(Timing='Eval', 
-                            Episodes=episode_i-interval+i,
+                            Episodes=start_episodes+i,
                             Steps=timestep,
                             Score=score, 
                             ScoreMean=np.mean(scores),
@@ -29,33 +30,49 @@ def evaluate(agent, episode_i, timestep, interval, scores, epslens, render):
                             EpsLenStd=np.std(epslens)))
     return timestep
 
-def train(agent, n_epochs, render):
-    def collection_fn(state, action, reward, done, i):
-        agent.add_data(state, action, reward, done)
+def train(agent, buffer, n_epochs, render):
+    def collection_fn(state, action, reward, done, n):
+        buffer.add_data(state, action, reward, done)
 
-    def train_fn(state, action, reward, done, i):
+    def train_fn(state, action, reward, done, n):
         agent.add_data(state, action, reward, done)
-        if agent.buffer.good_to_learn and i % agent.args['update_freq'] == 0:
-            agent.learn()
+        if agent.buffer.good_to_learn:
+            for _ in range(n):
+                agent.learn()
+
+    def collect_data(agent, buffer, random_action=False):
+        if buffer:
+            buffer.reset()
+            score, epslen = agent.run_trajectory(fn=collection_fn, random_action=random_action)
+            buffer['priority'][:] = agent.buffer.top_priority
+            agent.buffer.merge(buffer, buffer.idx)
+        else:
+            score, epslen = agent.run_trajectory(fn=train_fn, random_action=random_action)
+
+        return score, epslen
 
     interval = 100
-    eval_interval = 20
+    train_timestep = 0
     scores = deque(maxlen=interval)
     epslens = deque(maxlen=interval)
+    eval_interval = 50
+    eval_timestep = 0
     test_scores = deque(maxlen=interval)
     test_epslens = deque(maxlen=interval)
 
     utils.pwc(f'Initialize replay buffer')
     while not agent.buffer.good_to_learn:
-        agent.run_trajectory(fn=collection_fn, random_action=True)
+        collect_data(agent, buffer, random_action=True)
     assert agent.buffer.good_to_learn
     utils.pwc(f'Training starts')
 
-    train_timestep = 0
-    eval_timestep = 0
     for episode_i in range(1, n_epochs + 1):
-        train_timestep += 1
-        score, epslen = agent.run_trajectory(fn=train_fn)
+        score, epslen = collect_data(agent, buffer)
+        train_timestep += epslen
+
+        if buffer:
+            for _ in range(epslen):
+                agent.learn()
 
         scores.append(score)
         epslens.append(epslen)
@@ -82,7 +99,8 @@ def train(agent, n_epochs, render):
                                 EpsLenStd=epslen_std))
 
         if episode_i % eval_interval == 0:
-            eval_timestep = evaluate(agent, episode_i, eval_timestep, eval_interval, test_scores, test_epslens, render)
+            eval_timestep = evaluate(agent, eval_timestep, episode_i - eval_interval, 
+                                    eval_interval, test_scores, test_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread
@@ -106,7 +124,14 @@ def main(env_args, agent_args, buffer_args, render=False):
                   log_tensorboard=True, log_stats=True, 
                   save=False, device='/GPU: 0')
 
+    if agent_args['episodic_learning']:
+        # local buffer, only used to store a single episode of transitions
+        buffer_args['local_capacity'] = env_args['max_episode_steps']
+        buffer = LocalBuffer(buffer_args, agent.state_space, agent.action_dim)
+    else:
+        buffer = None
+
     model = agent_args['model_name']
     utils.pwc(f'Model {model} starts training')
     
-    train(agent, agent_args['n_epochs'], render)
+    train(agent, buffer, agent_args['n_epochs'], render)

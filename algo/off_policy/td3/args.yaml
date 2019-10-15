@@ -10,14 +10,14 @@ env:
 agent:
     algorithm: td3
     gamma: 0.99
-    polyak: 0.995       # moving average rate
+    polyak: 0.995                           # moving average rate
     batch_size: 128
-    update_freq: 1      # Update every # environment steps
+    episodic_learning: True                 # whether to update network after each episode. Update after each step if False
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
     model_root_dir: saved_models            # root path for savinng models
-    log_root_dir: logs  # root path for tensorboard logs
+    log_root_dir: logs                      # root path for tensorboard logs
     model_name: baseline
 
     n_steps: 3

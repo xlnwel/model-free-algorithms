@@ -107,9 +107,9 @@ if __name__ == '__main__':
             elif algo == 'a2c':
                 processes += gs()
             elif algo == 'td3':
-                processes += gs()
+                processes += gs(episodic_learning=[True, False])
             elif algo == 'sac':
-                processes += gs()
+                processes += gs(episodic_learning=[True, False]x)
             elif algo == 'rainbow-iqn':
                 processes += gs()
             elif algo == 'apex-td3':

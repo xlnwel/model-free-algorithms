@@ -30,7 +30,7 @@ class LocalBuffer(dict):
     def reset(self):
         self.idx = 0
         
-    def add(self, state, action, reward, done):
+    def add_data(self, state, action, reward, done):
         """ Add experience to local buffer, return True if local buffer is full, otherwise false """
         add_buffer(self, self.idx, state, action, reward, 
                     done, self.n_steps, self.gamma)
