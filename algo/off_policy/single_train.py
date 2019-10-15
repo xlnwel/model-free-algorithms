@@ -12,19 +12,22 @@ from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
 
 
-def evaluate(agent, k, interval, scores, epslens, render):
+def evaluate(agent, episode_i, timestep, interval, scores, epslens, render):
     for i in range(1, interval+1):
+        timestep += 1
         score, epslen = agent.run_trajectory(render=render, deterministic_action=True)
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
             agent.rl_log(dict(Timing='Eval', 
-                            Episodes=k-100+i,
+                            Episodes=episode_i-interval+i,
+                            Steps=timestep,
                             Score=score, 
                             ScoreMean=np.mean(scores),
                             ScoreStd=np.std(scores),
                             EpsLenMean=np.mean(epslens),
                             EpsLenStd=np.std(epslens)))
+    return timestep
 
 def train(agent, n_epochs, render):
     def collection_fn(state, action, reward, done, i):
@@ -36,24 +39,28 @@ def train(agent, n_epochs, render):
             agent.learn()
 
     interval = 100
+    eval_interval = 20
     scores = deque(maxlen=interval)
     epslens = deque(maxlen=interval)
     test_scores = deque(maxlen=interval)
     test_epslens = deque(maxlen=interval)
 
-    utils.pwc(f'Data collection for state normalization')
+    utils.pwc(f'Initialize replay buffer')
     while not agent.buffer.good_to_learn:
         agent.run_trajectory(fn=collection_fn, random_action=True)
     assert agent.buffer.good_to_learn
     utils.pwc(f'Training starts')
 
-    for k in range(1, n_epochs + 1):
+    train_timestep = 0
+    eval_timestep = 0
+    for episode_i in range(1, n_epochs + 1):
+        train_timestep += 1
         score, epslen = agent.run_trajectory(fn=train_fn)
 
         scores.append(score)
         epslens.append(epslen)
 
-        if k % 4 == 0:
+        if episode_i % 4 == 0:
             score_mean = np.mean(scores)
             score_std = np.std(scores)
             epslen_mean = np.mean(epslens)
@@ -62,19 +69,20 @@ def train(agent, n_epochs, render):
             if hasattr(agent, 'stats'):
                 agent.record_stats(score=score, score_mean=score_mean, score_std=score_std,
                                     epslen_mean=epslen_mean, epslen_std=epslen_std,
-                                    global_step=k)
+                                    global_step=episode_i)
             
             if hasattr(agent, 'logger'):
                 agent.rl_log(dict(Timing='Train', 
-                                Episodes=k,
+                                Episodes=episode_i,
+                                Steps=train_timestep,
                                 Score=score, 
                                 ScoreMean=score_mean,
                                 ScoreStd=score_std,
                                 EpsLenMean=epslen_mean,
                                 EpsLenStd=epslen_std))
 
-        if k % 100 == 0:
-            evaluate(agent, k, interval, test_scores, test_epslens, render)
+        if episode_i % eval_interval == 0:
+            eval_timestep = evaluate(agent, episode_i, eval_timestep, eval_interval, test_scores, test_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread
