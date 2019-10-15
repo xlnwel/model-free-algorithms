@@ -12,7 +12,7 @@ from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
 
 
-def evaluate(agent, episode_i, timestep, interval, scores, epslens, render):
+def evaluate(agent, timestep, start_episodes, interval, scores, epslens, render):
     for i in range(1, interval+1):
         timestep += 1
         score, epslen = agent.run_trajectory(render=render, deterministic_action=True)
@@ -20,7 +20,7 @@ def evaluate(agent, episode_i, timestep, interval, scores, epslens, render):
         epslens.append(epslen)
         if i % 4 == 0:
             agent.rl_log(dict(Timing='Eval', 
-                            Episodes=episode_i-interval+i,
+                            Episodes=start_episodes+i,
                             Steps=timestep,
                             Score=score, 
                             ScoreMean=np.mean(scores),
@@ -39,11 +39,14 @@ def train(agent, n_epochs, render):
             agent.learn()
 
     interval = 100
-    eval_interval = 20
+    train_timestep = 0
     scores = deque(maxlen=interval)
     epslens = deque(maxlen=interval)
+    eval_interval = 50
+    eval_timestep = 0
     test_scores = deque(maxlen=interval)
     test_epslens = deque(maxlen=interval)
+
 
     utils.pwc(f'Initialize replay buffer')
     while not agent.buffer.good_to_learn:
@@ -51,8 +54,6 @@ def train(agent, n_epochs, render):
     assert agent.buffer.good_to_learn
     utils.pwc(f'Training starts')
 
-    train_timestep = 0
-    eval_timestep = 0
     for episode_i in range(1, n_epochs + 1):
         train_timestep += 1
         score, epslen = agent.run_trajectory(fn=train_fn)
@@ -82,7 +83,8 @@ def train(agent, n_epochs, render):
                                 EpsLenStd=epslen_std))
 
         if episode_i % eval_interval == 0:
-            eval_timestep = evaluate(agent, episode_i, eval_timestep, eval_interval, test_scores, test_epslens, render)
+            eval_timestep = evaluate(agent, eval_timestep, episode_i - eval_interval, 
+                                    eval_interval, test_scores, test_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread
