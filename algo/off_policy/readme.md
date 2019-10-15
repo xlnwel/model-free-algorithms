@@ -4,7 +4,7 @@ By default, we use multi-step, PER, noisy layers in all implementations.
 
 #### Learning curve for TD3 and SAC, x-axis denotes episodes, y-axis denotes episodic reward averaged over 100 episodes at training time, three random seeds
 
-Here we demonstrate the learning curve **at training time**(from commit f4359cc4655b08250592b9c37f57965d9bd0329b). One could conceives that evaluation will give significantly better results since y-axis denotes episodic reward average over the latest 100 episodes:
+Here we demonstrate the learning curve **at training time**. One could conceives that evaluation will give significantly better results since y-axis denotes episodic reward average over the latest 100 episodes:
 
 <p align="center">
 <img src="/results/td3-sac.png" alt="td3-sac" height="350">
