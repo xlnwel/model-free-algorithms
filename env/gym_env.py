@@ -35,8 +35,6 @@ class GymEnv:
         self.n_envs = 1
         self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
-        # number of times repeating an action
-        self.n_action_repetition = args['n_action_repetition'] if 'n_action_repetition' in args else 1
         # clip reward at done
         self.clip_reward = (args['clip_reward'] if 'clip_reward' in args 
                             and not isinstance(args['clip_reward'], str) else None)
@@ -47,10 +45,10 @@ class GymEnv:
     def random_action(self):
         return self.env.action_space.sample()
         
-    def step(self, action):
+    def step(self, action, n_action_repetition=1):
         action = np.squeeze(action)
         cumulative_reward = 0.
-        for _ in range(self.n_action_repetition):
+        for _ in range(n_action_repetition):
             state, reward, done, info = self.env.step(action)
             if self.clip_reward and done:
                 reward = np.maximum(reward, self.clip_reward)
@@ -91,8 +89,6 @@ class GymEnvVec:
         self.n_envs = n_envs
         self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
-        # number of times repeating an action
-        self.n_action_repetition = args['n_action_repetition'] if 'n_action_repetition' in args else 1
         # clip reward at done
         self.clip_reward = (args['clip_reward'] if 'clip_reward' in args 
                             and not isinstance(args['clip_reward'], str) else None)
@@ -103,12 +99,12 @@ class GymEnvVec:
     def reset(self):
         return [env.reset() for env in self.envs]
     
-    def step(self, actions):
+    def step(self, actions, n_action_repetition=1):
         actions = np.squeeze(actions)
         step_imp = lambda envs, actions: list(zip(*[env.step(a) for env, a in zip(envs, actions)]))
         
         cumulative_reward = np.zeros(self.n_envs)
-        for _ in range(self.n_action_repetition):
+        for _ in range(n_action_repetition):
             state, reward, done, info = step_imp(self.envs, actions)
             if self.clip_reward:
                 reward = np.where(done, np.maximum(reward, self.clip_reward), reward)
@@ -128,7 +124,7 @@ class GymEnvVec:
 
 
 if __name__ == '__main__':
-    def run_traj(env):
+    def run_traj(env, n=1):
         d = False
         cr = np.squeeze(np.zeros(env.n_envs))
         s = env.reset()
@@ -136,20 +132,20 @@ if __name__ == '__main__':
         while not d:
             i += 1
             a = env.random_action()
-            s, r, d, _ = env.step(a)
+            s, r, d, _ = env.step(a, n)
             cr += r
 
         return cr, i
 
-    def run_vec_traj(env):
+    def run_vec_traj(env, n=1):
         d = False
         cr = np.squeeze(np.zeros(env.n_envs))
         s = env.reset()
         i = 0
-        for _ in range(env.max_episode_steps):
+        for _ in range(env.max_episode_steps // n):
             i += 1
             a = env.random_action()
-            s, r, d, _ = env.step(a)
+            s, r, d, _ = env.step(a, n)
             cr += r
             
         return cr, i
@@ -159,14 +155,13 @@ if __name__ == '__main__':
         video_path='video',
         log_video=False,
         max_episode_steps=1000,
-        n_action_repetition=1,
-        clip_reward=-10,
+        clip_reward=None,
         n_envs=3,
         seed=0
     )
     print('******GymEnv******')
     env = GymEnv(args)
-    r, i = run_traj(env)
+    r, i = run_traj(env, 5)
     print(f'cumulative reward: {r}\t, score:{env.get_score()}')
     print(f'record length: {i}\t, actual length:{env.get_epslen()}')
     print(f'mask(1): {env.get_mask()}')
@@ -174,7 +169,7 @@ if __name__ == '__main__':
     print(f'mask(0): {env.get_mask()}')
     print('******GymEnvVec******')
     env = GymEnvVec(args)
-    r, i = run_vec_traj(env)
+    r, i = run_vec_traj(env, 5)
     print(f'cumulative reward: {r}\t, score:{env.get_score()}')
     print(f'record length: {i}\t, actual length:{env.get_epslen()}')
     print(f'mask(1): {env.get_mask()}')

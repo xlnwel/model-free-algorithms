@@ -44,8 +44,8 @@ class Agent(OffPolicyOperation):
 
         self.actor, self.Q_nets = self._create_nets(self.data)
         
-        self.action = self.actor.action
-        self.action_det = self.actor.action_det
+        self.action_repr = self.actor.action_repr
+        self.action_det_repr = self.actor.action_det_repr
         self.logpi = self.actor.logpi
 
         opt_ops = []
@@ -84,6 +84,7 @@ class Agent(OffPolicyOperation):
 
     def _create_nets(self, data):
         scope_prefix = self.name
+        self.args['Policy']['max_action_repetitions'] = self.max_action_repetitions
         actor = SoftPolicy('SoftPolicy', 
                             self.args['Policy'],
                             self.graph,
@@ -101,7 +102,6 @@ class Agent(OffPolicyOperation):
                     data['next_state'],
                     data['action'], 
                     actor,
-                    self.action_dim,
                     scope_prefix=scope_prefix,
                     log_tensorboard=self.log_tensorboard,
                     log_params=self.log_params)
@@ -158,6 +158,7 @@ class Agent(OffPolicyOperation):
                 stats_summary('Q_with_actor', self.Q_nets.Q_with_actor, max=True)
                 stats_summary('reward', self.data['reward'], min=True, hist=True)
                 stats_summary('priority', self.priority, hist=True)
+                stats_summary('action_repetitions', tf.argmax(self.actor.n_action_repetitions, axis=1)+1, max=True, hist=True)
                 if self.raw_temperature == 'auto':
                     stats_summary('alpha', self.alpha)
                     stats_summary('alpha_loss', self.alpha_loss)

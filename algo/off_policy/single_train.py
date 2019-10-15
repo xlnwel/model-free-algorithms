@@ -30,12 +30,12 @@ def evaluate(agent, episode_i, timestep, interval, scores, epslens, render):
     return timestep
 
 def train(agent, n_epochs, render):
-    def collection_fn(state, action, reward, done, i):
+    def collection_fn(state, action, reward, done, n):
         agent.add_data(state, action, reward, done)
 
-    def train_fn(state, action, reward, done, i):
+    def train_fn(state, action, reward, done, n):
         agent.add_data(state, action, reward, done)
-        if agent.buffer.good_to_learn and i % agent.args['update_freq'] == 0:
+        for _ in range(n):
             agent.learn()
 
     interval = 100

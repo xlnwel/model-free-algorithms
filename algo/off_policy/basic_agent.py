@@ -42,18 +42,20 @@ class OffPolicyOperation(Model, ABC):
                     else GymEnv(env_args))
         self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
+
+        self.max_action_repetitions = args['max_action_repetitions'] if 'max_action_repetitions' in args else 1
         
         # replay buffer
         buffer_args['n_steps'] = args['n_steps']
         buffer_args['gamma'] = args['gamma']
         buffer_args['batch_size'] = args['batch_size']
 
-        # if action is discrete, then it has only 1 dimension
+        # if action is discrete, then it takes only 1 dim
         action_dim = 1 if self.env.is_action_discrete else self.action_dim
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, action_dim + self.max_action_repetitions)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.state_space, action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.state_space, action_dim + self.max_action_repetitions)
 
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
@@ -79,29 +81,40 @@ class OffPolicyOperation(Model, ABC):
     
     def act(self, state, deterministic=False):
         state = state.reshape((-1, *self.state_space))
-        action_tf = self.action_det if deterministic else self.action
-        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
+        action_rep_tf = self.action_det_repr if deterministic else self.action_repr
+        action_repr = self.sess.run(action_rep_tf, feed_dict={self.data['state']: state})
         
-        return np.squeeze(action)
+        return np.squeeze(action_repr)
 
-    def add_data(self, state, action, reward, done):
-        self.buffer.add(state, action, reward, done)
+    def add_data(self, state, action_repr, reward, done):
+        self.buffer.add(state, action_repr, reward, done)
 
     def run_trajectory(self, fn=None, render=False, random_action=False, deterministic_action=False, return_state=False):
         """ run a trajectory, fn is a function executed after each environment step """
         env = self.env
         state = env.reset()
-        for i in range(env.max_episode_steps):
+        i = 0
+
+        while i < env.max_episode_steps:
             if render:
                 env.render()
-            action = env.random_action() if random_action else self.act(state, deterministic=deterministic_action)
-            next_state, reward, done, _ = env.step(action)
+            if random_action:
+                action = env.random_action()
+                n = 1
+                n_rep = np.zeros(self.max_action_repetitions)
+                n_rep[n-1] = 1
+                action_repr = np.concatenate([action, n_rep])
+            else:
+                action_repr = self.act(state, deterministic=deterministic_action)
+                action, n_rep = action_repr[:self.action_dim], action_repr[self.action_dim:]
+                n = np.argmax(n_rep) + 1
+            next_state, reward, done, _ = env.step(action, n)
             if fn:
-                fn(state, action, reward, done, i)
+                fn(state, action_repr, reward, done, n)
             state = next_state
+            i += n
             if done:
                 break
-
         if return_state:
             return env.get_score(), env.get_epslen(), state
         else:
@@ -156,7 +169,8 @@ class OffPolicyOperation(Model, ABC):
             else:
                 exp_type = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
             sample_types = (tf.float32, tf.int32, exp_type)
-            action_shape =(None, ) if self.env.is_action_discrete else (None, self.action_dim)
+            action_shape = ((None, 1 + self.max_action_repetitions) if self.env.is_action_discrete 
+                            else (None, self.action_dim + self.max_action_repetitions))
             sample_shapes =((None), (None), (
                 (None, *self.state_space),
                 action_shape,
