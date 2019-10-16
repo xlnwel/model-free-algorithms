@@ -123,10 +123,10 @@ def stats_summary(name, data, mean=True, std=False, max=False, min=False, hist=F
     if hist:
         tf.summary.histogram(f'{name}_', data)
 
-def get_vars(scope, graph=tf.get_default_graph()):
+def get_vars(scope, graph=tf.compat.v1.get_default_graph()):
     return [x for x in graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)]
 
-def count_vars(scope, graph=tf.get_default_graph()):
+def count_vars(scope, graph=tf.compat.v1.get_default_graph()):
     v = get_vars(scope, graph=graph)
     return sum([np.prod(var.shape.as_list()) for var in v])
 

@@ -138,7 +138,7 @@ if __name__ == '__main__':
 
         return cr, i
 
-    def run_vec_traj(env, n):
+    def run_vec_traj(env, n=1):
         d = False
         cr = np.squeeze(np.zeros(env.n_envs))
         s = env.reset()

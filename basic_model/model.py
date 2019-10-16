@@ -20,7 +20,7 @@ class Module(Layer):
     def __init__(self, 
                  name, 
                  args, 
-                 graph=tf.get_default_graph(),
+                 graph=tf.compat.v1.get_default_graph(),
                  scope_prefix='',
                  log_tensorboard=False, 
                  log_params=False,
@@ -36,7 +36,7 @@ class Module(Layer):
             graph {tf.Graph} -- The default graph which this module is built upon. Note that Module class
                                 does not have authorized to change the difault graph. Graph specified here
                                 is only used to acquire tensorflow variables. See @property for examples
-                                (default: {tf.get_default_graph()})
+                                (default: {tf.compat.v1.get_default_graph()})
             log_tensorboard {bool} -- Option for tensorboard setup (default: {False})
             log_params {bool} -- Option for logging network parameters to tensorboard (default: {False})
             device {[str or None]} -- Device where graph build upon {default: {None}}

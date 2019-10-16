@@ -109,7 +109,7 @@ if __name__ == '__main__':
             elif algo == 'td3':
                 processes += gs()
             elif algo == 'sac':
-                processes += gs()
+                processes += gs(max_action_repetitions=5, n_steps=[1, 3])
             elif algo == 'rainbow-iqn':
                 processes += gs()
             elif algo == 'apex-td3':
