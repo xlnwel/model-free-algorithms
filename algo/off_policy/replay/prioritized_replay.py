@@ -42,6 +42,7 @@ class PrioritizedReplay(Replay):
             self.tb['priority'][self.tb_idx] = self.top_priority
         else:
             self.memory['priority'][self.mem_idx] = self.top_priority
+            self.data_structure.update(self.top_priority, self.mem_idx)
         super()._add(state, action, reward, done)
 
     def update_priorities(self, priorities, saved_mem_idxs):
