@@ -95,8 +95,6 @@ if __name__ == '__main__':
             main(env_args, agent_args, buffer_args, render=render)
         else:
             prefix = cmd_args.prefix
-            if algo.startswith('apex'):
-                prefix = f'{prefix}-apex' if prefix else 'apex'
             # Although random parameter search is in general better than grid search, 
             # we here continue to go with grid search since it is easier to deal with architecture search
             gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
@@ -109,7 +107,7 @@ if __name__ == '__main__':
             elif algo == 'td3':
                 processes += gs()
             elif algo == 'sac':
-                processes += gs(max_action_repetitions=5, n_steps=[1, 3])
+                processes += gs()
             elif algo == 'rainbow-iqn':
                 processes += gs()
             elif algo == 'apex-td3':
