@@ -18,10 +18,12 @@ def action_dist_type(env):
 class GymEnv:
     def __init__(self, args):
         env = gym.make(args['name'])
+        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
+                                    else env.spec.max_episode_steps
         # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
         if 'log_video' in args and args['log_video']:
-            pwc(f'video will be logged at {args["video_path"]}')
-            env = gym.wrappers.Monitor(TimeLimit(env, args['max_episode_steps']), args['video_path'], force=True)
+            pwc(f'video will be logged at {args["video_path"]}', 'cyan')
+            env = gym.wrappers.Monitor(TimeLimit(env, self.max_episode_steps), args['video_path'], force=True)
         self.env = env = EnvStats(env)
 
         env.seed(('seed' in args and args['seed']) or 42)
@@ -33,8 +35,6 @@ class GymEnv:
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = 1
-        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
-                                    else env.spec.max_episode_steps
         # number of times repeating an action
         self.n_action_repetition = args['n_action_repetition'] if 'n_action_repetition' in args else 1
         # clip reward at done
@@ -110,9 +110,10 @@ class GymEnvVec:
         cumulative_reward = np.zeros(self.n_envs)
         for _ in range(self.n_action_repetition):
             state, reward, done, info = step_imp(self.envs, actions)
+            mask = self.get_mask()
             if self.clip_reward:
                 reward = np.where(done, np.maximum(reward, self.clip_reward), reward)
-            cumulative_reward += reward
+            cumulative_reward += np.asarray(reward) * mask
 
         return state, cumulative_reward, done, info
 
@@ -160,7 +161,7 @@ if __name__ == '__main__':
         log_video=False,
         max_episode_steps=1000,
         n_action_repetition=1,
-        clip_reward=-10,
+        clip_reward=None,
         n_envs=3,
         seed=0
     )

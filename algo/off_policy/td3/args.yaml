@@ -11,8 +11,8 @@ agent:
     algorithm: td3
     gamma: 0.99
     polyak: 0.995                           # moving average rate
-    batch_size: 128
-    episodic_learning: True                 # whether to update network after each episode. Update after each step if False
+    batch_size: 256
+    episodic_learning: False                 # whether to update network after each episode. Update after each step if False
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
