@@ -21,6 +21,7 @@ class PrioritizedReplay(Replay):
         self.epsilon = float(args['epsilon']) if 'epsilon' in args else 1e-4
 
         self.top_priority = 2.
+        self.to_update_priority = args['to_update_priority'] if 'to_update_priority' in args else True
 
         self.sample_i = 0   # count how many times self.sample is called
 
@@ -47,7 +48,8 @@ class PrioritizedReplay(Replay):
 
     def update_priorities(self, priorities, saved_mem_idxs):
         with self.locker:
-            self.top_priority = max(self.top_priority, np.max(priorities))
+            if self.to_update_priority:
+                self.top_priority = max(self.top_priority, np.max(priorities))
             for priority, mem_idx in zip(priorities, saved_mem_idxs):
                 self.data_structure.update(priority, mem_idx)
 

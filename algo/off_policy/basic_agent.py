@@ -43,6 +43,8 @@ class OffPolicyOperation(Model, ABC):
         self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
         
+        self.max_action_repetition = args['max_action_repetition']
+
         # replay buffer
         buffer_args['n_steps'] = args['n_steps']
         buffer_args['gamma'] = args['gamma']
@@ -95,7 +97,7 @@ class OffPolicyOperation(Model, ABC):
             if render:
                 env.render()
             action = env.random_action() if random_action else self.act(state, deterministic=deterministic_action)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, _ = env.step(action, self.max_action_repetition)
             if fn:
                 fn(state, action, reward, done, 1)
             state = next_state
@@ -108,7 +110,6 @@ class OffPolicyOperation(Model, ABC):
             return env.get_score(), env.get_epslen()
 
     def learn(self):
-        
         if self.log_tensorboard:
             priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
                                                                   self.data['saved_mem_idxs'], 

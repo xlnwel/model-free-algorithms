@@ -1,17 +1,16 @@
 ---
 env:
-    name: &env_name BipedalWalker-v2    # LunarLanderContinuous-v2
-    max_episode_steps: 1000
+    name: BipedalWalkerHardcore-v2    # LunarLanderContinuous-v2
+    max_episode_steps: 2000
     seed: 0
     n_action_repetition: 1
     clip_reward: none
 agent:
-    background_learning: True
     algorithm: apex-td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: 128
-    n_workers: 8
+    batch_size: 256
+    max_action_repetition: 3
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
@@ -20,7 +19,6 @@ agent:
     model_name: baseline
 
     n_steps: 3
-    n_epochs: 1000
     
     actor:
         n_noisy: 2          # number of noisy layer
@@ -29,7 +27,7 @@ agent:
         layernorm: True
         # args for optimizer
         learning_rate: 1e-4
-        decay_rate: &decay_rate .95
+        decay_rate: &decay_rate 1
         decay_steps: &decay_steps 1e4
         
     critic:
@@ -50,8 +48,9 @@ buffer:
     type: proportional # local or proportional
     normalize_reward: False
     reward_scale: 1
+    to_update_priority: False
 
-    alpha: 0.5
+    alpha: 0.7
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4

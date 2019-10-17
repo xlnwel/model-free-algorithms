@@ -5,6 +5,7 @@ import numpy as np
 import ray
 
 from utility.utils import pwc
+from utility.schedule import PiecewiseSchedule
 
 
 def get_worker(BaseClass, *args, **kwargs):
@@ -46,14 +47,16 @@ def get_worker(BaseClass, *args, **kwargs):
             eval_epslens = deque(maxlen=100)
             episode_i = 0
             t = 0
-            
+            if self.no != 0: # code for BipedalWalkerHardcore-v2
+                # schedule the episode length
+                episode_len_schedular = PiecewiseSchedule([(0, 1000), (1000, 1500), (2000, 2000)])
             while True:
                 state = self.env.reset()
-
-                for _ in range(self.max_path_length):
+                episode_len = self.max_path_length if self.no == 0 else int(episode_len_schedular.value(episode_i))
+                for _ in range(episode_len):
                     t += 1
                     action = self.act(state, deterministic=self.no == 0)
-                    next_state, reward, done, _ = self.env.step(action)
+                    next_state, reward, done, _ = self.env.step(action, self.max_action_repetition)
                     
                     self.buffer.add_data(state, action, reward, done)
 

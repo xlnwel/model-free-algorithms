@@ -5,7 +5,6 @@ env:
     log_video: False
     max_episode_steps: 1000
     seed: 0
-    n_action_repetition: 1
     clip_reward: none
 agent:
     algorithm: sac
@@ -13,6 +12,7 @@ agent:
     gamma: &gamma 0.99
     batch_size: 256
     episodic_learning: False                # whether to update network after each episode. Update after each step if False
+    max_action_repetition: 3
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -59,6 +59,7 @@ buffer:
     type: proportional # proportional
     normalize_reward: False
     reward_scale: 1
+    to_update_priority: True
 
     alpha: 0.4
     beta0: 0.4

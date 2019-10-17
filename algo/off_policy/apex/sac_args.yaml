@@ -1,16 +1,16 @@
 ---
 env:
-    name: &env_name BipedalWalker-v2
-    max_episode_steps: 1000
+    name: BipedalWalkerHardcore-v2
+    max_episode_steps: 2000
+    video_path: video
     seed: 0
-    n_action_repetition: 1
     clip_reward: none
 agent:
-    background_learning: True
     algorithm: apex-sac
-    temperature: 0.01
-    gamma: &gamma 0.99
-    batch_size: 128
+    temperature: auto
+    gamma: 0.99
+    batch_size: 256
+    max_action_repetition: 1
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -20,9 +20,6 @@ agent:
 
     loss_type: mse            # huber or mse
     n_steps: 3
-    priority: Q               # Q or V
-    policy_delay: 1
-    n_epochs: 1000
     
     Policy:
         n_noisy: 2
@@ -32,7 +29,7 @@ agent:
         target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
-        decay_rate: &decay_rate .95
+        decay_rate: &decay_rate 0.95
         decay_steps: &decay_steps 1e4
     Q:
         polyak: .995            # moving average rate
@@ -59,8 +56,9 @@ buffer:
     type: proportional # proportional
     normalize_reward: False
     reward_scale: 1
+    to_update_priority: False
 
-    alpha: 0.4
+    alpha: 0.7
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4

@@ -262,38 +262,37 @@ class Layer():
         """ noisy layer using factorized Gaussian noise """
         name = self.get_name(name, 'noisy')
         
-        with tf.variable_scope(name):
-            y = self.dense(x, units, kernel_initializer=kernel_initializer)
+        y = self.dense(x, units, kernel_initializer=kernel_initializer)
             
-            with tf.variable_scope('noisy'):
-                # params for the noisy layer
-                features = x.shape.as_list()[-1]
-                w_in_dim = [features, 1]
-                w_out_dim = [1, units]
-                w_shape = [features, units]
-                b_shape = [units]
+        with tf.variable_scope(name):
+            # params for the noisy layer
+            features = x.shape.as_list()[-1]
+            w_in_dim = [features, 1]
+            w_out_dim = [1, units]
+            w_shape = [features, units]
+            b_shape = [units]
 
-                epsilon_w_in = tf.random.truncated_normal(w_in_dim, stddev=sigma)
-                epsilon_w_in = tf.math.sign(epsilon_w_in) * tf.math.sqrt(tf.math.abs(epsilon_w_in))
-                epsilon_w_out = tf.random.truncated_normal(w_out_dim, stddev=sigma)
-                epsilon_w_out = tf.math.sign(epsilon_w_out) * tf.math.sqrt(tf.math.abs(epsilon_w_out))
-                epsilon_w = tf.matmul(epsilon_w_in, epsilon_w_out, name='epsilon_w')
-                epsilon_b = tf.reshape(epsilon_w_out, b_shape)
-                
-                noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
-                                          initializer=kernel_initializer,
-                                          regularizer=self.l2_regularizer)
-                noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
-                                          initializer=tf.constant_initializer(sigma / np.sqrt(units)))
-                
-                # output of the noisy layer
-                x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
-            if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
-                tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
-                tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
-                tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
+            epsilon_w_in = tf.random.truncated_normal(w_in_dim, stddev=sigma)
+            epsilon_w_in = tf.math.sign(epsilon_w_in) * tf.math.sqrt(tf.math.abs(epsilon_w_in))
+            epsilon_w_out = tf.random.truncated_normal(w_out_dim, stddev=sigma)
+            epsilon_w_out = tf.math.sign(epsilon_w_out) * tf.math.sqrt(tf.math.abs(epsilon_w_out))
+            epsilon_w = tf.matmul(epsilon_w_in, epsilon_w_out, name='epsilon_w')
+            epsilon_b = tf.reshape(epsilon_w_out, b_shape)
+            
+            noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
+                                        initializer=kernel_initializer,
+                                        regularizer=self.l2_regularizer)
+            noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
+                                        initializer=tf.constant_initializer(sigma / np.sqrt(units)))
+            
+            # output of the noisy layer
+            x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
+        if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
+            tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
+            tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
+            tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
 
-            x = x + y
+        x = x + y
 
         return x
 
@@ -301,33 +300,32 @@ class Layer():
                name=None, sigma=.4):
         """ noisy layer """
         name = self.get_name(name, 'noisy')
+
+        y = self.dense(x, units, kernel_initializer=kernel_initializer)
         
         with tf.variable_scope(name):
-            y = self.dense(x, units, kernel_initializer=kernel_initializer)
+            # params for the noisy layer
+            features = x.shape.as_list()[-1]
+            w_shape = [features, units]
+            b_shape = [units]
+
+            epsilon_w = tf.random.truncated_normal(w_shape, stddev=sigma, name='epsilon_w')
+            epsilon_b = tf.random.truncated_normal(b_shape, stddev=sigma, name='epsilon_b')
+
+            noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
+                                        initializer=kernel_initializer,
+                                        regularizer=self.l2_regularizer)
+            noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
+                                        initializer=tf.constant_initializer(sigma / np.sqrt(units)))
             
-            with tf.variable_scope('noisy'):
-                # params for the noisy layer
-                features = x.shape.as_list()[-1]
-                w_shape = [features, units]
-                b_shape = [units]
-
-                epsilon_w = tf.random.truncated_normal(w_shape, stddev=sigma, name='epsilon_w')
-                epsilon_b = tf.random.truncated_normal(b_shape, stddev=sigma, name='epsilon_b')
-
-                noisy_w = tf.get_variable('noisy_w', shape=w_shape, 
-                                          initializer=kernel_initializer,
-                                          regularizer=self.l2_regularizer)
-                noisy_b = tf.get_variable('noisy_b', shape=b_shape, 
-                                          initializer=tf.constant_initializer(sigma / np.sqrt(units)))
+            # output of the noisy layer
+            x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
+        if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
+            tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
+            tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
+            tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
                 
-                # output of the noisy layer
-                x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
-            if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
-                tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
-                tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
-                tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
-                
-            x = x + y
+        x = x + y
 
         return x
 
