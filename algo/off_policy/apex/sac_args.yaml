@@ -17,6 +17,7 @@ agent:
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
+    schedule_lr: True           # if this is true, use lr scheduler defined in basic_agent.py instead of the following args
 
     loss_type: mse            # huber or mse
     n_steps: 3
@@ -29,7 +30,7 @@ agent:
         target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
-        decay_rate: &decay_rate 0.95
+        decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
     Q:
         polyak: .995            # moving average rate

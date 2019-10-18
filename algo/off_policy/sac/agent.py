@@ -4,6 +4,7 @@ from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.sac.networks import SoftPolicy, SoftQ, Temperature
 from utility.losses import huber_loss
 from utility.tf_utils import n_step_target, stats_summary
+from utility.schedule import PiecewiseSchedule
 
 
 class Agent(OffPolicyOperation):
@@ -22,6 +23,13 @@ class Agent(OffPolicyOperation):
                  device=None):
         self.raw_temperature = args['temperature']
         self.critic_loss_type = args['loss_type']
+
+        # learning rate schedule
+        self.schedule_lr = 'schedule_lr' in args and args['schedule_lr']
+        if self.schedule_lr:
+            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (300000, 1e-4), (50000, 1e-5)], outside_value=1e-5)
+            self.Q_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (300000, 3e-4), (50000, 1e-5)], outside_value=1e-5)
+            self.alpha_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (300000, 1e-4), (50000, 1e-5)], outside_value=1e-5)
 
         super().__init__(name,
                          args,
@@ -63,7 +71,7 @@ class Agent(OffPolicyOperation):
             self.next_alpha = self.temperature.next_alpha
             target_entropy = -self.action_dim
             self.alpha_loss = self._alpha_loss(self.temperature.log_alpha, self.logpi, target_entropy)
-            _, _, _, _, temp_op = self.temperature._optimization_op(self.alpha_loss)
+            _, self.alpha_lr, _, _, temp_op = self.temperature._optimization_op(self.alpha_loss, schedule_lr=self.schedule_lr)
             opt_ops.append(temp_op)
         else:
             # reward scaling indirectly affects the policy temperature
@@ -75,8 +83,8 @@ class Agent(OffPolicyOperation):
         self.priority, losses = self._loss(self.actor, self.Q_nets, self.logpi)
         self.actor_loss, self.Q_loss, self.loss = losses
 
-        _, _, self.opt_step, _, actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True)
-        _, _, _, _, Q_opt_op = self.Q_nets._optimization_op(self.Q_loss)
+        _, self.actor_lr, self.opt_step, _, actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True, schedule_lr=self.schedule_lr)
+        _, self.Q_lr, _, _, Q_opt_op = self.Q_nets._optimization_op(self.Q_loss, schedule_lr=self.schedule_lr)
         opt_ops += [actor_opt_op, Q_opt_op]
         self.opt_op = tf.group(*opt_ops)
 
@@ -161,3 +169,10 @@ class Agent(OffPolicyOperation):
                 if self.raw_temperature == 'auto':
                     stats_summary('alpha', self.alpha)
                     stats_summary('alpha_loss', self.alpha_loss)
+
+    def _get_feeddict(self, t):
+        return {
+            self.actor_lr: self.actor_lr_scheduler.value(t),
+            self.Q_lr: self.Q_lr_scheduler.value(t),
+            self.alpha_lr: self.alpha_lr_scheduler.value(t)
+        }

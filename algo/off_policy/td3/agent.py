@@ -4,6 +4,7 @@ from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
 from utility.tf_utils import n_step_target, stats_summary
+from utility.schedule import PiecewiseSchedule
 
 
 class Agent(OffPolicyOperation):
@@ -23,6 +24,12 @@ class Agent(OffPolicyOperation):
         self.critic_loss_type = args['critic']['loss_type']
         self.polyak = args['polyak'] if 'polyak' in args else .995
         
+        # learning rate schedule
+        self.schedule_lr = 'schedule_lr' in args and args['schedule_lr']
+        if self.schedule_lr:
+            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (200000, 1e-4), (300000, 1e-5)], outside_value=1e-5)
+            self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (200000, 3e-4), (300000, 1e-5)], outside_value=1e-5)
+            
         super().__init__(name,
                          args,
                          env_args,
@@ -57,8 +64,8 @@ class Agent(OffPolicyOperation):
         self.priority, self.actor_loss, self.critic_loss = self._loss()
         self.loss = self.actor_loss + self.critic_loss
     
-        _, _, self.opt_step, _, self.actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True)
-        _, _, _, _, self.critic_opt_op = self.critic._optimization_op(self.critic_loss)
+        _, self.actor_lr, self.opt_step, _, self.actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True)
+        _, self.critic_lr, _, _, self.critic_opt_op = self.critic._optimization_op(self.critic_loss)
         self.opt_op = tf.group(self.actor_opt_op, self.critic_opt_op)
 
         # target net operations
@@ -154,3 +161,9 @@ class Agent(OffPolicyOperation):
                 stats_summary('Q_with_actor', self.critic.Q_with_actor, max=True, hist=True)
                 stats_summary('reward', self.data['reward'], min=True, hist=True)
                 stats_summary('priority', self.priority, hist=True, max=True)
+
+    def _get_feeddict(self, t):
+        return {
+            self.actor_lr: self.actor_lr_scheduler.value(t),
+            self.critic_lr: self.critic_lr_scheduler.value(t)
+        }

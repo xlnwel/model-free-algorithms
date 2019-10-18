@@ -55,10 +55,10 @@ def get_learner(BaseClass, *args, **kwargs):
                 time.sleep(1)
             pwc('Start Learning...', color='cyan')
             
-            i = 0
+            t = 0
             while True:
-                i += 1
-                self.learn()
+                t += 1
+                self.learn(t)
 
         def record_stats(self, kwargs):
             assert isinstance(kwargs, dict)

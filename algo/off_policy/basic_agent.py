@@ -109,18 +109,25 @@ class OffPolicyOperation(Model, ABC):
         else:
             return env.get_score(), env.get_epslen()
 
-    def learn(self):
+    def learn(self, t=None):
+        if self.schedule_lr:
+            assert t is not None
+            feed_dict = self._get_feeddict(t)
+        else:
+            feed_dict = None
         if self.log_tensorboard:
             priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
                                                                   self.data['saved_mem_idxs'], 
                                                                   self.opt_op, 
-                                                                  self.graph_summary])
+                                                                  self.graph_summary],
+                                                                  feed_dict=feed_dict)
             if self.update_step % 1000 == 0:
                 self.writer.add_summary(summary, self.update_step)
         else:
             priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
                                                          self.data['saved_mem_idxs'], 
-                                                         self.opt_op])
+                                                         self.opt_op],
+                                                         feed_dict=feed_dict)
 
         if self.update_step % 10000 == 0 and hasattr(self, 'saver'):
             self.save()
@@ -201,3 +208,5 @@ class OffPolicyOperation(Model, ABC):
     def _update_target_net(self):
         raise NotImplementedError
 
+    def _get_feeddict(self, t):
+        raise NotImplementedError

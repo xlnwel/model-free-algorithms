@@ -47,13 +47,9 @@ def get_worker(BaseClass, *args, **kwargs):
             eval_epslens = deque(maxlen=100)
             episode_i = 0
             t = 0
-            if self.no != 0: # code for BipedalWalkerHardcore-v2
-                # schedule the episode length
-                episode_len_schedular = PiecewiseSchedule([(0, 1000), (1000, 1500), (2000, 2000)])
             while True:
                 state = self.env.reset()
-                episode_len = self.max_path_length if self.no == 0 else int(episode_len_schedular.value(episode_i))
-                for _ in range(episode_len):
+                for _ in range(self.max_path_length):
                     t += 1
                     action = self.act(state, deterministic=self.no == 0)
                     next_state, reward, done, _ = self.env.step(action, self.max_action_repetition)
@@ -84,10 +80,9 @@ def get_worker(BaseClass, *args, **kwargs):
                 learner.record_stats.remote(stats)
                 
                 # pull weights from learner
-                if episode_i >= self.weight_update_freq:
+                if episode_i % self.weight_update_freq == 0:
                     weights = ray.get(learner.get_weights.remote())
                     self.variables.set_flat(weights)
-                    episode_i = 0
 
         def print_construction_complete(self):
             pwc(f'Worker {self.no} has been constructed.', 'cyan')
