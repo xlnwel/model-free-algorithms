@@ -45,9 +45,9 @@ def main(env_args, agent_args, buffer_args, render=False):
     for worker_no in range(n_workers):
         weight_update_freq = 1    # np.random.randint(1, 10)
         if agent_args['algorithm'] == 'apex-td3':
-            agent_args['actor']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(4, 7) * .1
+            agent_args['actor']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(4, 10) * .1
         elif agent_args['algorithm'] == 'apex-sac':
-            agent_args['Policy']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(4, 7) * .1
+            agent_args['Policy']['noisy_sigma'] = 0.3 if worker_no == 0 else np.random.randint(4, 10) * .1
         else:
             raise NotImplementedError
         env_args['seed'] = worker_no * 10
