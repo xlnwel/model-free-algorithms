@@ -10,7 +10,7 @@ agent:
     temperature: auto
     gamma: 0.99
     batch_size: 256
-    max_action_repetition: 1
+    max_action_repetition: 3
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -23,7 +23,7 @@ agent:
     n_steps: 3
     
     Policy:
-        n_noisy: 2
+        n_noisy: 0
         noisy_sigma: 0.4        # standard deviation for noisy layers
         units: [512, 256, 128]
         layernorm: True
