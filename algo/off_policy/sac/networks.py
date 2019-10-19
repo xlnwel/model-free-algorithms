@@ -83,7 +83,15 @@ class SoftPolicy(Module):
             logstd = self.dense(x, action_dim)
             logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
 
-        return mean, logstd, mean
+        # deterministic action, no noisy layers
+        with tf.variable_scope(name, reuse=True):
+            x = state
+            for i, u in enumerate(units):
+                x = self.dense_norm_activation(x, u, norm=norm)
+
+            action_det = self.dense(x, action_dim)
+
+        return mean, logstd, action_det
 
     def _squash_correction(self, action, logpi):
         with tf.name_scope('squash'):
@@ -102,62 +110,6 @@ class SoftPolicy(Module):
             update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op  
-
-
-# Legacy code for soft value function
-# class SoftV(Module):
-#     """ Interface """
-#     def __init__(self, 
-#                  name, 
-#                  args, 
-#                  graph,
-#                  state,
-#                  next_state,
-#                  scope_prefix='',
-#                  log_tensorboard=False,
-#                  log_params=False):
-#         self.state = state
-#         self.next_state = next_state
-#         self.polyak = args['polyak']
-#         self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
-        
-#         super().__init__(name, 
-#                          args, 
-#                          graph, 
-#                          scope_prefix=scope_prefix,
-#                          log_tensorboard=log_tensorboard, 
-#                          log_params=log_params)
-
-#     @property
-#     def main_variables(self):
-#         return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.variable_scope + '/main')
-    
-#     @property
-#     def target_variables(self):
-#         return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.variable_scope + '/target')
-
-#     def _build_graph(self):
-#         self.V = self._v_net(self.state, self.args['units'], self.norm, 'main')
-#         self.V_next = self._v_net(self.next_state, self.args['units'], self.norm, 'target')  # target V use next state as input
-
-#         self.init_target_op, self.update_target_op = self._target_net_ops()
-
-#     def _target_net_ops(self):
-#         with tf.name_scope('target_net_op'):
-#             target_main_var_pairs = list(zip(self.target_variables, self.main_variables))
-#             init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
-#             update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
-
-#         return init_target_op, update_target_op   
-    
-#     def _v_net(self, state, units, norm, name='V_net'):
-#         x = state
-#         with tf.variable_scope(name):
-#             for u in units:
-#                 x = self.dense_norm_activation(x, u, norm=norm)
-#             x = self.dense(x, 1, name='V')
-
-#         return x
 
 
 class SoftQ(Module):
@@ -201,7 +153,7 @@ class SoftQ(Module):
     """ Implementation """
     def _build_graph(self):
         Q_net = lambda state, action, reuse, name: self._q_net(state, self.args['units'], action, 
-                                                        self.norm, reuse, name=name)
+                                                            self.norm, reuse, name=name)
 
         # online network
         with tf.variable_scope('main'):

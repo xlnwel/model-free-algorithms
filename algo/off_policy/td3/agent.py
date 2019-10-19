@@ -27,9 +27,9 @@ class Agent(OffPolicyOperation):
         # learning rate schedule
         self.schedule_lr = 'schedule_lr' in args and args['schedule_lr']
         if self.schedule_lr:
-            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (200000, 1e-4), (300000, 1e-5)], outside_value=1e-5)
-            self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (200000, 3e-4), (300000, 1e-5)], outside_value=1e-5)
-            
+            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (300000, 1e-4), (500000, 1e-5)], outside_value=1e-5)
+            self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (300000, 3e-4), (500000, 1e-5)], outside_value=1e-5)
+
         super().__init__(name,
                          args,
                          env_args,

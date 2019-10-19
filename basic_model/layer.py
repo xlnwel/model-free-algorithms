@@ -288,9 +288,11 @@ class Layer():
             # output of the noisy layer
             x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
         if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
-            tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
-            tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
-            tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
+            with tf.name_scope(f'{name}'):
+                tf_utils.stats_summary('w', noisy_w, std=True, hist=True)
+                tf_utils.stats_summary('b', noisy_b, std=True, hist=True)
+                tf_utils.stats_summary('o', x, std=True, hist=True)
+                tf_utils.stats_summary('y', y, std=True, hist=True)
 
         x = x + y
 
