@@ -77,10 +77,10 @@ class SoftPolicy(Module):
                 layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
                 x = layer(x, u, norm=norm)
 
-            mean = self.dense(x, action_dim)
+            mean = self.dense(x, action_dim, name='mean')
 
             # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-            logstd = self.dense(x, action_dim)
+            logstd = self.dense(x, action_dim, name='logstd')
             logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
 
         # deterministic action, no noisy layers
@@ -89,7 +89,7 @@ class SoftPolicy(Module):
             for i, u in enumerate(units):
                 x = self.dense_norm_activation(x, u, norm=norm)
 
-            action_det = self.dense(x, action_dim)
+            action_det = self.dense(x, action_dim, name='mean')
 
         return mean, logstd, action_det
 

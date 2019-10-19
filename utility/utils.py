@@ -81,7 +81,7 @@ def set_global_seed(seed=42):
     os.environ['PYTHONHASHSEED']=str(seed)
     random.seed(seed)
     np.random.seed(seed)
-    tf.set_random_seed(seed)
+    tf.compat.v1.set_random_seed(seed)
 
 def get_available_gpus():
     # recipe from here:
