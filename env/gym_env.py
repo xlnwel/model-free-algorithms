@@ -1,3 +1,4 @@
+""" Implementation of single process environment """
 import numpy as np
 import gym
 import ray
@@ -122,6 +123,12 @@ class GymEnvVec:
 
     def get_epslen(self):
         return [env.get_epslen() for env in self.envs]
+
+def create_env(args):
+    if 'n_envs' not in args or args['n_envs'] == 1:
+        return GymEnv(args)
+    else:
+        return GymEnvVec(args)
 
 
 if __name__ == '__main__':

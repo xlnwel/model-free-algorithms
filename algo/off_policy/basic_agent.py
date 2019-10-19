@@ -10,7 +10,7 @@ from utility.logger import Logger
 from utility.utils import pwc
 from utility.debug_tools import assert_colorize
 from basic_model.model import Model
-from env.gym_env import GymEnv, GymEnvVec
+from env.gym_env import create_env
 from algo.off_policy.apex.buffer import LocalBuffer
 from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
 
@@ -38,8 +38,7 @@ class OffPolicyOperation(Model, ABC):
         self.update_step = 0
 
         # environment info
-        self.env = (GymEnvVec(env_args) if 'n_envs' in env_args and env_args['n_envs'] > 1
-                    else GymEnv(env_args))
+        self.env = create_env(env_args)
         self.state_space = self.env.state_space
         self.action_dim = self.env.action_dim
         

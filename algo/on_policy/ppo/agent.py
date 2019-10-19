@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
-from env.gym_env import GymEnv, GymEnvVec
+from env.gym_env import create_env
 from utility.losses import huber_loss
 from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
@@ -41,8 +41,7 @@ class Agent(Model):
         self.minibatch_idx = 0
 
         # environment info
-        self.env_vec = (GymEnvVec(env_args) if env_args['n_envs'] > 1 
-                        else GymEnv(env_args))
+        self.env_vec = create_env(env_args)
 
         self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
                                 self.env_vec.state_space, self.env_vec.action_dim, 

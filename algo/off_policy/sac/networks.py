@@ -83,15 +83,7 @@ class SoftPolicy(Module):
             logstd = self.dense(x, action_dim, name='logstd')
             logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
 
-        # deterministic action, no noisy layers
-        with tf.variable_scope(name, reuse=True):
-            x = state
-            for i, u in enumerate(units):
-                x = self.dense_norm_activation(x, u, norm=norm)
-
-            action_det = self.dense(x, action_dim, name='mean')
-
-        return mean, logstd, action_det
+        return mean, logstd, mean
 
     def _squash_correction(self, action, logpi):
         with tf.name_scope('squash'):
