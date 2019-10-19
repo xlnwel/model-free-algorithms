@@ -258,7 +258,7 @@ class Layer():
         return x
         
     def noisy(self, x, units, kernel_initializer=tc.layers.xavier_initializer(), 
-               name=None, sigma=.4):
+               name=None, sigma=.4, return_noise=False):
         """ noisy layer using factorized Gaussian noise """
         name = self.get_name(name, 'noisy')
         
@@ -286,20 +286,21 @@ class Layer():
                                         initializer=tf.constant_initializer(sigma / np.sqrt(units)))
             
             # output of the noisy layer
-            x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
+            o = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
         if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
             with tf.name_scope(f'{name}'):
                 tf_utils.stats_summary('w', noisy_w, std=True, hist=True)
                 tf_utils.stats_summary('b', noisy_b, std=True, hist=True)
-                tf_utils.stats_summary('o', x, std=True, hist=True)
+                tf_utils.stats_summary('o', o, std=True, hist=True)
                 tf_utils.stats_summary('y', y, std=True, hist=True)
 
-        x = x + y
-
-        return x
+        if return_noise:
+            return o, y
+        else:
+            return o + y
 
     def noisy2(self, x, units, kernel_initializer=tc.layers.xavier_initializer(), 
-               name=None, sigma=.4):
+               name=None, sigma=.4, return_noise=False):
         """ noisy layer """
         name = self.get_name(name, 'noisy')
 
@@ -321,36 +322,38 @@ class Layer():
                                         initializer=tf.constant_initializer(sigma / np.sqrt(units)))
             
             # output of the noisy layer
-            x = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
+            o = tf.matmul(x, noisy_w * epsilon_w) + noisy_b * epsilon_b
         if hasattr(self, 'log_tensorboard') and self.log_tensorboard:
-            tf_utils.stats_summary('noisy_w', noisy_w, std=True, hist=True)
-            tf_utils.stats_summary('noisy_b', noisy_b, std=True, hist=True)
-            tf_utils.stats_summary('noisy_o', x, std=True, hist=True)
+            with tf.name_scope(f'{name}'):
+                tf_utils.stats_summary('w', noisy_w, std=True, hist=True)
+                tf_utils.stats_summary('b', noisy_b, std=True, hist=True)
+                tf_utils.stats_summary('o', o, std=True, hist=True)
+                tf_utils.stats_summary('y', y, std=True, hist=True)
                 
-        x = x + y
-
-        return x
+        if return_noise:
+            return o, y
+        else:
+            return o + y
 
     def noisy_norm_activation(self, x, units, kernel_initializer=tf_utils.kaiming_initializer(),
                                norm=tc.layers.layer_norm, activation=tf.nn.relu, 
                                name=None, sigma=.4):
         def layer_imp():
             y = self.noisy(x, units, kernel_initializer=kernel_initializer, 
-                            name=name, sigma=sigma)
+                            name=name, sigma=sigma, return_noise=False)
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                          training=self.training)
             
             return y
 
-        x = tf_utils.wrap_layer(name, layer_imp)
+        result = tf_utils.wrap_layer(name, layer_imp)
 
-        return x
+        return result
 
-    def layer_norm_act(self, x, layer, norm=None, activation=tf.nn.relu, name=None):
+    def layer_norm_activation(self, x, layer, norm=None, activation=tf.nn.relu, name=None):
         """ This function implicitly handle training for batch normalization if self._training is defined """
         def layer_imp():
-            y = x
-            y = layer(y)
+            y = layer(x)
             y = tf_utils.norm_activation(y, norm=norm, activation=activation, 
                                         training=self.training)
 
@@ -359,7 +362,6 @@ class Layer():
         x = tf_utils.wrap_layer(name, layer_imp)
 
         return x
-
 
     def lstm(self, x, units, return_sequences=False):
         assert_colorize(len(x.shape.as_list()) == 3, f'Imput Shape Error: desire shape of dimension 3, get {len(x.shape.as_list())}')
