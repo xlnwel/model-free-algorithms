@@ -4,12 +4,12 @@ env:
     max_episode_steps: 2000
     video_path: video
     seed: 0
-    clip_reward: none
+    clip_reward: -50
 agent:
     algorithm: apex-sac
     temperature: auto
     gamma: 0.99
-    batch_size: 256
+    batch_size: 512
     max_action_repetition: 3
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
@@ -56,7 +56,7 @@ agent:
 buffer:
     type: proportional # proportional
     normalize_reward: False
-    reward_scale: 1
+    reward_scale: 5
     to_update_priority: False
 
     alpha: 0.7

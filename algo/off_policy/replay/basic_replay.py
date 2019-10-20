@@ -137,26 +137,27 @@ class Replay:
         self.mem_idx = end_idx % self.capacity
 
     def _get_samples(self, indexes):
-        indexes = np.array(indexes) # convert tuple to array
-
+        indexes = np.asarray(indexes) # convert tuple to array
+        
+        dones = self.memory['done'][indexes]
         state = self.memory['state'][indexes] 
         # squeeze steps since it is of shape [None, 1]
         next_indexes = (indexes + np.squeeze(self.memory['steps'][indexes])) % self.capacity
         assert indexes.shape == next_indexes.shape
         # using zero state as the terminal state
-        next_state = np.where(self.memory['done'][indexes], np.zeros_like(state), self.memory['state'][next_indexes])
+        next_state = np.where(dones, np.zeros_like(state), self.memory['state'][next_indexes])
 
         # normalize rewards
         reward = self.memory['reward'][indexes]
         if self.normalize_reward:
             reward = self.running_reward_stats.normalize(reward)
-        reward *= self.reward_scale
+        reward *= np.where(dones, 1, self.reward_scale)
         
         return (
             state,
             self.memory['action'][indexes],
             reward,
             next_state,
-            self.memory['done'][indexes],
+            dones,
             self.memory['steps'][indexes],
         )

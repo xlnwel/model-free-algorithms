@@ -26,8 +26,8 @@ class GymEnv:
             pwc(f'video will be logged at {args["video_path"]}', 'cyan')
             env = gym.wrappers.Monitor(TimeLimit(env, self.max_episode_steps), args['video_path'], force=True)
         self.env = env = EnvStats(env)
-
-        env.seed(('seed' in args and args['seed']) or 42)
+        seed = ('seed' in args and args['seed']) or 42
+        self.seed_range = (seed, seed + 10)
 
         self.state_space = env.observation_space.shape
 
@@ -41,6 +41,7 @@ class GymEnv:
                             and not isinstance(args['clip_reward'], str) else None)
 
     def reset(self):
+        self.env.seed(np.random.randint(*self.seed_range))
         return self.env.reset()
 
     def random_action(self):
@@ -78,7 +79,7 @@ class GymEnvVec:
         n_envs = args['n_envs']
         envs = [gym.make(args['name']) for i in range(n_envs)]
         self.envs = [EnvStats(env) for env in envs]
-        [env.seed(args['seed'] + 10 * i) for i, env in enumerate(self.envs)]
+        self.seed_range = args['seed']
 
         env = self.envs[0]
         self.state_space = env.observation_space.shape
@@ -98,6 +99,7 @@ class GymEnvVec:
         return [env.action_space.sample() for env in self.envs]
 
     def reset(self):
+        [env.seed(np.random.randint(*(self.seed_range + 10 * i))) for i, env in enumerate(self.envs)]
         return [env.reset() for env in self.envs]
     
     def step(self, actions, n_action_repetition=1):

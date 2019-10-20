@@ -229,10 +229,9 @@ class Temperature(Module):
         return log_alpha, alpha
 
     def _state_alpha(self, state, reuse=False):
-        self.reset_counter('noisy')
         with tf.variable_scope('temperature', reuse=reuse):
             x = state
-            x = self.noisy(x, 1) if self.args['noisy'] else self.dense(x, 1)
+            x = self.dense(x, 1)
 
             log_alpha = x
             alpha = tf.exp(log_alpha)
@@ -240,10 +239,9 @@ class Temperature(Module):
         return log_alpha, alpha
 
     def _state_action_alpha(self, state, action, reuse=False):
-        self.reset_counter('noisy')
         with tf.variable_scope('temperature', reuse=reuse):
             x = tf.concat([state, action], axis=1)
-            x = self.noisy(x, 1) if self.args['noisy'] else self.dense(x, 1)
+            x = self.dense(x, 1)
 
             log_alpha = x
             alpha = tf.exp(log_alpha)

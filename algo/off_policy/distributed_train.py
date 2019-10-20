@@ -27,7 +27,7 @@ def main(env_args, agent_args, buffer_args, render=False):
         agent_args['n_workers'] = n_workers
     else:
         n_workers = agent_args['n_workers']
-    agent_args['env_stats']['times'] = n_workers
+    # agent_args['env_stats']['times'] = n_workers
 
     ray.init()
 
@@ -42,8 +42,9 @@ def main(env_args, agent_args, buffer_args, render=False):
     sess_config = tf.ConfigProto(intra_op_parallelism_threads=1,
                                  inter_op_parallelism_threads=1,
                                  allow_soft_placement=True)
+    # we treat worker_0 separately as an evaluator
     for worker_no in range(n_workers):
-        weight_update_freq = 1    # np.random.randint(1, 10)
+        weight_update_freq = 20 if worker_no == 0 else 1    # np.random.randint(1, 10)
         if agent_args['algorithm'] == 'apex-td3':
             agent_args['actor']['noisy_sigma'] = 0.1 if worker_no == 0 else np.random.randint(4, 10) * .1
         elif agent_args['algorithm'] == 'apex-sac':
@@ -57,7 +58,7 @@ def main(env_args, agent_args, buffer_args, render=False):
             else:
                 env_args['log_video'] = False
         worker = get_worker(Agent, agent_name, worker_no, agent_args, env_args, buffer_args, 
-                            weight_update_freq, sess_config=sess_config, device=f'/CPU:0')
+                            weight_update_freq, sess_config=sess_config, save=worker_no==0, device=f'/CPU:0')
         workers.append(worker)
 
     pids = [worker.sample_data.remote(learner) for worker in workers]

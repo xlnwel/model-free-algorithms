@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 
-
+""" The following code is not tested in practice"""
 def multihead_attention(memory, key_size, value_size, num_heads):
     # Perform linear tranformation to compute all Q, K, V
     qkv_size = 2 * key_size + value_size

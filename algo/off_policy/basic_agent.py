@@ -55,7 +55,9 @@ class OffPolicyOperation(Model, ABC):
             self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, action_dim)
         elif buffer_args['type'] == 'local':
             self.buffer = LocalBuffer(buffer_args, self.state_space, action_dim)
-
+        else:
+            raise NotImplementedError
+        
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])
         self.prio_epsilon = float(buffer_args['epsilon'])
