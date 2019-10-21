@@ -64,7 +64,7 @@ class GridSearch:
                                   deepcopy(self.buffer_args), self.render))
                 self.agent_args['model_name'] = old_model_name
                 p.start()
-                time.sleep(1)   # ensure sub-processs start in order
+                time.sleep(1)   # ensure sub-processs starts in order
                 self.processes.append(p)
         else:
             # recursive case

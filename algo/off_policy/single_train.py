@@ -64,8 +64,8 @@ def train(agent, buffer, n_epochs, render):
     while not agent.buffer.good_to_learn:
         collect_data(agent, buffer, random_action=True)
     assert agent.buffer.good_to_learn
+    
     utils.pwc(f'Training starts')
-
     for episode_i in range(1, n_epochs + 1):
         score, epslen = collect_data(agent, buffer)
         train_timestep += epslen
