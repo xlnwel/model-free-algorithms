@@ -4,7 +4,6 @@ import argparse
 import math
 import multiprocessing
 import numpy as np
-import tensorflow as tf
 import sympy
 
 
@@ -81,7 +80,6 @@ def set_global_seed(seed=42):
     os.environ['PYTHONHASHSEED']=str(seed)
     random.seed(seed)
     np.random.seed(seed)
-    tf.compat.v1.set_random_seed(seed)
 
 def get_available_gpus():
     # recipe from here:

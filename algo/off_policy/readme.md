@@ -1,5 +1,9 @@
 By default, we use multi-step, PER, noisy layers in all implementations.
 
+## BipedalWalkerHardcore-v2 Trained using Apex-SAC
+
+![](/results/BipedalwalkerHardcore-v2.gif)
+
 ## Performance on BipedalWalker-v2
 
 #### Learning curve for TD3 and SAC, x-axis denotes episodes, y-axis denotes episodic reward averaged over 100 episodes at training time, three random seeds

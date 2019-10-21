@@ -4,12 +4,12 @@ import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
 from env.gym_env import create_env
-from utility.losses import huber_loss
 from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
 from algo.on_policy.ppo.buffer import PPOBuffer
 from utility.tf_utils import stats_summary
-from utility.utils import pwc
+from utility.utils import pwcf
+from utility.schedule import PiecewiseSchedule
 
 
 class Agent(Model):
@@ -57,6 +57,11 @@ class Agent(Model):
                          device=device,
                          reuse=reuse,
                          graph=graph)
+
+        self.schedule_lr = 'schedule_lr' in args and args['schedule_lr']
+        if self.schedule_lr:
+            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (400000, 1e-4), (600000, 5e-5)], outside_value=5e-5)
+            self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (400000, 3e-4), (600000, 5e-5)], outside_value=5e-5)
 
         if self.use_lstm:
             self.last_lstm_state = None
