@@ -58,13 +58,13 @@ class PrioritizedReplay(Replay):
         self.beta = self.beta_schedule.value(self.sample_i)
 
     @override(Replay)
-    def _merge(self, local_buffer, length, start=0):
+    def _merge(self, local_buffer, length):
         end_idx = self.mem_idx + length
         assert np.all(local_buffer['priority'][: length])
         for idx, mem_idx in enumerate(range(self.mem_idx, end_idx)):
             self.data_structure.update(local_buffer['priority'][idx], mem_idx % self.capacity)
             
-        super()._merge(local_buffer, length, start)
+        super()._merge(local_buffer, length)
         
     def _compute_IS_ratios(self, N, probabilities):
         IS_ratios = np.power(probabilities * N, -self.beta)

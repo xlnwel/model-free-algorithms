@@ -10,7 +10,7 @@ agent:
     temperature: auto
     gamma: 0.99
     batch_size: 512
-    max_action_repetition: 3
+    max_action_repetitions: 3
     n_workers: 8
     schedule_lr: True           # if this is true, use lr scheduler defined in basic_agent.py instead of the following args
 

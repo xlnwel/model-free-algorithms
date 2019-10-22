@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from algo.off_policy.basic_agent import OffPolicyOperation
-from algo.off_policy.sac.networks import SoftPolicy, SoftQ, Temperature
+from algo.off_policy.sac.networks import SoftPolicy, SoftQ, Temperature, ActionRepetition
 from utility.losses import huber_loss
 from utility.tf_utils import n_step_target, stats_summary
 from utility.schedule import PiecewiseSchedule
@@ -30,6 +30,7 @@ class Agent(OffPolicyOperation):
             self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
             self.Q_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (150000, 3e-4), (300000, 5e-5)], outside_value=5e-5)
             self.alpha_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
+            self.ar_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
 
         super().__init__(name,
                          args,
@@ -52,26 +53,13 @@ class Agent(OffPolicyOperation):
 
         self.actor, self.Q_nets = self._create_nets(self.data)
         
-        self.action = self.actor.action
-        self.action_det = self.actor.action_det
+        self.action_repr = self.actor.action
+        self.action_det_repr = self.actor.action_det
         self.logpi = self.actor.logpi
 
         opt_ops = []
         if self.raw_temperature == 'auto':
-            self.temperature = Temperature('Temperature',
-                                            self.args['Temperature'],
-                                            self.graph,
-                                            self.data['state'],
-                                            self.data['next_state'],
-                                            self.actor,
-                                            scope_prefix=self.name,
-                                            log_tensorboard=self.log_tensorboard,
-                                            log_params=self.log_params)
-            self.alpha = self.temperature.alpha
-            self.next_alpha = self.temperature.next_alpha
-            target_entropy = -self.action_dim
-            self.alpha_loss = self._alpha_loss(self.temperature.log_alpha, self.logpi, target_entropy)
-            _, self.alpha_lr, _, _, temp_op = self.temperature._optimization_op(self.alpha_loss, schedule_lr=self.schedule_lr)
+            temperature, self.alpha, self.next_alpha, self.alpha_loss, self.alpha_lr, temp_op = self._auto_temperature()
             opt_ops.append(temp_op)
         else:
             # reward scaling indirectly affects the policy temperature
@@ -79,6 +67,8 @@ class Agent(OffPolicyOperation):
             # see my blog for more info https://xlnwel.github.io/blog/reinforcement%20learning/SAC/
             self.alpha = self.raw_temperature * self.buffer.reward_scale
             self.next_alpha = self.alpha
+        
+        
 
         self.priority, losses = self._loss(self.actor, self.Q_nets, self.logpi)
         self.actor_loss, self.Q_loss, self.loss = losses
@@ -109,12 +99,29 @@ class Agent(OffPolicyOperation):
                     data['next_state'],
                     data['action'], 
                     actor,
-                    self.action_dim,
                     scope_prefix=scope_prefix,
                     log_tensorboard=self.log_tensorboard,
                     log_params=self.log_params)
 
         return actor, Qs
+
+    def _auto_temperature(self):
+        temperature = Temperature('Temperature',
+                                self.args['Temperature'],
+                                self.graph,
+                                self.data['state'],
+                                self.data['next_state'],
+                                self.actor,
+                                scope_prefix=self.name,
+                                log_tensorboard=self.log_tensorboard,
+                                log_params=self.log_params)
+        alpha = temperature.alpha
+        next_alpha = temperature.next_alpha
+        target_entropy = -self.action_dim
+        alpha_loss = self._alpha_loss(temperature.log_alpha, self.logpi, target_entropy)
+        _, alpha_lr, _, _, temp_op = temperature._optimization_op(alpha_loss, schedule_lr=self.schedule_lr)
+
+        return temperature, alpha, next_alpha, alpha_loss, alpha_lr, temp_op
 
     def _alpha_loss(self, log_alpha, logpi, target_entropy):
         with tf.name_scope('alpha_loss'):
@@ -166,6 +173,7 @@ class Agent(OffPolicyOperation):
                 stats_summary('Q_with_actor', self.Q_nets.Q_with_actor, max=True)
                 stats_summary('reward', self.data['reward'], min=True, hist=True)
                 stats_summary('priority', self.priority, hist=True)
+                # stats_summary('action_repetitions', tf.argmax(self.actor.n_action_repetitions, axis=1)+1, max=True, hist=True)
                 if self.raw_temperature == 'auto':
                     stats_summary('alpha', self.alpha)
                     stats_summary('alpha_loss', self.alpha_loss)

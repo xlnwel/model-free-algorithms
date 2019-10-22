@@ -12,7 +12,7 @@ agent:
     gamma: &gamma 0.99
     batch_size: 256
     episodic_learning: False                # whether to update network after each episode. Update after each step if False
-    max_action_repetition: 3
+    max_action_repetitions: 3
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
@@ -43,6 +43,13 @@ agent:
         decay_rate: *decay_rate
         decay_steps: *decay_steps
     Temperature:
+        type: state_action
+        noisy: False
+        # args for optimizer
+        learning_rate: *policy_lr
+        decay_rate: *decay_rate
+        decay_steps: *decay_steps
+    ActionRepetition:
         type: state_action
         noisy: False
         # args for optimizer

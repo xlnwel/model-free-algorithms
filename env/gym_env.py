@@ -16,6 +16,7 @@ def action_dist_type(env):
     else:
         raise NotImplementedError
 
+
 class GymEnv:
     def __init__(self, args):
         env = gym.make(args['name'])

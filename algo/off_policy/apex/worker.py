@@ -37,60 +37,68 @@ def get_worker(BaseClass, *args, **kwargs):
                             device=device)
 
         def compute_priorities(self):
-            return self.sess.run(self.priority)
+            state, action, reward, next_state, done, steps = self.buffer.sample()
+            return self.sess.run(self.priority, feed_dict={
+                self.data['state']: state,
+                self.data['action']: action,
+                self.data['reward']: reward,
+                self.data['next_state']:next_state,
+                self.data['done']: done,
+                self.data['steps']: steps
+            })
 
         def sample_data(self, learner):
-            # I intend not to synchronize the worker's weights at the beginning for initial diversity 
-            if self.no == 0:
+            def do_nothing_fn(state, action, reward, done, n):
+                pass
+            def collect_fn(state, action, reward, done, n):
+                self.buffer.add_data(state, action, reward, done)
+            is_evaluator = self.no == 0
+            if is_evaluator:
                 scores = deque(maxlen=self.weight_update_freq)
                 epslens = deque(maxlen=self.weight_update_freq)
                 best_score_mean = 0
             episode_i = 0
-            t = 0
+            step = 0
             while True:
                 episode_i += 1
-                state = self.env.reset()
-                for _ in range(self.max_path_length):
-                    t += 1
-                    if self.no == 0:
-                        action = self.act(state, deterministic=True)
-                    else:
-                        action = self.act(state)
-                    next_state, reward, done, _ = self.env.step(action, self.max_action_repetition)
-                    
-                    if self.no != 0:
-                        self.buffer.add_data(state, action, reward, done)
-
-                    state = next_state
-
-                    if done:
-                        break
-
+                fn = do_nothing_fn if is_evaluator else collect_fn
+                score, epslen = self.run_trajectory(fn=fn, render=is_evaluator, deterministic_action=is_evaluator)
+                step += epslen
+                if is_evaluator:
+                    scores.append(score)
+                    epslens.append(epslen)
                 if episode_i % self.weight_update_freq == 0:
-                    if self.no == 0:
-                        # for worker_0, log score
-                        score = self.env.get_score()
-                        epslen = self.env.get_epslen()
-                        scores.append(score)
-                        epslens.append(epslen)
+                    if is_evaluator:
+                        # for evaluator, log score
                         score_mean = np.mean(scores)
-                        stats = dict(score=score, score_mean=score_mean, score_std=np.std(scores),
-                                    epslen=epslen, epslen_mean=np.mean(epslens), epslen_std=np.std(scores),
-                                    worker_no=self.no, global_step=episode_i)
+                        score_std = np.std(scores)
+                        epslen_mean = np.mean(epslens)
+                        epslen_std = np.std(scores)
+                        stats = dict(score=score, score_mean=score_mean, score_std=score_std,
+                                    epslen=epslen, epslen_mean=epslen_mean, epslen_std=epslen_std,
+                                    global_step=episode_i)
                                     
                         learner.record_stats.remote(stats)
                         if score_mean > best_score_mean:
                             best_score_mean = score_mean
                             self.save()
+                        learner.rl_log.remote(dict(Timing='Eval', 
+                                                Episodes=episode_i,
+                                                Steps=step,
+                                                Score=score, 
+                                                ScoreMean=score_mean,
+                                                ScoreStd=score_std,
+                                                EpsLenMean=epslen_mean,
+                                                EpsLenStd=np.std(epslens)))
                     else:
                         # for other workers, send data to learner
-                        last_state = np.zeros_like(state) if done else next_state
+                        last_state = np.zeros_like(self.buffer['state'][0])
                         self.buffer.add_last_state(last_state)
-                        self.buffer['priority'] = self.compute_priorities()
+                        self.buffer['priority'][:self.buffer.idx] = self.compute_priorities()
                         # push samples to the central buffer after each episode
                         learner.merge_buffer.remote(dict(self.buffer), self.buffer.idx)
                         self.buffer.reset()
-                    
+
                     # pull weights from learner
                     weights = ray.get(learner.get_weights.remote())
                     self.variables.set_flat(weights)

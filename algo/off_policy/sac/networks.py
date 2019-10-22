@@ -77,10 +77,10 @@ class SoftPolicy(Module):
                 layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
                 x = layer(x, u, norm=norm)
 
-            mean = self.dense(x, action_dim, name='mean')
+            mean = self.dense(x, action_dim, name='action_mean')
 
             # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-            logstd = self.dense(x, action_dim, name='logstd')
+            logstd = self.dense(x, action_dim, name='action_logstd')
             logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
 
         return mean, logstd, mean
@@ -114,7 +114,6 @@ class SoftQ(Module):
                  next_state,
                  action,
                  actor,
-                 action_dim, 
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
@@ -123,7 +122,6 @@ class SoftQ(Module):
         self.action = action
         self.actor_action = actor.action
         self.actor_next_action = actor.next_action
-        self.action_dim = action_dim
         self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
         self.polyak = args['polyak']
 
@@ -144,7 +142,7 @@ class SoftQ(Module):
 
     """ Implementation """
     def _build_graph(self):
-        Q_net = lambda state, action, reuse, name: self._q_net(state, self.args['units'], action, 
+        Q_net = lambda state, action, reuse, name: self._q_net(state, action, self.args['units'],  
                                                             self.norm, reuse, name=name)
 
         # online network
@@ -164,7 +162,7 @@ class SoftQ(Module):
 
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
-    def _q_net(self, state, units, action, norm, reuse, name='Q_net'):
+    def _q_net(self, state, action, units, norm, reuse, name='Q_net'):
         x = state
         with tf.variable_scope(name, reuse=reuse):
             for i, u in enumerate(units):
@@ -185,7 +183,7 @@ class SoftQ(Module):
         return init_target_op, update_target_op   
 
 
-class Temperature(Module):
+class Auxiliary(Module):
     def __init__(self,
                  name,
                  args,
@@ -209,6 +207,8 @@ class Temperature(Module):
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
 
+
+class Temperature(Auxiliary):
     """ Implementation """
     def _build_graph(self):
         if self.type == 'simple':
@@ -220,6 +220,8 @@ class Temperature(Module):
         elif self.type == 'state_action':
             self.log_alpha, self.alpha = self._state_action_alpha(self.state, self.action)
             _, self.next_alpha = self._state_action_alpha(self.next_state, self.next_action, reuse=True)
+        else:
+            raise NotImplementedError(f'Invalid type: {self.type}')
 
     def _simple_alpha(self):
         with tf.variable_scope('temperature'):
@@ -247,3 +249,33 @@ class Temperature(Module):
             alpha = tf.exp(log_alpha)
         
         return log_alpha, alpha
+
+
+class ActionRepetition(Auxiliary):
+    """ Implementation """
+    def _build_graph(self):
+        max_action_repetitions = self.args['max_action_repetitions']
+        if self.type == 'state':
+            self.logits, self.prob = self._state_prob(self.state, max_action_repetitions)
+            _, self.next_prob = self._state_prob(self.next_state, max_action_repetitions, reuse=True)
+        elif self.type == 'state_action':
+            self.logits, self.prob = self._state_action_prob(self.state, self.action, max_action_repetitions)
+            _, self.next_prob = self._state_action_prob(self.next_state, self.next_action, max_action_repetitions, reuse=True)
+        else:
+            raise NotImplementedError(f'Invalid type: {self.type}')
+
+    def _state_prob(self, state, max_action_repetitions, reuse=False):
+        with tf.variable_scope('temperature', reuse=reuse):
+            x = state
+            logits = self.dense(x, max_action_repetitions)
+            prob = tf.nn.softmax(logits)
+        
+        return logits, prob
+
+    def _state_action_prob(self, state, action, max_action_repetitions, reuse=False):
+        with tf.variable_scope('temperature', reuse=reuse):
+            x = tf.concat([state, action], axis=1)
+            logits = self.dense(x, max_action_repetitions)
+            prob = tf.nn.softmax(logits)
+            
+        return logits, prob

@@ -61,11 +61,11 @@ class Replay:
 
         return samples
 
-    def merge(self, local_buffer, length, start=0):
+    def merge(self, local_buffer, length):
         """ Merge a local buffer to the replay buffer, useful for distributed algorithms """
         assert_colorize(length < self.capacity, 'Local buffer is too large')
         with self.locker:
-            self._merge(local_buffer, length, start)
+            self._merge(local_buffer, length)
 
     def add(self):
         """ Add a single transition to the replay buffer """
@@ -108,26 +108,21 @@ class Replay:
     def _sample(self):
         raise NotImplementedError
 
-    def _merge(self, local_buffer, length, start=0):
+    def _merge(self, local_buffer, length):
         end_idx = self.mem_idx + length
 
         if end_idx > self.capacity:
             first_part = self.capacity - self.mem_idx
             second_part = length - first_part
             
-            copy_buffer(self.memory, self.mem_idx, self.capacity, local_buffer, start, start + first_part)
-            copy_buffer(self.memory, 0, second_part, local_buffer, start + first_part, start + length)
-
-            if self.normalize_reward:
-                # compute running reward statistics
-                reward = np.concatenate((local_buffer['reward'][start: start + first_part], 
-                                         local_buffer['reward'][start + first_part: start + length]))
-                self.running_reward_stats.update(reward)
+            copy_buffer(self.memory, self.mem_idx, self.capacity, local_buffer, 0, first_part)
+            copy_buffer(self.memory, 0, second_part, local_buffer, first_part, length)
         else:
-            copy_buffer(self.memory, self.mem_idx, end_idx, local_buffer, start, start + length)
-            if self.normalize_reward:
-                # compute running reward statistics
-                self.running_reward_stats.update(local_buffer['reward'][start: start+length])
+            copy_buffer(self.memory, self.mem_idx, end_idx, local_buffer, 0, length)
+            
+        if self.normalize_reward:
+            # compute running reward statistics
+            self.running_reward_stats.update(local_buffer['reward'][:length])
 
         # memory is full, recycle buffer via FIFO
         if not self.is_full and end_idx >= self.capacity:
@@ -139,25 +134,25 @@ class Replay:
     def _get_samples(self, indexes):
         indexes = np.asarray(indexes) # convert tuple to array
         
-        dones = self.memory['done'][indexes]
+        done = self.memory['done'][indexes]
         state = self.memory['state'][indexes] 
         # squeeze steps since it is of shape [None, 1]
         next_indexes = (indexes + np.squeeze(self.memory['steps'][indexes])) % self.capacity
         assert indexes.shape == next_indexes.shape
         # using zero state as the terminal state
-        next_state = np.where(dones, np.zeros_like(state), self.memory['state'][next_indexes])
+        next_state = np.where(done, np.zeros_like(state), self.memory['state'][next_indexes])
 
-        # normalize rewards
-        reward = self.memory['reward'][indexes]
+        # process rewards
+        reward = np.copy(self.memory['reward'][indexes])
         if self.normalize_reward:
             reward = self.running_reward_stats.normalize(reward)
-        reward *= np.where(dones, 1, self.reward_scale)
+        reward *= np.where(done, 1, self.reward_scale)
         
         return (
             state,
             self.memory['action'][indexes],
             reward,
             next_state,
-            dones,
+            done,
             self.memory['steps'][indexes],
         )
