@@ -52,7 +52,10 @@ def get_worker(BaseClass, *args, **kwargs):
                 state = self.env.reset()
                 for _ in range(self.max_path_length):
                     t += 1
-                    action = self.act(state, deterministic=self.no == 0)
+                    if self.no == 0:
+                        action = self.act(state, deterministic=True)
+                    else:
+                        action = self.act(state)
                     next_state, reward, done, _ = self.env.step(action, self.max_action_repetition)
                     
                     if self.no != 0:

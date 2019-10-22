@@ -2,6 +2,8 @@ If you have any improvements and suggestions, or bump into some mistakes, welcom
 
 ## Algorithms Implemented
 
+Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo)
+
 - [x] TD3       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/td3)]
 - [x] SAC       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/sac)]
 - [x] IQN       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/rainbow_iqn)]
@@ -19,8 +21,6 @@ If you have any improvements and suggestions, or bump into some mistakes, welcom
 <p align="center">
 <img src="/results/Architecture.png" alt="Architectureg" height="650">
 </p>
-
-Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo)
 
 ## Notes
 

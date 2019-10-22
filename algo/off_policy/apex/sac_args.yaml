@@ -11,6 +11,7 @@ agent:
     gamma: 0.99
     batch_size: 512
     max_action_repetition: 3
+    n_workers: 8
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
