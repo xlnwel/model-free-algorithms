@@ -116,6 +116,7 @@ class OffPolicyOperation(Model, ABC):
             feed_dict = self._get_feeddict(t)
         else:
             feed_dict = None
+        print(feed_dict)
         if self.log_tensorboard:
             priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
                                                                   self.data['saved_mem_idxs'], 

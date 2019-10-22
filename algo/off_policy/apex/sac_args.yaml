@@ -12,13 +12,13 @@ agent:
     batch_size: 512
     max_action_repetition: 3
     n_workers: 8
+    schedule_lr: True           # if this is true, use lr scheduler defined in basic_agent.py instead of the following args
 
     # model path: model_root_dir/model_name/model_name, two model_names ensure each model saved in an independent folder
     # tensorboard path: log_root_dir/model_name
     model_root_dir: saved_models            # root path for savinng models
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
-    schedule_lr: True           # if this is true, use lr scheduler defined in basic_agent.py instead of the following args
 
     loss_type: mse            # huber or mse
     n_steps: 3
@@ -26,7 +26,7 @@ agent:
     Policy:
         n_noisy: 0
         noisy_sigma: 0.4        # standard deviation for noisy layers
-        units: [512, 256, 128]
+        units: [512, 256, 256]
         layernorm: True
         target: False
         # args for optimizer

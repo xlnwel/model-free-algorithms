@@ -1,16 +1,18 @@
 ---
 env:
-    name: BipedalWalkerHardcore-v2    # LunarLanderContinuous-v2
+    name: BipedalWalkerHardcore-v2
     max_episode_steps: 2000
+    video_path: video
     seed: 0
-    n_action_repetition: 1
-    clip_reward: none
+    clip_reward: -50
 agent:
     algorithm: apex-td3
     gamma: 0.99
     polyak: 0.995      # moving average rate
-    batch_size: 256
+    batch_size: 512
     max_action_repetition: 3
+    n_workers: 8
+    schedule_lr: True           # if this is true, use lr scheduler defined in basic_agent.py instead of the following args
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
@@ -22,7 +24,7 @@ agent:
     
     actor:
         n_noisy: 2          # number of noisy layer
-        units: [512, 256, 128]
+        units: [512, 256, 256]
         noisy_sigma: 0.4    # standard deviation for noisy layers
         layernorm: True
         # args for optimizer
@@ -47,7 +49,7 @@ agent:
 buffer:
     type: proportional # local or proportional
     normalize_reward: False
-    reward_scale: 1
+    reward_scale: 5
     to_update_priority: False
 
     alpha: 0.7

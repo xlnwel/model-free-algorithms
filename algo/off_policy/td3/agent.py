@@ -27,8 +27,8 @@ class Agent(OffPolicyOperation):
         # learning rate schedule
         self.schedule_lr = 'schedule_lr' in args and args['schedule_lr']
         if self.schedule_lr:
-            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (400000, 1e-4), (600000, 5e-5)], outside_value=5e-5)
-            self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (400000, 3e-4), (600000, 5e-5)], outside_value=5e-5)
+            self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
+            self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (150000, 3e-4), (300000, 5e-5)], outside_value=5e-5)
 
         super().__init__(name,
                          args,
@@ -64,8 +64,8 @@ class Agent(OffPolicyOperation):
         self.priority, self.actor_loss, self.critic_loss = self._loss()
         self.loss = self.actor_loss + self.critic_loss
     
-        _, self.actor_lr, self.opt_step, _, self.actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True)
-        _, self.critic_lr, _, _, self.critic_opt_op = self.critic._optimization_op(self.critic_loss)
+        _, self.actor_lr, self.opt_step, _, self.actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True, schedule_lr=self.schedule_lr)
+        _, self.critic_lr, _, _, self.critic_opt_op = self.critic._optimization_op(self.critic_loss, schedule_lr=self.schedule_lr)
         self.opt_op = tf.group(self.actor_opt_op, self.critic_opt_op)
 
         # target net operations

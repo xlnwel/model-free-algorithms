@@ -58,7 +58,7 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export OPENBLAS_NUM_THREADS=1
 
 # For full argument specification, please refer to run/train.py
-python run/train.py -a=td3
+python run/train.py -a sac
 ```
 To add monitor so as to save videos automatically, set argument `log_video` to `True` in `args.yaml`.
 
