@@ -13,22 +13,22 @@ from utility.debug_tools import timeit
 from algo.off_policy.apex.buffer import LocalBuffer
 
 
-def evaluate(agent, timestep, start_episodes, interval, scores, epslens, render):
+def evaluate(agent, step, start_episodes, interval, scores, epslens, render):
     for i in range(1, interval+1):
-        score, epslen = agent.run_trajectory(render=render, deterministic_action=True)
-        timestep += epslen
+        score, epslen = agent.run_trajectory(render=render, evaluation=True)
+        step += epslen
         scores.append(score)
         epslens.append(epslen)
         if i % 4 == 0:
             agent.rl_log(dict(Timing='Eval', 
                             Episodes=start_episodes+i,
-                            Steps=timestep,
+                            Steps=step,
                             Score=score, 
                             ScoreMean=np.mean(scores),
                             ScoreStd=np.std(scores),
                             EpsLenMean=np.mean(epslens),
                             EpsLenStd=np.std(epslens)))
-    return timestep
+    return step
 
 def train(agent, buffer, n_epochs, render):
     def collection_fn(state, action, reward, done, n):
@@ -36,39 +36,37 @@ def train(agent, buffer, n_epochs, render):
 
     def train_fn(state, action, reward, done, n):
         agent.add_data(state, action, reward, done)
-        if agent.buffer.good_to_learn:
-            for _ in range(n):
-                agent.learn()
+        if agent.good_to_learn:
+            agent.learn()
 
     def collect_data(agent, buffer, random_action=False):
         if buffer:
             buffer.reset()
             score, epslen = agent.run_trajectory(fn=collection_fn, random_action=random_action)
             buffer['priority'][:] = agent.buffer.top_priority
-            agent.buffer.merge(buffer, buffer.idx)
+            agent.merge(buffer, buffer.idx)
         else:
             score, epslen = agent.run_trajectory(fn=train_fn, random_action=random_action)
 
         return score, epslen
 
     interval = 100
-    train_timestep = 0
+    train_step = 0
     scores = deque(maxlen=interval)
     epslens = deque(maxlen=interval)
-    eval_interval = 50
-    eval_timestep = 0
-    test_scores = deque(maxlen=interval)
-    test_epslens = deque(maxlen=interval)
+    eval_interval = 40
+    eval_step = 0
+    eval_scores = deque(maxlen=eval_interval)
+    eval_epslens = deque(maxlen=eval_interval)
 
     utils.pwc(f'Initialize replay buffer')
-    while not agent.buffer.good_to_learn:
+    while not agent.good_to_learn:
         collect_data(agent, buffer, random_action=True)
-    assert agent.buffer.good_to_learn
     
     utils.pwc(f'Training starts')
     for episode_i in range(1, n_epochs + 1):
         score, epslen = collect_data(agent, buffer)
-        train_timestep += epslen
+        train_step += epslen
 
         if buffer:
             for _ in range(epslen):
@@ -86,12 +84,12 @@ def train(agent, buffer, n_epochs, render):
             if hasattr(agent, 'stats'):
                 agent.record_stats(score=score, score_mean=score_mean, score_std=score_std,
                                     epslen_mean=epslen_mean, epslen_std=epslen_std,
-                                    global_step=episode_i)
+                                    steps=episode_i)
             
             if hasattr(agent, 'logger'):
                 agent.rl_log(dict(Timing='Train', 
                                 Episodes=episode_i,
-                                Steps=train_timestep,
+                                Steps=train_step,
                                 Score=score, 
                                 ScoreMean=score_mean,
                                 ScoreStd=score_std,
@@ -99,8 +97,8 @@ def train(agent, buffer, n_epochs, render):
                                 EpsLenStd=epslen_std))
 
         if episode_i % eval_interval == 0:
-            eval_timestep = evaluate(agent, eval_timestep, episode_i - eval_interval, 
-                                    eval_interval, test_scores, test_epslens, render)
+            eval_step = evaluate(agent, eval_step, episode_i - eval_interval, 
+                                    eval_interval, eval_scores, eval_epslens, render)
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread

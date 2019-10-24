@@ -262,9 +262,9 @@ class Agent(Model):
     def _log_loss(self):
         if self.log_tensorboard:
             with tf.name_scope('loss'):
-                tf.summary.scalar('ppo_loss_', self.ac.ppo_loss)
-                tf.summary.scalar('entropy_', self.ac.entropy)
-                tf.summary.scalar('V_loss_', self.ac.V_loss)
+                tf.compat.v1.summary.scalar('ppo_loss_', self.ac.ppo_loss)
+                tf.compat.v1.summary.scalar('entropy_', self.ac.entropy)
+                tf.compat.v1.summary.scalar('V_loss_', self.ac.V_loss)
 
             with tf.name_scope('value'):
                 stats_summary('V', self.ac.V)

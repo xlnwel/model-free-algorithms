@@ -42,6 +42,8 @@ class LocalBuffer(dict):
         # process rewards
         reward = np.copy(self['reward'][:self.idx])
         if self.normalize_reward:
+            # since we only expect rewards to be used once
+            # we update the running stats when we use them
             self.running_reward_stats.update(reward)
             reward = self.running_reward_stats.normalize(reward)
         reward *= np.where(done, 1, self.reward_scale)

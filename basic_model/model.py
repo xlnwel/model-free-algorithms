@@ -6,8 +6,8 @@ import tensorflow as tf
 from utility.utils import pwc
 from utility.debug_tools import assert_colorize, display_var_info
 from utility.logger import Logger
-from utility.yaml_op import save_args
 from basic_model.layer import Layer
+
 """ 
 Module defines the basic functions to build a tesorflow graph
 Model further defines save & restore functionns based on Module
@@ -113,7 +113,7 @@ class Module(Layer):
         elif decay_rate != 1.:
             learning_rate = tf.train.exponential_decay(learning_rate, opt_step, decay_steps, decay_rate, staircase=True)
         if self.log_tensorboard and not isinstance(learning_rate, float):
-            tf.summary.scalar('learning_rate_', learning_rate)
+            tf.compat.v1.summary.scalar('learning_rate_', learning_rate)
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
 
         return optimizer, learning_rate, opt_step
@@ -210,15 +210,15 @@ class Model(Module):
 
         # set up logging
         log_dir = os.path.join(args['log_root_dir'], self.model_name)
-        self._save_args(log_dir)
         
         if log:
             self.logger = self._setup_logger(log_dir, self.model_name)
+            self.logger.save_args(self.args)
 
         if self.log_tensorboard:
             self.graph_summary= self._setup_tensorboard_summary()
         
-        # rl-specific log configuration, not in self._build_graph to avoid being included in self.graph_summary
+        # The following stats are not in self._build_graph to avoid being included in self.graph_summary
         if log_stats:
             self.stats = self._setup_stats_logs(args['env_stats'])
 
@@ -273,8 +273,11 @@ class Model(Module):
     def record_stats(self, **kwargs):
         self._record_stats_impl(kwargs)
 
-    def log_tabular(self, key, value):
-        self.logger.log_tabular(key, value)
+    def store(self, **kwargs):
+        self.logger.store(**kwargs)
+
+    def log_tabular(self, key, value=None, mean=True, std=False, min=False, max=False):
+        self.logger.log_tabular(key, value, mean, std, min, max)
 
     def dump_tabular(self, print_terminal_info=True):
         self.logger.dump_tabular(print_terminal_info=print_terminal_info)
@@ -285,9 +288,6 @@ class Model(Module):
     """ Implementation """
     def _setup_saver(self):
         return tf.train.Saver(self.global_variables)
-
-    def _save_args(self, log_dir):
-        save_args(self.args, filename=log_dir + '/args.yaml')
 
     def _setup_logger(self, log_dir, model_name):
         return Logger(log_dir, exp_name=model_name)
@@ -329,7 +329,7 @@ class Model(Module):
                         merge_inputs = []
                         for info in stats_info:
                             stats[i][info] = info_ph = tf.placeholder(tf.float32, name=info)
-                            stats[i][f'{info}_log'] = log = tf.summary.scalar(f'{info}_', info_ph)
+                            stats[i][f'{info}_log'] = log = tf.compat.v1.summary.scalar(f'{info}_', info_ph)
                             merge_inputs.append(log)
                         
                         with tf.control_dependencies([step_op]):
@@ -345,10 +345,10 @@ class Model(Module):
             no = kwargs['worker_no']
             del kwargs['worker_no']
 
-        # if global_step appeas in kwargs, use it when adding summary to tensorboard
-        if 'global_step' in kwargs:
-            step = kwargs['global_step']
-            del kwargs['global_step']
+        # if step appeas in kwargs, use it when adding summary to tensorboard
+        if 'steps' in kwargs:
+            step = kwargs['steps']
+            del kwargs['steps']
         else:
             step = None
 

@@ -48,8 +48,6 @@ def get_worker(BaseClass, *args, **kwargs):
             })
 
         def sample_data(self, learner):
-            def do_nothing_fn(state, action, reward, done, n):
-                pass
             def collect_fn(state, action, reward, done, n):
                 self.buffer.add_data(state, action, reward, done)
             is_evaluator = self.no == 0
@@ -61,8 +59,8 @@ def get_worker(BaseClass, *args, **kwargs):
             step = 0
             while True:
                 episode_i += 1
-                fn = do_nothing_fn if is_evaluator else collect_fn
-                score, epslen = self.run_trajectory(fn=fn, render=is_evaluator, deterministic_action=is_evaluator)
+                fn = None if is_evaluator else collect_fn
+                score, epslen = self.run_trajectory(fn=fn, deterministic_action=is_evaluator)
                 step += epslen
                 if is_evaluator:
                     scores.append(score)
@@ -73,10 +71,10 @@ def get_worker(BaseClass, *args, **kwargs):
                         score_mean = np.mean(scores)
                         score_std = np.std(scores)
                         epslen_mean = np.mean(epslens)
-                        epslen_std = np.std(scores)
+                        epslen_std = np.std(epslens)
                         stats = dict(score=score, score_mean=score_mean, score_std=score_std,
                                     epslen=epslen, epslen_mean=epslen_mean, epslen_std=epslen_std,
-                                    global_step=episode_i)
+                                    steps=episode_i)
                                     
                         learner.record_stats.remote(stats)
                         if score_mean > best_score_mean:
@@ -89,7 +87,7 @@ def get_worker(BaseClass, *args, **kwargs):
                                                 ScoreMean=score_mean,
                                                 ScoreStd=score_std,
                                                 EpsLenMean=epslen_mean,
-                                                EpsLenStd=np.std(epslens)))
+                                                EpsLenStd=epslen_std))
                     else:
                         # for other workers, send data to learner
                         last_state = np.zeros_like(self.buffer['state'][0])
@@ -105,5 +103,5 @@ def get_worker(BaseClass, *args, **kwargs):
 
         def print_construction_complete(self):
             pwc(f'Worker {self.no} has been constructed.', 'cyan')
-            
+
     return Worker.remote(*args, **kwargs)

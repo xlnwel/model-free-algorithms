@@ -12,6 +12,7 @@ from utility.debug_tools import assert_colorize
 from basic_model.model import Model
 from env.gym_env import create_env
 from algo.off_policy.apex.buffer import LocalBuffer
+from algo.off_policy.replay.uniform_replay import UniformReplay
 from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
 
 
@@ -34,28 +35,31 @@ class OffPolicyOperation(Model, ABC):
                  log_stats=False, 
                  device=None):
         # hyperparameters
-        self.gamma = args['gamma'] if 'gamma' in args else .99
+        self.gamma = args.setdefault('gamma', .99)
         self.update_step = 0
+        self.max_action_repetitions = args.setdefault('max_action_repetitions', 1)
 
         # environment info
-        self.env = create_env(env_args)
-        self.state_space = self.env.state_space
-        self.action_dim = self.env.action_dim
-        
-        self.max_action_repetitions = args['max_action_repetitions']
+        env_args['gamma'] = self.gamma
+        # env_args['seed'] += 100
+        self.eval_env = create_env(env_args)
+        # env_args['seed'] -= 100
+        env_args['log_video'] = False
+        self.train_env = create_env(env_args)
+        self.state_space = self.train_env.state_space
+        self.action_dim = self.train_env.action_dim
 
-        # replay buffer
+        # replay buffer hyperparameters
         buffer_args['n_steps'] = args['n_steps']
         buffer_args['gamma'] = args['gamma']
         buffer_args['batch_size'] = args['batch_size']
 
-        # if action is discrete, then it has only 1 dimension
-        action_dim = 1 if self.env.is_action_discrete else self.action_dim
-        # action_dim += self.max_action_repetitions
         if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
+        elif buffer_args['type'] == 'uniform':
+            self.buffer = UniformReplay(buffer_args, self.state_space, self.action_dim)
         elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.state_space, action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
         else:
             raise NotImplementedError
         
@@ -79,52 +83,23 @@ class OffPolicyOperation(Model, ABC):
         
     @property
     def max_path_length(self):
-        return self.env.max_episode_steps
+        return self.train_env.max_episode_steps
     
-    def act(self, state, deterministic=False):
-        state = state.reshape((-1, *self.state_space))
-        action_repr_tf = self.action_det_repr if deterministic else self.action_repr
-        action_repr = self.sess.run(action_repr_tf, feed_dict={self.data['state']: state})
-        
-        return np.squeeze(action_repr)
+    @property
+    def good_to_learn(self):
+        return self.buffer.good_to_learn
 
     def add_data(self, state, action_repr, reward, done):
         self.buffer.add(state, action_repr, reward, done)
 
-    def run_trajectory(self, fn=None, render=False, random_action=False, deterministic_action=False, return_state=False):
-        """ run a trajectory, fn is a function executed after each environment step """
-        env = self.env
-        state = env.reset()
-        
-        i = 0
-        while i < env.max_episode_steps:
-            if render:
-                env.render()
-            # if random_action:
-            #     action = env.random_action()
-            #     n = 1
-            #     n_rep = np.zeros(self.max_action_repetitions)
-            #     n_rep[n-1] = 1
-            #     action_repr = np.concatenate([action, n_rep])
-            # else:
-            #     action_repr = self.act(state, deterministic=deterministic_action)
-            #     action, n_rep = np.split(action_repr, [self.action_dim])
-            #     n = np.argmax(n_rep) + 1
-            action = env.random_action() if random_action else self.act(state, deterministic=deterministic_action)
-            next_state, reward, done, _ = env.step(action, self.max_action_repetitions)#n)
-            if fn:
-                # fn(state, action_repr, reward, done, 1)
-                fn(state, action, reward, done, 1)
-            state = next_state
-            # i += n
-            i += self.max_action_repetitions
-            if done:
-                break
+    def merge_buffer(self, buffer, length):
+        self.buffer.merge(buffer, length)
 
-        if return_state:
-            return env.get_score(), env.get_epslen(), state
-        else:
-            return env.get_score(), env.get_epslen()
+    def act(self, state, deterministic=False):
+        raise NotImplementedError
+
+    def run_trajectory(self, fn=None, render=False, random_action=False, deterministic_action=False):
+        raise NotImplementedError
 
     def learn(self, t=None):
         if self.schedule_lr:
@@ -177,14 +152,9 @@ class OffPolicyOperation(Model, ABC):
 
     def _prepare_data(self, buffer):
         with tf.name_scope('data'):
-            if self.env.is_action_discrete:
-                exp_type = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32, tf.float32)
-            else:
-                exp_type = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
+            exp_type = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
             sample_types = (tf.float32, tf.int32, exp_type)
-            action_shape = ((None, 1)# + self.max_action_repetitions) 
-                            if self.env.is_action_discrete 
-                            else (None, self.action_dim))# + self.max_action_repetitions))
+            action_shape = (None, self.action_dim)
 
             sample_shapes =((None), (None), (
                 (None, *self.state_space),

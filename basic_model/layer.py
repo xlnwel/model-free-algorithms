@@ -514,7 +514,7 @@ class Layer():
 
             gamma = tf.get_variable('gamma', [1], initializer=tf.zeros_initializer())
             if hasattr(self, 'log_params') and self.log_params:
-                tf.summary.scalar('gamma', tf.reduce_mean(gamma))
+                tf.compat.v1.summary.scalar('gamma', tf.reduce_mean(gamma))
             x = gamma * o + x
 
         return x

@@ -27,7 +27,7 @@ agent:
         n_noisy: 0
         noisy_sigma: 0.4        # standard deviation for noisy layers
         units: [512, 256, 256]
-        layernorm: True
+        layernorm: False
         target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
@@ -36,7 +36,7 @@ agent:
     Q:
         polyak: .995            # moving average rate
         units: [512, 512, 256]
-        layernorm: True
+        layernorm: False
         # args for optimizer
         learning_rate: 3e-4
         decay_rate: *decay_rate

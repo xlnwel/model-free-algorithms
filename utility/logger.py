@@ -10,8 +10,11 @@ Adapted by S.C.
 """
 import os.path as osp
 import os, time, atexit
+from collections import defaultdict
+import numpy as np
 
 from utility.utils import pwc
+from utility.yaml_op import save_args
 from utility.debug_tools import assert_colorize
 
 
@@ -48,13 +51,24 @@ class Logger:
         self.first_row=True
         self.log_headers = []
         self.log_current_row = {}
+        self.store_dict = defaultdict(list)
         self.exp_name = exp_name
+
+    def save_args(self, args, log_file='args.yaml'):
+        save_args(args, filename=f'{self.log_dir}/{log_file}')
 
     def log(self, msg, color='green'):
         """Print a colorized message to stdout."""
         pwc(msg, color, bold=True)
 
-    def log_tabular(self, key, val):
+    def store(self, **kwargs):
+        for k, v in kwargs.items():
+            self.store_dict[k].append(v)
+
+    def get_stats(self):
+        return self.store_dict
+
+    def _log_tabular(self, key, val):
         """
         Log a value of some diagnostic.
 
@@ -70,6 +84,24 @@ class Logger:
         assert_colorize(key not in self.log_current_row, f"You already set {key} this iteration. Maybe you forgot to call dump_tabular()")
         self.log_current_row[key] = val
     
+    def log_tabular(self, key, val=None, mean=True, std=False, min=False, max=False):
+        """
+        Log a value or possibly the mean/std/min/max values of a diagnostic.
+        """
+        if val is not None:
+            self._log_tabular(key, val)
+        else:
+            v = np.asarray(self.epoch_dict[key])
+            if mean:
+                self._log_tabular(f'{key}Mean', np.mean(v))
+            if std:
+                self._log_tabular(f'{key}Std', np.std(v))
+            if min:
+                self._log_tabular(f'{key}Min', np.min(v))
+            if max:
+                self._log_tabular(f'{key}Max', np.max(v))
+        self.store_dict[key] = []
+
     def dump_tabular(self, print_terminal_info=False):
         """
         Write all of the diagnostics from the current iteration.

@@ -113,13 +113,13 @@ def n_step_target(reward, done, nth_value, gamma, steps):
 
 def stats_summary(name, data, mean=True, std=False, max=False, min=False, hist=False):
     if mean:
-        tf.summary.scalar(f'{name}_mean_', tf.reduce_mean(data))
+        tf.compat.v1.summary.scalar(f'{name}_mean_', tf.reduce_mean(data))
     if std:
-        tf.summary.scalar(f'{name}_std_', tf.math.reduce_std(data))
+        tf.compat.v1.summary.scalar(f'{name}_std_', tf.math.reduce_std(data))
     if max:
-        tf.summary.scalar(f'{name}_max_', tf.reduce_max(data))
+        tf.compat.v1.summary.scalar(f'{name}_max_', tf.reduce_max(data))
     if min:
-        tf.summary.scalar(f'{name}_min_', tf.reduce_min(data))
+        tf.compat.v1.summary.scalar(f'{name}_min_', tf.reduce_min(data))
     if hist:
         tf.summary.histogram(f'{name}_', data)
 

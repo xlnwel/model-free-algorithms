@@ -1,8 +1,10 @@
+import numpy as np
 import tensorflow as tf
 
 from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.td3.networks import Actor, Critic, DoubleCritic
 from utility.losses import huber_loss
+from utility.decorators import override
 from utility.tf_utils import n_step_target, stats_summary
 from utility.schedule import PiecewiseSchedule
 
@@ -50,7 +52,38 @@ class Agent(OffPolicyOperation):
     def target_variables(self):
         return self.target_actor.trainable_variables + self.target_critic.trainable_variables
 
+
+    @override(OffPolicyOperation)
+    def act(self, state, deterministic=False):
+        state = state.reshape((-1, *self.state_space))
+        action_tf = self.action_det if deterministic else self.action
+        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
+        
+        return np.squeeze(action)
+
+    @override(OffPolicyOperation)
+    def run_trajectory(self, fn=None, render=False, random_action=False, evaluation=False):
+        """ run a trajectory, fn is a function executed after each environment step """
+        env = self.eval_env if evaluation else self.train_env
+        state = env.reset()
+        
+        i = 0
+        while i < env.max_episode_steps:
+            if render:
+                env.render()
+            action = env.random_action() if random_action else self.act(state, deterministic=evaluation)
+            next_state, reward, done, info = env.step(action, self.max_action_repetitions)
+            if fn:
+                fn(state, action, reward, done, 1)
+            state = next_state
+            i += info['n']
+            if done:
+                break
+        
+        return env.get_score(), env.get_epslen()
+
     """ Implementation """
+    @override(OffPolicyOperation)
     def _build_graph(self):
         if self.device and 'GPU' in self.device:
             with tf.device('/CPU: 0'):
@@ -59,7 +92,7 @@ class Agent(OffPolicyOperation):
             self.data = self._prepare_data(self.buffer)
             
         self.actor, self.critic, self.target_actor, self.target_critic = self._create_main_target_actor_critic()
-        self.action_det_repr = self.action_repr = self.actor.action
+        self.action_det = self.action = self.actor.action
 
         self.priority, self.actor_loss, self.critic_loss = self._loss()
         self.loss = self.actor_loss + self.critic_loss
@@ -155,8 +188,8 @@ class Agent(OffPolicyOperation):
     def _log_loss(self):
         if self.log_tensorboard:
             with tf.name_scope('loss'):
-                tf.summary.scalar('actor_loss_', self.actor_loss)
-                tf.summary.scalar('critic_loss_', self.critic_loss)
+                tf.compat.v1.summary.scalar('actor_loss_', self.actor_loss)
+                tf.compat.v1.summary.scalar('critic_loss_', self.critic_loss)
 
             with tf.name_scope('info'):
                 stats_summary('Q_with_actor', self.critic.Q_with_actor, max=True, hist=True)
