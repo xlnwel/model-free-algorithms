@@ -1,7 +1,8 @@
 import threading
 import numpy as np
 
-from utility.debug_tools import assert_colorize, pwc
+from utility.debug_tools import assert_colorize
+from utility.utils import pwc, to_int
 from utility.run_avg import RunningMeanStd
 from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
@@ -11,10 +12,9 @@ class Replay:
     def __init__(self, args, state_space, action_dim):
         self.memory = {}
 
-
         # params for general replay buffer
-        self.capacity = int(float(args['capacity']))
-        self.min_size = int(float(args['min_size']))
+        self.capacity = to_int(args['capacity'])
+        self.min_size = to_int(args['min_size'])
         self.batch_size = args['batch_size']
 
         self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1
@@ -63,7 +63,8 @@ class Replay:
 
     def merge(self, local_buffer, length):
         """ Merge a local buffer to the replay buffer, useful for distributed algorithms """
-        assert_colorize(length < self.capacity, 'Local buffer is too large')
+        assert_colorize(length < self.capacity, 
+                    f'Local buffer cannot be largeer than the replay: {length} vs. {self.capacity}')
         with self.locker:
             self._merge(local_buffer, length)
 
@@ -87,7 +88,7 @@ class Replay:
             if done:
                 # flush all elements in temporary buffer to memory if an episode is done
                 self.merge(self.tb, self.tb_idx or self.tb_capacity)
-                assert self.tb_capacity if self.tb_full else self.tb_idx == self.tb_idx or self.tb_capacity
+                assert (self.tb_capacity if self.tb_full else self.tb_idx) == (self.tb_idx or self.tb_capacity)
                 self.tb_full = False
                 self.tb_idx = 0
             elif self.tb_full:

@@ -107,7 +107,7 @@ if __name__ == '__main__':
             elif algo == 'td3':
                 processes += gs()
             elif algo == 'sac':
-                processes += gs()
+                processes += gs(Policy=dict(n_noisy=[0, 2]))
             elif algo == 'rainbow-iqn':
                 processes += gs()
             elif algo == 'apex-td3':

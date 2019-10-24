@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib.layers import layer_norm
 
 from basic_model.model import Module
+from utility.tf_distributions import DiagGaussian
 
 
 class SoftPolicy(Module):
@@ -12,14 +13,13 @@ class SoftPolicy(Module):
                  graph,
                  state,
                  next_state,
-                 env,
+                 action_dim,
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
         self.state = state
         self.next_state = next_state
-        self.env = env
-        self.action_dim = env.action_dim
+        self.action_dim = action_dim
         self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
         self.noisy_sigma = args['noisy_sigma']
         self.has_target_net = args['target']
@@ -51,47 +51,51 @@ class SoftPolicy(Module):
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
     def _build_policy(self, state, name, reuse):
-        with tf.variable_scope(name, reuse=reuse):
-            mean, logstd, action_det = self._stochastic_policy_net(state, 
-                                                                   self.args['units'], 
-                                                                   self.action_dim, 
-                                                                   self.norm)
+        def stochastic_policy_net(state, units, action_dim, norm, name='policy_net'):
+            noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=self.args['noisy_sigma'])
+            x = state
+            self.reset_counter('noisy')     # reset noisy counter for each call to enable reuse if desirable
 
-            action_distribution = self.env.action_dist_type((mean, logstd))
+            with tf.variable_scope(name):
+                for i, u in enumerate(units):
+                    layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
+                    x = layer(x, u, norm=norm)
+
+                mean = self.dense(x, action_dim, name='action_mean')
+
+                # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
+                logstd = self.dense(x, action_dim)
+                logstd = tf.tanh(logstd, name='action_logstd')
+                logstd = self.LOG_STD_MIN + .5 * (self.LOG_STD_MAX-self.LOG_STD_MIN) * (logstd + 1)
+                # logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
+
+            return mean, logstd, mean
+
+        def squash_correction(action, logpi):
+            """ squash action in range [-1, 1] """
+            with tf.name_scope('squash'):
+                action_new = tf.tanh(action)
+                sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1, keepdims=True)
+                logpi -= sub
+
+            return action_new, logpi
+
+        """ Function Body """
+        with tf.variable_scope(name, reuse=reuse):
+            mean, logstd, action_det = stochastic_policy_net(state, 
+                                                            self.args['units'], 
+                                                            self.action_dim, 
+                                                            self.norm)
+
+            action_distribution = DiagGaussian((mean, logstd))
 
             orig_action = action_distribution.sample()
             orig_logpi = action_distribution.logp(orig_action)
 
             # Enforcing action bound
-            action, logpi = self._squash_correction(orig_action, orig_logpi)
+            action, logpi = squash_correction(orig_action, orig_logpi)
             
         return action_det, action, logpi
-
-    def _stochastic_policy_net(self, state, units, action_dim, norm, name='policy_net'):
-        noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=self.args['noisy_sigma'])
-        x = state
-        self.reset_counter('noisy')     # reset noisy counter for each call to enable reuse if desirable
-
-        with tf.variable_scope(name):
-            for i, u in enumerate(units):
-                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
-                x = layer(x, u, norm=norm)
-
-            mean = self.dense(x, action_dim, name='action_mean')
-
-            # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-            logstd = self.dense(x, action_dim, name='action_logstd')
-            logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
-
-        return mean, logstd, mean
-
-    def _squash_correction(self, action, logpi):
-        with tf.name_scope('squash'):
-            action_new = tf.tanh(action)
-            sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1, keepdims=True)
-            logpi -= sub
-
-        return action_new, logpi
 
     def _target_net_ops(self):
         if not self.has_target_net:
@@ -112,16 +116,17 @@ class SoftQ(Module):
                  graph,
                  state,
                  next_state,
-                 action,
-                 actor,
+                 stored_action_repr,
+                 action_repr,
+                 next_action_repr,
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
         self.state = state
         self.next_state = next_state
-        self.action = action
-        self.actor_action = actor.action
-        self.actor_next_action = actor.next_action
+        self._stored_action_repr = stored_action_repr
+        self.action_repr = action_repr
+        self.next_action_repr = next_action_repr
         self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
         self.polyak = args['polyak']
 
@@ -142,37 +147,35 @@ class SoftQ(Module):
 
     """ Implementation """
     def _build_graph(self):
-        Q_net = lambda state, action, reuse, name: self._q_net(state, action, self.args['units'],  
-                                                            self.norm, reuse, name=name)
+        def Q_net(state, action, reuse, name):
+            x = state
+            with tf.variable_scope(name, reuse=reuse):
+                for i, u in enumerate(self.args['units']):
+                    if i < 2:
+                        x = tf.concat([x, action], 1)
+                    x = self.dense_norm_activation(x, u, norm=self.norm)
 
+                x = self.dense(x, 1, name='Q')
+
+            return x
+
+        """ Function Body """
         # online network
         with tf.variable_scope('main'):
-            self.Q1 = Q_net(self.state, self.action, False, 'Qnet1')
-            self.Q2 = Q_net(self.state, self.action, False, 'Qnet2')
-            self.Q1_with_actor = Q_net(self.state, self.actor_action, True, 'Qnet1')
-            self.Q2_with_actor = Q_net(self.state, self.actor_action, True, 'Qnet2')
+            self.Q1 = Q_net(self.state, self._stored_action_repr, False, 'Qnet1')
+            self.Q2 = Q_net(self.state, self._stored_action_repr, False, 'Qnet2')
+            self.Q1_with_actor = Q_net(self.state, self.action_repr, True, 'Qnet1')
+            self.Q2_with_actor = Q_net(self.state, self.action_repr, True, 'Qnet2')
             self.Q = tf.minimum(self.Q1, self.Q2, 'Q')
             self.Q_with_actor = tf.minimum(self.Q1_with_actor, self.Q2_with_actor, 'Q_with_actor')
 
         # target network
         with tf.variable_scope('target'):
-            self.next_Q1_with_actor = Q_net(self.next_state, self.actor_next_action, False, 'Qnet1_target')
-            self.next_Q2_with_actor = Q_net(self.next_state, self.actor_next_action, False, 'Qnet2_target')
+            self.next_Q1_with_actor = Q_net(self.next_state, self.next_action_repr, False, 'Qnet1_target')
+            self.next_Q2_with_actor = Q_net(self.next_state, self.next_action_repr, False, 'Qnet2_target')
             self.next_Q_with_actor = tf.minimum(self.next_Q1_with_actor, self.next_Q2_with_actor, 'Q_with_actor')
 
         self.init_target_op, self.update_target_op = self._target_net_ops()
-
-    def _q_net(self, state, action, units, norm, reuse, name='Q_net'):
-        x = state
-        with tf.variable_scope(name, reuse=reuse):
-            for i, u in enumerate(units):
-                if i < 2:
-                    x = tf.concat([x, action], 1)
-                x = self.dense_norm_activation(x, u, norm=norm)
-
-            x = self.dense(x, 1, name='Q')
-
-        return x
 
     def _target_net_ops(self):
         with tf.name_scope('target_net_op'):
@@ -183,22 +186,23 @@ class SoftQ(Module):
         return init_target_op, update_target_op   
 
 
-class Auxiliary(Module):
+class Temperature(Module):
     def __init__(self,
                  name,
                  args,
                  graph,
                  state,
                  next_state,
-                 policy,
+                 action,
+                 next_action,
                  scope_prefix='',
                  log_tensorboard=False,
                  log_params=False):
         # next_* are used when the state value function is omitted
         self.state = state
         self.next_state = next_state
-        self.action = policy.action
-        self.next_action = policy.next_action
+        self.action = action
+        self.next_action = next_action
         self.type = args['type']
         super().__init__(name, 
                          args, 
@@ -207,75 +211,44 @@ class Auxiliary(Module):
                          log_tensorboard=log_tensorboard,
                          log_params=log_params)
 
-
-class Temperature(Auxiliary):
     """ Implementation """
     def _build_graph(self):
-        if self.type == 'simple':
-            self.log_alpha, self.alpha = self._simple_alpha()
-            self.next_alpha = self.alpha    
-        elif self.type == 'state':
-            self.log_alpha, self.alpha = self._state_alpha(self.state)
-            _, self.next_alpha = self._state_alpha(self.next_state, reuse=True)
-        elif self.type == 'state_action':
-            self.log_alpha, self.alpha = self._state_action_alpha(self.state, self.action)
-            _, self.next_alpha = self._state_action_alpha(self.next_state, self.next_action, reuse=True)
-        else:
-            raise NotImplementedError(f'Invalid type: {self.type}')
+        def simple_alpha():
+            with tf.variable_scope('net'):
+                log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=0.)
+                alpha = tf.exp(log_alpha)
 
-    def _simple_alpha(self):
-        with tf.variable_scope('temperature'):
-            log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=0.)
-            alpha = tf.exp(log_alpha)
+            return log_alpha, alpha
 
-        return log_alpha, alpha
+        def state_alpha(state, reuse=False):
+            with tf.variable_scope('net', reuse=reuse):
+                x = state
+                x = self.dense(x, 1)
 
-    def _state_alpha(self, state, reuse=False):
-        with tf.variable_scope('temperature', reuse=reuse):
-            x = state
-            x = self.dense(x, 1)
-
-            log_alpha = x
-            alpha = tf.exp(log_alpha)
-        
-        return log_alpha, alpha
-
-    def _state_action_alpha(self, state, action, reuse=False):
-        with tf.variable_scope('temperature', reuse=reuse):
-            x = tf.concat([state, action], axis=1)
-            x = self.dense(x, 1)
-
-            log_alpha = x
-            alpha = tf.exp(log_alpha)
-        
-        return log_alpha, alpha
-
-
-class ActionRepetition(Auxiliary):
-    """ Implementation """
-    def _build_graph(self):
-        max_action_repetitions = self.args['max_action_repetitions']
-        if self.type == 'state':
-            self.logits, self.prob = self._state_prob(self.state, max_action_repetitions)
-            _, self.next_prob = self._state_prob(self.next_state, max_action_repetitions, reuse=True)
-        elif self.type == 'state_action':
-            self.logits, self.prob = self._state_action_prob(self.state, self.action, max_action_repetitions)
-            _, self.next_prob = self._state_action_prob(self.next_state, self.next_action, max_action_repetitions, reuse=True)
-        else:
-            raise NotImplementedError(f'Invalid type: {self.type}')
-
-    def _state_prob(self, state, max_action_repetitions, reuse=False):
-        with tf.variable_scope('temperature', reuse=reuse):
-            x = state
-            logits = self.dense(x, max_action_repetitions)
-            prob = tf.nn.softmax(logits)
-        
-        return logits, prob
-
-    def _state_action_prob(self, state, action, max_action_repetitions, reuse=False):
-        with tf.variable_scope('temperature', reuse=reuse):
-            x = tf.concat([state, action], axis=1)
-            logits = self.dense(x, max_action_repetitions)
-            prob = tf.nn.softmax(logits)
+                log_alpha = x
+                alpha = tf.exp(log_alpha)
             
-        return logits, prob
+            return log_alpha, alpha
+
+        def state_action_alpha(state, action, reuse=False):
+            with tf.variable_scope('net', reuse=reuse):
+                x = tf.concat([state, action], axis=1)
+                x = self.dense(x, 1)
+
+                log_alpha = x
+                alpha = tf.exp(log_alpha)
+            
+            return log_alpha, alpha
+
+        """ Function Body """
+        if self.type == 'simple':
+            self.log_alpha, self.alpha = simple_alpha()
+            self.next_alpha = self.alpha
+        elif self.type == 'state':
+            self.log_alpha, self.alpha = state_alpha(self.state)
+            _, self.next_alpha = state_alpha(self.next_state, reuse=True)
+        elif self.type == 'state_action':
+            self.log_alpha, self.alpha = state_action_alpha(self.state, self.action)
+            _, self.next_alpha = state_action_alpha(self.next_state, self.next_action, reuse=True)
+        else:
+            raise NotImplementedError(f'Invalid type: {self.type}')

@@ -146,7 +146,7 @@ class Agent(OffPolicyOperation):
     def _log_loss(self):
         if self.log_tensorboard:
             with tf.name_scope('loss'):
-                tf.summary.scalar('loss_', self.loss)
+                tf.compat.v1.summary.scalar('loss_', self.loss)
             
             with tf.name_scope('networks'):
                 stats_summary('Q', self.Qnets.Q)

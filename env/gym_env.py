@@ -5,7 +5,7 @@ import ray
 
 from utility import tf_distributions
 from utility.debug_tools import assert_colorize
-from utility.utils import pwc
+from utility.utils import pwc, to_int
 from env.wrappers import TimeLimit, EnvStats
 
 def action_dist_type(env):
@@ -20,44 +20,47 @@ def action_dist_type(env):
 class GymEnv:
     def __init__(self, args):
         env = gym.make(args['name'])
-        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
-                                    else env.spec.max_episode_steps
-        # Monitor cannot be used when an episode is terminated due to reaching max_episode_steps
+        self.max_episode_steps = args.setdefault('max_episode_steps', env.spec.max_episode_steps)
+        if 'gamma' in args:
+            self.gamma = args['gamma']  # discounted factor for action repetition
+        # clip reward at done
+        self.clip_reward = (args['clip_reward'] if 'clip_reward' in args 
+                            and not isinstance(args['clip_reward'], str) else None)
+        self.n_envs = 1
+
         if 'log_video' in args and args['log_video']:
             pwc(f'video will be logged at {args["video_path"]}', 'cyan')
             env = gym.wrappers.Monitor(TimeLimit(env, self.max_episode_steps), args['video_path'], force=True)
+
         self.env = env = EnvStats(env)
-        seed = ('seed' in args and args['seed']) or 42
-        self.seed_range = (seed, seed + 10)
+        seed = args.setdefault('seed', 42)
+        self.env.seed(seed)
 
         self.state_space = env.observation_space.shape
-
         self.is_action_discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim = env.action_space.n if self.is_action_discrete else env.action_space.shape[0]
         self.action_dist_type = action_dist_type(env)
         
-        self.n_envs = 1
-        # clip reward at done
-        self.clip_reward = (args['clip_reward'] if 'clip_reward' in args 
-                            and not isinstance(args['clip_reward'], str) else None)
-
     def reset(self):
-        self.env.seed(np.random.randint(*self.seed_range))
         return self.env.reset()
 
     def random_action(self):
         return self.env.action_space.sample()
         
     def step(self, action, n_action_repetition=1):
+        assert_colorize(n_action_repetition == 1 or hasattr(self, 'gamma'), 
+                    f'Specify gamma in args for action repetition[{n_action_repetition}]')
         action = np.squeeze(action)
         cumulative_reward = 0.
-        for _ in range(n_action_repetition):
+        for n in range(n_action_repetition):
             state, reward, done, info = self.env.step(action)
             if self.clip_reward and done:
                 reward = np.maximum(reward, self.clip_reward)
-            cumulative_reward += reward
+            cumulative_reward += self.gamma**n * reward
             if done:
                 break
+        info['n'] = n+1
+
         return state, cumulative_reward, done, info
 
     def render(self):
@@ -79,8 +82,8 @@ class GymEnvVec:
         assert_colorize('n_envs' in args, f'Please specify n_envs in args.yaml beforehand')
         n_envs = args['n_envs']
         envs = [gym.make(args['name']) for i in range(n_envs)]
+        [env.seed(args['seed'] + i) for i, env in enumerate(envs)]
         self.envs = [EnvStats(env) for env in envs]
-        self.seed_range = args['seed']
 
         env = self.envs[0]
         self.state_space = env.observation_space.shape
@@ -90,7 +93,7 @@ class GymEnvVec:
         self.action_dist_type = action_dist_type(env)
         
         self.n_envs = n_envs
-        self.max_episode_steps = int(float(args['max_episode_steps'])) if 'max_episode_steps' in args \
+        self.max_episode_steps = to_int(args['max_episode_steps']) if 'max_episode_steps' in args \
                                     else env.spec.max_episode_steps
         # clip reward at done
         self.clip_reward = (args['clip_reward'] if 'clip_reward' in args 
@@ -100,7 +103,6 @@ class GymEnvVec:
         return [env.action_space.sample() for env in self.envs]
 
     def reset(self):
-        [env.seed(np.random.randint(*(self.seed_range + 10 * i))) for i, env in enumerate(self.envs)]
         return [env.reset() for env in self.envs]
     
     def step(self, actions, n_action_repetition=1):
@@ -167,6 +169,7 @@ if __name__ == '__main__':
         log_video=False,
         max_episode_steps=1000,
         clip_reward=None,
+        gamma=0.99,
         n_envs=3,
         seed=0
     )

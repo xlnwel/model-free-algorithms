@@ -42,6 +42,9 @@ def pwc(string, color='red', bold=False, highlight=False):
     else:
         print(colorize(string, color, bold, highlight))
 
+def to_int(s):
+    return int(float(s))
+    
 def normalize(x, axis=None, mean=0., std=1., epsilon=1e-8, mask=None):
     if mask is None:
         x_mean = np.mean(x, axis)

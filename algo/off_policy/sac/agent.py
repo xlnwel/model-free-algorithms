@@ -1,8 +1,10 @@
+import numpy as np
 import tensorflow as tf
 
 from algo.off_policy.basic_agent import OffPolicyOperation
-from algo.off_policy.sac.networks import SoftPolicy, SoftQ, Temperature, ActionRepetition
+from algo.off_policy.sac.networks import SoftPolicy, SoftQ, Temperature
 from utility.losses import huber_loss
+from utility.decorators import override
 from utility.tf_utils import n_step_target, stats_summary
 from utility.schedule import PiecewiseSchedule
 
@@ -30,8 +32,7 @@ class Agent(OffPolicyOperation):
             self.actor_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
             self.Q_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (150000, 3e-4), (300000, 5e-5)], outside_value=5e-5)
             self.alpha_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
-            self.ar_lr_scheduler = PiecewiseSchedule([(0, 1e-4), (150000, 1e-4), (300000, 5e-5)], outside_value=5e-5)
-
+            
         super().__init__(name,
                          args,
                          env_args,
@@ -44,6 +45,36 @@ class Agent(OffPolicyOperation):
                          log_stats=log_stats,
                          device=device)
 
+    @override(OffPolicyOperation)
+    def act(self, state, deterministic=False):
+        state = state.reshape((-1, *self.state_space))
+        action_tf = self.action_det if deterministic else self.action
+        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
+        
+        return np.squeeze(action)
+
+    @override(OffPolicyOperation)
+    def run_trajectory(self, fn=None, render=False, random_action=False, evaluation=False):
+        """ run a trajectory, fn is a function executed after each environment step """
+        env = self.eval_env if evaluation else self.train_env
+        state = env.reset()
+        
+        i = 0
+        while i < env.max_episode_steps:
+            if render:
+                env.render()
+            action = env.random_action() if random_action else self.act(state, deterministic=evaluation)
+            next_state, reward, done, info = env.step(action, self.max_action_repetitions)
+            if fn:
+                fn(state, action, reward, done, 1)
+            state = next_state
+            i += info['n']
+            if done:
+                break
+        
+        return env.get_score(), env.get_epslen()
+
+    @override(OffPolicyOperation)
     def _build_graph(self):
         if 'gpu' in self.device:
             with tf.device('/cpu: 0'):
@@ -51,136 +82,151 @@ class Agent(OffPolicyOperation):
         else:
             self.data = self._prepare_data(self.buffer)
 
-        self.actor, self.Q_nets = self._create_nets(self.data)
+        self.actor = self._actor()
         
-        self.action_repr = self.actor.action
-        self.action_det_repr = self.actor.action_det
+        self.action = self.actor.action
+        self.action_det = self.actor.action_det
+        self.next_action = self.actor.next_action
         self.logpi = self.actor.logpi
+        self.next_logpi = self.actor.next_logpi
+        
+        self.critic = self._critic()
 
-        opt_ops = []
         if self.raw_temperature == 'auto':
-            temperature, self.alpha, self.next_alpha, self.alpha_loss, self.alpha_lr, temp_op = self._auto_temperature()
-            opt_ops.append(temp_op)
+            self.temperature = self._auto_temperature()
+            self.alpha = self.temperature.alpha
+            self.next_alpha = self.temperature.next_alpha
         else:
             # reward scaling indirectly affects the policy temperature
             # we neutralize the effect by scaling the temperature here
             # see my blog for more info https://xlnwel.github.io/blog/reinforcement%20learning/SAC/
             self.alpha = self.raw_temperature * self.buffer.reward_scale
             self.next_alpha = self.alpha
+
+        self._compute_loss()
+        self._optimize()
         
-        
-
-        self.priority, losses = self._loss(self.actor, self.Q_nets, self.logpi)
-        self.actor_loss, self.Q_loss, self.loss = losses
-
-        _, self.actor_lr, self.opt_step, _, actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True, schedule_lr=self.schedule_lr)
-        _, self.Q_lr, _, _, Q_opt_op = self.Q_nets._optimization_op(self.Q_loss, schedule_lr=self.schedule_lr)
-        opt_ops += [actor_opt_op, Q_opt_op]
-        self.opt_op = tf.group(*opt_ops)
-
         self._log_loss()
 
-    def _create_nets(self, data):
-        scope_prefix = self.name
-        actor = SoftPolicy('SoftPolicy', 
+    def _actor(self):
+        self.args['Policy']['max_action_repetitions'] = self.max_action_repetitions
+        return SoftPolicy('SoftPolicy', 
                             self.args['Policy'],
                             self.graph,
-                            data['state'],
-                            data['next_state'],
-                            self.env,
-                            scope_prefix=scope_prefix,
+                            self.data['state'],
+                            self.data['next_state'],
+                            self.action_dim,
+                            scope_prefix=self.name,
                             log_tensorboard=self.log_tensorboard,
                             log_params=self.log_params)
 
-        Qs = SoftQ('SoftQ',
+    def _critic(self):
+        return SoftQ('SoftQ',
                     self.args['Q'],
                     self.graph,
-                    data['state'],
-                    data['next_state'],
-                    data['action'], 
-                    actor,
-                    scope_prefix=scope_prefix,
+                    self.data['state'],
+                    self.data['next_state'],
+                    self.data['action'], 
+                    self.action,
+                    self.next_action,
+                    scope_prefix=self.name,
                     log_tensorboard=self.log_tensorboard,
                     log_params=self.log_params)
 
-        return actor, Qs
-
     def _auto_temperature(self):
-        temperature = Temperature('Temperature',
-                                self.args['Temperature'],
-                                self.graph,
-                                self.data['state'],
-                                self.data['next_state'],
-                                self.actor,
-                                scope_prefix=self.name,
-                                log_tensorboard=self.log_tensorboard,
-                                log_params=self.log_params)
-        alpha = temperature.alpha
-        next_alpha = temperature.next_alpha
-        target_entropy = -self.action_dim
-        alpha_loss = self._alpha_loss(temperature.log_alpha, self.logpi, target_entropy)
-        _, alpha_lr, _, _, temp_op = temperature._optimization_op(alpha_loss, schedule_lr=self.schedule_lr)
+        return Temperature('Temperature',
+                            self.args['Temperature'],
+                            self.graph,
+                            self.data['state'],
+                            self.data['next_state'],
+                            self.action,
+                            self.next_action,
+                            scope_prefix=self.name,
+                            log_tensorboard=self.log_tensorboard,
+                            log_params=self.log_params)
 
-        return temperature, alpha, next_alpha, alpha_loss, alpha_lr, temp_op
-
-    def _alpha_loss(self, log_alpha, logpi, target_entropy):
-        with tf.name_scope('alpha_loss'):
-            return -tf.reduce_mean(self.data['IS_ratio'] * log_alpha * tf.stop_gradient(logpi + target_entropy))
-            # return -tf.reduce_mean(log_alpha * tf.stop_gradient(logpi + target_entropy))
-
-    def _loss(self, policy, Qs, logpi):
+    def _compute_loss(self):
         with tf.name_scope('loss'):
-            with tf.name_scope('actor_loss'):
-                actor_loss = tf.reduce_mean(self.data['IS_ratio'] * (self.alpha * logpi - Qs.Q1_with_actor))
+            if self.raw_temperature == 'auto':
+                self.alpha_loss = self._alpha_loss()
+            self.actor_loss = self._actor_loss()
+            self.priority, self.Q1_loss, self.Q2_loss, self.critic_loss = self._critic_loss()
+            self.loss = self.alpha_loss + self.actor_loss + self.critic_loss
 
-            loss_func = huber_loss if self.critic_loss_type == 'huber' else tf.square
+    def _alpha_loss(self):
+        target_entropy = -self.action_dim
+        with tf.name_scope('alpha_loss'):
+            return -tf.reduce_mean(self.data['IS_ratio'] * self.temperature.log_alpha 
+                                * tf.stop_gradient(self.logpi + target_entropy))
 
-            with tf.name_scope('Q_loss'):
-                target_Q = n_step_target(self.data['reward'], self.data['done'], 
-                                        Qs.next_Q_with_actor - self.next_alpha * policy.next_logpi, 
-                                        self.gamma, self.data['steps'])
-                Q1_error = tf.abs(target_Q - Qs.Q1)
-                Q2_error = tf.abs(target_Q - Qs.Q2)
+    def _actor_loss(self):
+        with tf.name_scope('actor_loss'):
+            return tf.reduce_mean(self.data['IS_ratio'] 
+                                * (self.alpha * self.logpi - self.critic.Q1_with_actor))
 
-                Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * (loss_func(Q1_error)))
-                Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * (loss_func(Q2_error)))
-                Q_loss = Q1_loss + Q2_loss
+    def _critic_loss(self):
+        with tf.name_scope('critic_loss'):
+            n_V = tf.subtract(self.critic.next_Q_with_actor, self.next_alpha * self.next_logpi, name='n_V')
+            target_Q = n_step_target(self.data['reward'], self.data['done'], 
+                                    n_V, self.gamma, self.data['steps'])
+            Q1_error = tf.abs(target_Q - self.critic.Q1, name='Q1_error')
+            Q2_error = tf.abs(target_Q - self.critic.Q2, name='Q2_error')
 
-            loss = actor_loss + Q_loss
+            Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * (.5*Q1_error**2))
+            Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * (.5*Q1_error**2))
+            critic_loss = Q1_loss + Q2_loss
 
-        priority = (Q1_error + Q2_error) / 2.
-        priority = self._compute_priority(priority)
+        priority = self._compute_priority((Q1_error + Q2_error) / 2.)
 
-        return priority, (actor_loss, Q_loss, loss)
+        return priority, Q1_loss, Q2_loss, critic_loss
+    
+    def _optimize(self):
+        with tf.name_scope('optimizer'):
+            opt_ops = []
+            if self.raw_temperature == 'auto':
+                _, self.alpha_lr, _, _, temp_op = self.temperature._optimization_op(self.alpha_loss, schedule_lr=self.schedule_lr)
+                opt_ops.append(temp_op)
+            _, self.actor_lr, self.opt_step, _, actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True, schedule_lr=self.schedule_lr)
+            _, self.Q_lr, _, _, Q_opt_op = self.critic._optimization_op(self.critic_loss, schedule_lr=self.schedule_lr)
+            opt_ops += [actor_opt_op, Q_opt_op]
+            self.opt_op = tf.group(*opt_ops)    
 
+    @override(OffPolicyOperation)
     def _initialize_target_net(self):
-        self.sess.run(self.Q_nets.init_target_op)
+        self.sess.run(self.critic.init_target_op)
         if self.actor.has_target_net:
             self.sess.run(self.actor.init_target_op)
 
+    @override(OffPolicyOperation)
     def _update_target_net(self):
-        self.sess.run(self.Q_nets.update_target_op)
+        self.sess.run(self.critic.update_target_op)
         if self.actor.has_target_net:
             self.sess.run(self.actor.update_target_op)
 
-    def _log_loss(self):
-        if self.log_tensorboard:
-            with tf.name_scope('loss'):
-                tf.summary.scalar('actor_loss_', self.actor_loss)
-                tf.summary.scalar('Q_loss_', self.Q_loss)
-
-            with tf.name_scope('info'):
-                stats_summary('Q_with_actor', self.Q_nets.Q_with_actor, max=True)
-                stats_summary('reward', self.data['reward'], min=True, hist=True)
-                stats_summary('priority', self.priority, hist=True)
-                # stats_summary('action_repetitions', tf.argmax(self.actor.n_action_repetitions, axis=1)+1, max=True, hist=True)
-                if self.raw_temperature == 'auto':
-                    stats_summary('alpha', self.alpha)
-                    stats_summary('alpha_loss', self.alpha_loss)
-
+    @override(OffPolicyOperation)
     def _get_feeddict(self, t):
         return {
             self.actor_lr: self.actor_lr_scheduler.value(t),
             self.Q_lr: self.Q_lr_scheduler.value(t),
             self.alpha_lr: self.alpha_lr_scheduler.value(t)
         }
+
+    def _log_loss(self):
+        if self.log_tensorboard:
+            with tf.name_scope('info'):
+                stats_summary('reward', self.data['reward'], min=True, max=True, hist=True)
+                with tf.name_scope('actor'):
+                    stats_summary('logpi', self.actor.logpi)
+                    tf.compat.v1.summary.scalar('actor_loss_', self.actor_loss)
+                with tf.name_scope('critic'):
+                    stats_summary('Q1_with_actor', self.critic.Q1_with_actor, min=True, max=True)
+                    stats_summary('Q2_with_actor', self.critic.Q2_with_actor, min=True, max=True)
+                    stats_summary('priority', self.priority, std=True, max=True, hist=True)
+                    tf.compat.v1.summary.scalar('Q1_loss_', self.Q1_loss)
+                    tf.compat.v1.summary.scalar('Q2_loss_', self.Q2_loss)
+                    tf.compat.v1.summary.scalar('critic_loss_', self.critic_loss)
+                    tf.compat.v1.summary.scalar('critic_loss_', self.critic_loss)
+                if self.raw_temperature == 'auto':
+                    with tf.name_scope('alpha'):
+                        stats_summary('alpha', self.alpha, std=True)
+                        tf.compat.v1.summary.scalar('alpha_loss', self.alpha_loss)
