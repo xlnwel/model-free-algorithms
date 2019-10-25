@@ -1,9 +1,8 @@
 import tensorflow as tf
-from tensorflow.contrib.layers import layer_norm
 
 from basic_model.model import Module
 from utility.tf_distributions import DiagGaussian
-
+from utility.tf_utils import get_norm, norm_activation
 
 class SoftPolicy(Module):
     """ Interface """
@@ -20,8 +19,11 @@ class SoftPolicy(Module):
         self.state = state
         self.next_state = next_state
         self.action_dim = action_dim
-        self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
+        self.norm = get_norm(args['norm'])
+        self.n_noisy = args['n_noisy']
         self.noisy_sigma = args['noisy_sigma']
+        self.units = args['units']
+        self.polyak = args['polyak']
         self.has_target_net = args['target']
         self.LOG_STD_MIN = -20.
         self.LOG_STD_MAX = 2.
@@ -51,20 +53,22 @@ class SoftPolicy(Module):
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
     def _build_policy(self, state, name, reuse):
-        def stochastic_policy_net(state, units, action_dim, norm, name='policy_net'):
-            noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=self.args['noisy_sigma'])
+        def stochastic_policy_net(state):
             x = state
             self.reset_counter('noisy')     # reset noisy counter for each call to enable reuse if desirable
 
-            with tf.variable_scope(name):
-                for i, u in enumerate(units):
-                    layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
-                    x = layer(x, u, norm=norm)
+            with tf.variable_scope('net'):
+                for i, u in enumerate(self.units):
+                    if i < len(self.units) - self.n_noisy:
+                        x = self.dense(x, u)
+                    else:
+                        x = self.noisy(x, u, sigma=self.noisy_sigma)
+                    x = norm_activation(x, norm=self.norm, activation=tf.nn.relu)
 
-                mean = self.dense(x, action_dim, name='action_mean')
+                mean = self.dense(x, self.action_dim, name='action_mean')
 
                 # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-                logstd = self.dense(x, action_dim)
+                logstd = self.dense(x, self.action_dim)
                 logstd = tf.tanh(logstd, name='action_logstd')
                 logstd = self.LOG_STD_MIN + .5 * (self.LOG_STD_MAX-self.LOG_STD_MIN) * (logstd + 1)
                 # logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
@@ -82,10 +86,7 @@ class SoftPolicy(Module):
 
         """ Function Body """
         with tf.variable_scope(name, reuse=reuse):
-            mean, logstd, action_det = stochastic_policy_net(state, 
-                                                            self.args['units'], 
-                                                            self.action_dim, 
-                                                            self.norm)
+            mean, logstd, action_det = stochastic_policy_net(state)
 
             action_distribution = DiagGaussian((mean, logstd))
 
@@ -127,7 +128,8 @@ class SoftQ(Module):
         self._stored_action_repr = stored_action_repr
         self.action_repr = action_repr
         self.next_action_repr = next_action_repr
-        self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
+        self.norm = get_norm(args['norm'])
+        self.units = args['units']
         self.polyak = args['polyak']
 
         super().__init__(name, 
@@ -150,7 +152,7 @@ class SoftQ(Module):
         def Q_net(state, action, reuse, name):
             x = state
             with tf.variable_scope(name, reuse=reuse):
-                for i, u in enumerate(self.args['units']):
+                for i, u in enumerate(self.units):
                     if i < 2:
                         x = tf.concat([x, action], 1)
                     x = self.dense_norm_activation(x, u, norm=self.norm)

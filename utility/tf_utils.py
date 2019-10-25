@@ -150,7 +150,7 @@ def padding(x, kernel_size, strides, mode='constant', name=None):
 
 def wrap_layer(name, layer_imp):
     if name:
-        with tf.variable_scope(name):
+        with tf.variable_scope(str(name)):
             x = layer_imp()
     else:
         x = layer_imp()
@@ -202,7 +202,7 @@ def get_norm(name):
         return tf.layers.batch_normalization
     elif name == 'adain':
         return adaptive_instance_norm
-    elif name is None or name == 'None':
+    elif name is None or name.lower() == 'none':
         return None
     else:
         raise NotImplementedError

@@ -77,6 +77,7 @@ class Categorical(Distribution):
 
         return probs
 
+
 class DiagGaussian(Distribution):
     def __init__(self, params):
         self.mean, self.logstd = params

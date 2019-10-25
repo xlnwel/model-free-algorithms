@@ -1,6 +1,6 @@
 ---
 env:
-    name: &env_name BipedalWalker-v2
+    name: BipedalWalker-v2
     video_path: video
     log_video: False
     max_episode_steps: 1000
@@ -9,7 +9,8 @@ env:
 agent:
     algorithm: sac
     temperature: auto                       # auto or some float, e.g., 0.01
-    gamma: &gamma 0.99
+    gamma: 0.99
+    polyak: .995                            # moving average rate
     batch_size: 256
     episodic_learning: False                # whether to update network after each episode. Update after each step if False
     max_action_repetitions: 1
@@ -21,23 +22,22 @@ agent:
     model_name: baseline
 
     loss_type: mse                          # huber or mse
-    n_steps: 3           
+    n_steps: 3
     n_epochs: 400
     
     Policy:
         n_noisy: 2
         noisy_sigma: 0.4                    # standard deviation for noisy layers
         units: [512, 256, 128]
-        layernorm: True
+        norm: layer
         target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
     Q:
-        polyak: .995                        # moving average rate
         units: [512, 512, 256]
-        layernorm: True
+        norm: layer
         # args for optimizer
         learning_rate: 3e-4
         decay_rate: *decay_rate

@@ -24,7 +24,7 @@ class Agent(OffPolicyOperation):
                  log_stats=False, 
                  device=None):
         self.critic_loss_type = args['critic']['loss_type']
-        self.polyak = args['polyak'] if 'polyak' in args else .995
+        self.polyak = args['polyak']
         
         # learning rate schedule
         self.schedule_lr = 'schedule_lr' in args and args['schedule_lr']
