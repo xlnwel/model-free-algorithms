@@ -41,9 +41,9 @@ class OffPolicyOperation(Model, ABC):
 
         # environment info
         env_args['gamma'] = self.gamma
-        # env_args['seed'] += 100
+        env_args['seed'] += 100
         self.eval_env = create_env(env_args)
-        # env_args['seed'] -= 100
+        env_args['seed'] -= 100
         env_args['log_video'] = False
         self.train_env = create_env(env_args)
         self.state_space = self.train_env.state_space
