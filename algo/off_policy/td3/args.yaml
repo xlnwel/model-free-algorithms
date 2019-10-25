@@ -5,7 +5,6 @@ env:
     log_video: False
     max_episode_steps: 1000
     seed: 0
-    n_action_repetition: 1
     clip_reward: none
 agent:
     algorithm: td3
@@ -13,7 +12,7 @@ agent:
     polyak: 0.995                           # moving average rate
     batch_size: 256
     episodic_learning: False                 # whether to update network after each episode. Update after each step if False
-    max_action_repetitions: 3
+    max_action_repetitions: 1
 
     # model path: model_root_dir/model_name
     # tensorboard path: log_root_dir/model_name
@@ -28,16 +27,15 @@ agent:
         n_noisy: 2                          # number of noisy layer
         units: [512, 256, 128]
         noisy_sigma: 0.4                    # standard deviation for noisy layers
-        layernorm: True
+        norm: layer
         # args for optimizer
         learning_rate: 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
-        
     critic:
         units: [512, 512, 256]
         loss_type: mse                      # huber or mse
-        layernorm: True
+        norm: layer
         # args for optimizer
         learning_rate: 3e-4
         decay_rate: *decay_rate
@@ -52,6 +50,7 @@ buffer:
     type: proportional # local or proportional
     normalize_reward: False
     reward_scale: 1
+    to_update_priority: True
 
     alpha: 0.4
     beta0: 0.4

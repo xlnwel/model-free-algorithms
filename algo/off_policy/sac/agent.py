@@ -109,9 +109,11 @@ class Agent(OffPolicyOperation):
         self._log_loss()
 
     def _actor(self):
-        self.args['Policy']['max_action_repetitions'] = self.max_action_repetitions
-        return SoftPolicy('SoftPolicy', 
-                            self.args['Policy'],
+        policy_args = self.args['Policy']
+        policy_args['max_action_repetitions'] = self.max_action_repetitions
+        policy_args['polyak'] = self.args['polyak']
+        return SoftPolicy('SoftPolicy',
+                            policy_args,
                             self.graph,
                             self.data['state'],
                             self.data['next_state'],
@@ -121,8 +123,10 @@ class Agent(OffPolicyOperation):
                             log_params=self.log_params)
 
     def _critic(self):
+        q_args = self.args['Q']
+        q_args['polyak'] = self.args['polyak']
         return SoftQ('SoftQ',
-                    self.args['Q'],
+                    q_args,
                     self.graph,
                     self.data['state'],
                     self.data['next_state'],
@@ -172,8 +176,8 @@ class Agent(OffPolicyOperation):
             Q1_error = tf.abs(target_Q - self.critic.Q1, name='Q1_error')
             Q2_error = tf.abs(target_Q - self.critic.Q2, name='Q2_error')
 
-            Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * (.5*Q1_error**2))
-            Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * (.5*Q1_error**2))
+            Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * .5 * Q1_error**2)
+            Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * .5 * Q2_error**2)
             critic_loss = Q1_loss + Q2_loss
 
         priority = self._compute_priority((Q1_error + Q2_error) / 2.)
@@ -193,15 +197,11 @@ class Agent(OffPolicyOperation):
 
     @override(OffPolicyOperation)
     def _initialize_target_net(self):
-        self.sess.run(self.critic.init_target_op)
-        if self.actor.has_target_net:
-            self.sess.run(self.actor.init_target_op)
+        self.sess.run(self.actor.init_target_op + self.critic.init_target_op)
 
     @override(OffPolicyOperation)
     def _update_target_net(self):
-        self.sess.run(self.critic.update_target_op)
-        if self.actor.has_target_net:
-            self.sess.run(self.actor.update_target_op)
+        self.sess.run(self.actor.update_target_op + self.critic.update_target_op)
 
     @override(OffPolicyOperation)
     def _get_feeddict(self, t):

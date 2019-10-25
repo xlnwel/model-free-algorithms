@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib.layers import layer_norm
 
 from basic_model.model import Module
-
+from utility.tf_utils import get_norm, norm_activation
 
 class Actor(Module):
     """ Interface """
@@ -18,7 +18,7 @@ class Actor(Module):
         self.state = state
         self.action_dim = action_dim
         self.noisy_sigma = args['noisy_sigma']
-        self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
+        self.norm = get_norm(args['norm'])
         super().__init__(name, 
                          args, 
                          graph,
@@ -32,12 +32,15 @@ class Actor(Module):
                                                      self.noisy_sigma)
 
     def _deterministic_policy_net(self, state, units, action_dim, noisy_sigma, name='policy_net'):
-        noisy_norm_activation = lambda x, u, norm: self.noisy_norm_activation(x, u, norm=norm, sigma=noisy_sigma)
+        noisy = lambda x, u, norm: self.noisy(x, u, sigma=noisy_sigma)
         x = state
         with tf.variable_scope(name):
             for i, u in enumerate(units):
-                layer = self.dense_norm_activation if i < len(units) - self.args['n_noisy']  else noisy_norm_activation
-                x = layer(x, u, norm=self.norm)
+                if i < len(units) - self.args['n_noisy']:
+                    x = self.dense(x, u)
+                else:
+                    x = self.noisy(x, u, sigma=self.noisy_sigma)
+                x = norm_activation(x, norm=self.norm, activation=tf.nn.relu)
             x = self.dense(x, action_dim)
             x = tf.tanh(x, name='action')
 
@@ -61,7 +64,7 @@ class Critic(Module):
         self.action = action
         self.actor_action = actor_action
         self.action_dim = action_dim
-        self.norm = layer_norm if 'layernorm' in args and args['layernorm'] else None
+        self.norm = get_norm(args['norm'])
         
         super().__init__(name, 
                          args, 
