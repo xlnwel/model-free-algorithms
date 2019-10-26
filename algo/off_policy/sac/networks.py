@@ -69,9 +69,9 @@ class SoftPolicy(Module):
                 # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
                 with tf.variable_scope('action_std'):
                     logstd = tf.layers.dense(x, self.action_dim)
-                    logstd = tf.tanh(logstd)
-                    logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
-                    # logstd = tf.clip_by_value(logstd, LOG_STD_MIN, LOG_STD_MAX)
+                    # logstd = tf.tanh(logstd)
+                    # logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
+                    logstd = tf.clip_by_value(logstd, LOG_STD_MIN, LOG_STD_MAX)
 
             return mean, logstd, mean
 
