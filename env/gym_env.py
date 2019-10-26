@@ -21,8 +21,7 @@ class GymEnv:
     def __init__(self, args):
         env = gym.make(args['name'])
         self.max_episode_steps = args.setdefault('max_episode_steps', env.spec.max_episode_steps)
-        if 'gamma' in args:
-            self.gamma = args['gamma']  # discounted factor for action repetition
+
         # clip reward at done
         self.clip_reward = (args['clip_reward'] if 'clip_reward' in args 
                             and not isinstance(args['clip_reward'], str) else None)
@@ -47,21 +46,12 @@ class GymEnv:
     def random_action(self):
         return self.env.action_space.sample()
         
-    def step(self, action, n_action_repetition=1):
-        assert_colorize(n_action_repetition == 1 or hasattr(self, 'gamma'), 
-                    f'Specify gamma in args for action repetition[{n_action_repetition}]')
-        action = np.squeeze(action)
-        cumulative_reward = 0.
-        for n in range(n_action_repetition):
-            state, reward, done, info = self.env.step(action)
-            if self.clip_reward and done:
-                reward = np.maximum(reward, self.clip_reward)
-            cumulative_reward += self.gamma**n * reward
-            if done:
-                break
-        info['n'] = n+1
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+        if self.clip_reward and done:
+            reward = np.maximum(reward, self.clip_reward)
 
-        return state, cumulative_reward, done, info
+        return state, reward, done, info
 
     def render(self):
         return self.env.render()
@@ -105,87 +95,30 @@ class GymEnvVec:
     def reset(self):
         return [env.reset() for env in self.envs]
     
-    def step(self, actions, n_action_repetition=1):
-        actions = np.squeeze(actions)
+    def step(self, actions):
         step_imp = lambda envs, actions: list(zip(*[env.step(a) for env, a in zip(envs, actions)]))
         
-        cumulative_reward = np.zeros(self.n_envs)
-        for _ in range(n_action_repetition):
-            state, reward, done, info = step_imp(self.envs, actions)
-            mask = self.get_mask()
-            if self.clip_reward:
-                reward = np.where(done, np.maximum(reward, self.clip_reward), reward)
-            cumulative_reward += np.asarray(reward) * mask
-
-        return state, cumulative_reward, done, info
+        state, reward, done, info = step_imp(self.envs, actions)
+        masks = [env.get_mask() for env in self.envs]
+        reward = np.where(masks, reward, 0)
+        if self.clip_reward:
+            reward = np.where(done, np.maximum(reward, self.clip_reward), reward)
+        
+        return state, reward, done, info
 
     def get_mask(self):
         """ Get mask at the current step. Should only be called after self.step """
-        return [env.get_mask() for env in self.envs]
+        return np.asarray([env.get_mask() for env in self.envs])
 
     def get_score(self):
-        return [env.get_score() for env in self.envs]
+        return np.asarray([env.get_score() for env in self.envs])
 
     def get_epslen(self):
-        return [env.get_epslen() for env in self.envs]
+        return np.asarray([env.get_epslen() for env in self.envs])
+
 
 def create_env(args):
     if 'n_envs' not in args or args['n_envs'] == 1:
         return GymEnv(args)
     else:
         return GymEnvVec(args)
-
-
-if __name__ == '__main__':
-    def run_traj(env, n=1):
-        d = False
-        cr = np.squeeze(np.zeros(env.n_envs))
-        s = env.reset()
-        i = 0
-        while not d:
-            i += 1
-            a = env.random_action()
-            s, r, d, _ = env.step(a, n)
-            cr += r
-
-        return cr, i
-
-    def run_vec_traj(env, n=1):
-        d = False
-        cr = np.squeeze(np.zeros(env.n_envs))
-        s = env.reset()
-        i = 0
-        for _ in range(env.max_episode_steps // n):
-            i += 1
-            a = env.random_action()
-            s, r, d, _ = env.step(a, n)
-            cr += r
-            
-        return cr, i
-
-    args = dict(
-        name='BipedalWalker-v2',
-        video_path='video',
-        log_video=False,
-        max_episode_steps=1000,
-        clip_reward=None,
-        gamma=0.99,
-        n_envs=3,
-        seed=0
-    )
-    print('******GymEnv******')
-    env = GymEnv(args)
-    r, i = run_traj(env, 5)
-    print(f'cumulative reward: {r}\t, score:{env.get_score()}')
-    print(f'record length: {i}\t, actual length:{env.get_epslen()}')
-    print(f'mask(1): {env.get_mask()}')
-    env.step(env.random_action())
-    print(f'mask(0): {env.get_mask()}')
-    print('******GymEnvVec******')
-    env = GymEnvVec(args)
-    r, i = run_vec_traj(env, 5)
-    print(f'cumulative reward: {r}\t, score:{env.get_score()}')
-    print(f'record length: {i}\t, actual length:{env.get_epslen()}')
-    print(f'mask(1): {env.get_mask()}')
-    env.step(env.random_action())
-    print(f'mask(0): {env.get_mask()}')
