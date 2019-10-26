@@ -8,7 +8,7 @@ from utility.debug_tools import assert_colorize
 
 
 class GridSearch:
-    def __init__(self, args_file, train_func, render=False, n_trials=1, dir_prefix=''):
+    def __init__(self, args_file, train_func, render=False, n_trials=1, dir_prefix='', separate_process=False):
         args = load_args(args_file)
         self.env_args = args['env']
         self.agent_args = args['agent']
@@ -17,12 +17,13 @@ class GridSearch:
         self.render = render
         self.n_trials = n_trials
         self.dir_prefix = dir_prefix
+        self.separate_process = separate_process
 
         self.processes = []
 
     def __call__(self, **kwargs):
         self._dir_setup()
-        if kwargs == {} and self.n_trials == 1:
+        if kwargs == {} and self.n_trials == 1 and not self.separate_process:
             # if no argument is passed in, run the default setting
             self.train_func(self.env_args, self.agent_args, self.buffer_args, self.render)        
         else:
@@ -57,7 +58,8 @@ class GridSearch:
                 if self.n_trials > 1:
                     self.agent_args['model_name'] += f'/trial{i}'
                 # arguments should be deep copied here, 
-                # otherwise args will be reset if sub-process runs after
+                # otherwise args will be reset if sub-process starts after
+                # after the arguments get changed
                 self.env_args['seed'] = 10 * i
                 p = Process(target=self.train_func,
                             args=(deepcopy(self.env_args), deepcopy(self.agent_args), 

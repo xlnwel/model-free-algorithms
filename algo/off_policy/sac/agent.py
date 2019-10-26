@@ -55,12 +55,8 @@ class Agent(OffPolicyOperation):
 
         self.actor = self._actor()
         
-        self.action = self.actor.action
-        self.action_det = self.actor.action_det
-        self.next_action = self.actor.next_action
-        self.logpi = self.actor.logpi
-        self.next_logpi = self.actor.next_logpi
-        
+        self._action_surrogate()
+
         self.critic = self._critic()
 
         if self.raw_temperature == 'auto':
@@ -93,6 +89,13 @@ class Agent(OffPolicyOperation):
                             log_tensorboard=self.log_tensorboard,
                             log_params=self.log_params)
 
+    def _action_surrogate(self):
+        self.action = self.actor.action
+        self.action_det = self.actor.action_det
+        self.next_action = self.actor.next_action
+        self.logpi = self.actor.logpi
+        self.next_logpi = self.actor.next_logpi
+        
     def _critic(self):
         q_args = self.args['Q']
         q_args['polyak'] = self.args['polyak']
@@ -124,9 +127,12 @@ class Agent(OffPolicyOperation):
         with tf.name_scope('loss'):
             if self.raw_temperature == 'auto':
                 self.alpha_loss = self._alpha_loss()
+                self.loss = self.alpha_loss
+            else:
+                self.loss = 0
             self.actor_loss = self._actor_loss()
             self.priority, self.Q1_loss, self.Q2_loss, self.critic_loss = self._critic_loss()
-            self.loss = self.alpha_loss + self.actor_loss + self.critic_loss
+            self.loss += self.actor_loss + self.critic_loss
 
     def _alpha_loss(self):
         target_entropy = -self.action_dim

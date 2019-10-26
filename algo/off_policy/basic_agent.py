@@ -49,7 +49,6 @@ class OffPolicyOperation(Model, ABC):
         self.train_env = create_env(env_args)
         self.state_space = self.train_env.state_space
         self.action_dim = self.train_env.action_dim
-        self.action_dim_rb = self.action_dim if not self.algo.endswith('ar') else self.action_dim + self.max_action_repetitions
 
         # replay buffer hyperparameters
         buffer_args['n_steps'] = args['n_steps']
@@ -57,11 +56,11 @@ class OffPolicyOperation(Model, ABC):
         buffer_args['batch_size'] = args['batch_size']
         self.buffer_type = buffer_args['type']
         if self.buffer_type == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim_rb)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
         elif self.buffer_type == 'uniform':
-            self.buffer = UniformReplay(buffer_args, self.state_space, self.action_dim_rb)
+            self.buffer = UniformReplay(buffer_args, self.state_space, self.action_dim)
         elif self.buffer_type == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim_rb)
+            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
         else:
             raise NotImplementedError
         
@@ -169,7 +168,7 @@ class OffPolicyOperation(Model, ABC):
             sample_types = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
             sample_shapes = (
                 (None, *self.state_space),
-                (None, self.action_dim_rb),
+                (None, self.action_dim),
                 (None, 1),
                 (None, *self.state_space),
                 (None, 1),

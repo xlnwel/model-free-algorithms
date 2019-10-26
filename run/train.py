@@ -97,7 +97,9 @@ if __name__ == '__main__':
             prefix = cmd_args.prefix
             # Although random parameter search is in general better than grid search, 
             # we here continue to go with grid search since it is easier to deal with architecture search
-            gs = GridSearch(arg_file, main, render=render, n_trials=cmd_args.trials, dir_prefix=prefix)
+            gs = GridSearch(arg_file, main, render=render, 
+                            n_trials=cmd_args.trials, dir_prefix=prefix, 
+                            separate_process=len(algorithm) > 1)
 
             # Grid search happens here
             if algo == 'ppo':

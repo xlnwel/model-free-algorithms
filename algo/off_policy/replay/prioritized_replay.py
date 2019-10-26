@@ -76,8 +76,7 @@ class PrioritizedReplay(Replay):
             
         super()._merge(local_buffer, length)
         
-    def _compute_IS_ratios(self, N, probabilities):
-        IS_ratios = np.power(probabilities * N, -self.beta)
-        IS_ratios /= np.max(IS_ratios)  # normalize ratios to avoid scaling the update upward
+    def _compute_IS_ratios(self, probabilities):
+        IS_ratios = (np.min(probabilities) / probabilities)**self.beta
 
         return IS_ratios

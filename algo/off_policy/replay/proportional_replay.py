@@ -26,8 +26,7 @@ class ProportionalPrioritizedReplay(PrioritizedReplay):
         probabilities = priorities / total_priorities
 
         # compute importance sampling ratios
-        N = len(self)
-        IS_ratios = self._compute_IS_ratios(N, probabilities)
+        IS_ratios = self._compute_IS_ratios(probabilities)
         samples = self._get_samples(indexes)
         
         return IS_ratios, indexes, samples
