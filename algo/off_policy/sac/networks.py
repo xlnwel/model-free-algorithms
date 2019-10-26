@@ -67,7 +67,7 @@ class SoftPolicy(Module):
                 mean = self.dense(x, self.action_dim, name='action_mean')
 
                 # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-                with tf.name_scope(name='action_mean'):
+                with tf.variable_scope('action_std'):
                     logstd = tf.layers.dense(x, self.action_dim)
                     logstd = tf.tanh(logstd)
                     logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
@@ -150,9 +150,11 @@ class SoftQ(Module):
         norm = get_norm(self.args['norm'])
         units = self.args['units']
         def Q_net(state, action, reuse, name):
+            x = state
             with tf.variable_scope(name, reuse=reuse):
-                x = tf.concat([state, action], 1)
-                for u in units:
+                for i, u in enumerate(self.args['units']):
+                    if i < 2:
+                        x = tf.concat([x, action], 1)
                     x = self.dense_norm_activation(x, u, norm=norm)
 
                 x = self.dense(x, 1, name='Q')

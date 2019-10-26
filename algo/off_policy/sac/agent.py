@@ -153,8 +153,8 @@ class Agent(OffPolicyOperation):
             Q1_error = tf.abs(target_Q - self.critic.Q1, name='Q1_error')
             Q2_error = tf.abs(target_Q - self.critic.Q2, name='Q2_error')
 
-            Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * .5 * Q1_error**2)
-            Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * .5 * Q2_error**2)
+            Q1_loss = tf.reduce_mean(self.data['IS_ratio'] * Q1_error**2)
+            Q2_loss = tf.reduce_mean(self.data['IS_ratio'] * Q2_error**2)
             critic_loss = Q1_loss + Q2_loss
 
         priority = self._compute_priority((Q1_error + Q2_error) / 2.)
