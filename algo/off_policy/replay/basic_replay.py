@@ -1,13 +1,13 @@
+from abc import ABC
 import threading
 import numpy as np
 
 from utility.debug_tools import assert_colorize
 from utility.utils import pwc, to_int
 from utility.run_avg import RunningMeanStd
-from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
+from algo.off_policy.replay.utils import add_buffer, copy_buffer
 
-
-class Replay:
+class Replay(ABC):
     """ Interface """
     def __init__(self, args, state_space, action_dim):
         self.memory = {}
@@ -27,16 +27,6 @@ class Replay:
         
         self.is_full = False
         self.mem_idx = 0
-
-        init_buffer(self.memory, self.capacity, state_space, action_dim, self.n_steps == 1)
-
-        # Code for single agent
-        if self.n_steps > 1:
-            self.tb_capacity = args['tb_capacity']
-            self.tb_idx = 0
-            self.tb_full = False
-            self.tb = {}
-            init_buffer(self.tb, self.tb_capacity, state_space, action_dim, True)
         
         # locker used to avoid conflict introduced by tf.data.Dataset and multi-agent
         self.locker = threading.Lock()
@@ -70,7 +60,6 @@ class Replay:
 
     def add(self):
         """ Add a single transition to the replay buffer """
-        # locker should be handled in implementation
         raise NotImplementedError
 
     """ Implementation """
@@ -104,7 +93,7 @@ class Replay:
             with self.locker:
                 add_buffer(self.memory, self.mem_idx, state, action, reward,
                             done, self.n_steps, self.gamma)
-                self.mem_idx += 1
+                self.mem_idx = (self.mem_idx + 1) % self.capacity
 
     def _sample(self):
         raise NotImplementedError

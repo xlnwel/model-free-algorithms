@@ -4,7 +4,7 @@ from utility.decorators import override
 from utility.debug_tools import assert_colorize
 from utility.schedule import PiecewiseSchedule
 from algo.off_policy.replay.basic_replay import Replay
-from algo.off_policy.replay.utils import add_buffer, copy_buffer
+from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 
 class PrioritizedReplay(Replay):
@@ -24,6 +24,16 @@ class PrioritizedReplay(Replay):
         self.to_update_priority = args['to_update_priority'] if 'to_update_priority' in args else True
 
         self.sample_i = 0   # count how many times self.sample is called
+
+        init_buffer(self.memory, self.capacity, state_space, action_dim, self.n_steps == 1)
+
+        # Code for single agent
+        if self.n_steps > 1:
+            self.tb_capacity = args['tb_capacity']
+            self.tb_idx = 0
+            self.tb_full = False
+            self.tb = {}
+            init_buffer(self.tb, self.tb_capacity, state_space, action_dim, True)
 
     @override(Replay)
     def sample(self):

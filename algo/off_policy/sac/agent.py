@@ -46,35 +46,6 @@ class Agent(OffPolicyOperation):
                          device=device)
 
     @override(OffPolicyOperation)
-    def act(self, state, deterministic=False):
-        state = state.reshape((-1, *self.state_space))
-        action_tf = self.action_det if deterministic else self.action
-        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
-        
-        return np.squeeze(action)
-
-    @override(OffPolicyOperation)
-    def run_trajectory(self, fn=None, render=False, random_action=False, evaluation=False):
-        """ run a trajectory, fn is a function executed after each environment step """
-        env = self.eval_env if evaluation else self.train_env
-        state = env.reset()
-        
-        i = 0
-        while i < env.max_episode_steps:
-            if render:
-                env.render()
-            action = env.random_action() if random_action else self.act(state, deterministic=evaluation)
-            next_state, reward, done, info = env.step(action, self.max_action_repetitions)
-            if fn:
-                fn(state, action, reward, done, 1)
-            state = next_state
-            i += info['n']
-            if done:
-                break
-        
-        return env.get_score(), env.get_epslen()
-
-    @override(OffPolicyOperation)
     def _build_graph(self):
         if 'gpu' in self.device:
             with tf.device('/cpu: 0'):
@@ -193,7 +164,7 @@ class Agent(OffPolicyOperation):
             _, self.actor_lr, self.opt_step, _, actor_opt_op = self.actor._optimization_op(self.actor_loss, opt_step=True, schedule_lr=self.schedule_lr)
             _, self.Q_lr, _, _, Q_opt_op = self.critic._optimization_op(self.critic_loss, schedule_lr=self.schedule_lr)
             opt_ops += [actor_opt_op, Q_opt_op]
-            self.opt_op = tf.group(*opt_ops)    
+            self.opt_op = tf.group(*opt_ops)
 
     @override(OffPolicyOperation)
     def _initialize_target_net(self):
@@ -221,7 +192,8 @@ class Agent(OffPolicyOperation):
                 with tf.name_scope('critic'):
                     stats_summary('Q1_with_actor', self.critic.Q1_with_actor, min=True, max=True)
                     stats_summary('Q2_with_actor', self.critic.Q2_with_actor, min=True, max=True)
-                    stats_summary('priority', self.priority, std=True, max=True, hist=True)
+                    if self.buffer_type == 'proportional':
+                        stats_summary('priority', self.priority, std=True, max=True, hist=True)
                     tf.compat.v1.summary.scalar('Q1_loss_', self.Q1_loss)
                     tf.compat.v1.summary.scalar('Q2_loss_', self.Q2_loss)
                     tf.compat.v1.summary.scalar('critic_loss_', self.critic_loss)

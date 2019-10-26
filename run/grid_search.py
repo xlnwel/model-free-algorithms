@@ -29,7 +29,7 @@ class GridSearch:
             # do grid search
             self.agent_args['model_name'] = 'GS'
             self._change_args(**kwargs)
-            return self.processes
+        return self.processes
 
     def _dir_setup(self):
         # add date to root directory

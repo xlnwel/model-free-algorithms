@@ -35,6 +35,7 @@ class OffPolicyOperation(Model, ABC):
                  log_stats=False, 
                  device=None):
         # hyperparameters
+        self.algo = args['algorithm']
         self.gamma = args.setdefault('gamma', .99)
         self.update_step = 0
         self.max_action_repetitions = args.setdefault('max_action_repetitions', 1)
@@ -48,18 +49,19 @@ class OffPolicyOperation(Model, ABC):
         self.train_env = create_env(env_args)
         self.state_space = self.train_env.state_space
         self.action_dim = self.train_env.action_dim
+        self.action_dim_rb = self.action_dim if not self.algo.endswith('ar') else self.action_dim + self.max_action_repetitions
 
         # replay buffer hyperparameters
         buffer_args['n_steps'] = args['n_steps']
         buffer_args['gamma'] = args['gamma']
         buffer_args['batch_size'] = args['batch_size']
-
-        if buffer_args['type'] == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
-        elif buffer_args['type'] == 'uniform':
-            self.buffer = UniformReplay(buffer_args, self.state_space, self.action_dim)
-        elif buffer_args['type'] == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
+        self.buffer_type = buffer_args['type']
+        if self.buffer_type == 'proportional':
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim_rb)
+        elif self.buffer_type == 'uniform':
+            self.buffer = UniformReplay(buffer_args, self.state_space, self.action_dim_rb)
+        elif self.buffer_type == 'local':
+            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim_rb)
         else:
             raise NotImplementedError
         
@@ -91,49 +93,61 @@ class OffPolicyOperation(Model, ABC):
 
     def add_data(self, state, action_repr, reward, done):
         self.buffer.add(state, action_repr, reward, done)
-
+        
     def merge_buffer(self, buffer, length):
         self.buffer.merge(buffer, length)
 
     def act(self, state, deterministic=False):
-        raise NotImplementedError
+        state = state.reshape((-1, *self.state_space))
+        action_tf = self.action_det if deterministic else self.action
+        action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
+        
+        return np.squeeze(action)
 
-    def run_trajectory(self, fn=None, render=False, random_action=False, deterministic_action=False):
-        raise NotImplementedError
+    def run_trajectory(self, fn=None, render=False, random_action=False, evaluation=False):
+        """ run a trajectory, fn is a function executed after each environment step """
+        env = self.eval_env if evaluation else self.train_env
+        state = env.reset()
+        done = False
+
+        while not done:
+            if render:
+                env.render()
+            action = env.random_action() if random_action else self.act(state, deterministic=evaluation)
+            for _ in range(self.max_action_repetitions):
+                next_state, reward, done, _ = env.step(action)
+                if fn:
+                    fn(state, action, reward, done)
+                state = next_state
+                if done:
+                    break
+        
+        return env.get_score(), env.get_epslen()
 
     def learn(self, t=None):
-        if self.schedule_lr:
-            assert t is not None
-            feed_dict = self._get_feeddict(t)
-        else:
-            feed_dict = None
+        feed_dict = self._get_feeddict(t) if self.schedule_lr else None
+    
+        fetches = [self.priority, self.data['saved_mem_idxs']] if self.buffer_type == 'proportional' else []
+        
         if self.log_tensorboard:
-            priority, saved_mem_idxs, _, summary = self.sess.run([self.priority, 
-                                                                  self.data['saved_mem_idxs'], 
-                                                                  self.opt_op, 
-                                                                  self.graph_summary],
-                                                                  feed_dict=feed_dict)
+            results, _, summary = self.sess.run([fetches, self.opt_op, self.graph_summary], feed_dict=feed_dict)
             if self.update_step % 1000 == 0:
                 self.writer.add_summary(summary, self.update_step)
         else:
-            priority, saved_mem_idxs, _ = self.sess.run([self.priority, 
-                                                         self.data['saved_mem_idxs'], 
-                                                         self.opt_op],
-                                                         feed_dict=feed_dict)
+            results, _ = self.sess.run([fetches, self.opt_op], feed_dict=feed_dict)
 
-        if self.update_step % 10000 == 0 and hasattr(self, 'saver'):
-            self.save()
         # update the target networks
         self._update_target_net()
 
         self.update_step += 1
-        self.buffer.update_priorities(priority, saved_mem_idxs)
+        if self.buffer_type == 'proportional':
+            priority, saved_mem_idxs = results
+            self.buffer.update_priorities(priority, saved_mem_idxs)
     
     def rl_log(self, kwargs):
         assert isinstance(kwargs, dict)
         assert 'Timing' in kwargs
         assert 'Episodes' in kwargs or 'Steps' in kwargs
-        assert 'Score' in kwargs
         assert 'ScoreMean' in kwargs
         assert 'ScoreStd' in kwargs
 
@@ -152,30 +166,35 @@ class OffPolicyOperation(Model, ABC):
 
     def _prepare_data(self, buffer):
         with tf.name_scope('data'):
-            exp_type = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
-            sample_types = (tf.float32, tf.int32, exp_type)
-            action_shape = (None, self.action_dim)
-
-            sample_shapes =((None), (None), (
+            sample_types = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
+            sample_shapes = (
                 (None, *self.state_space),
-                action_shape,
+                (None, self.action_dim_rb),
                 (None, 1),
                 (None, *self.state_space),
                 (None, 1),
                 (None, 1)
-            ))
+            )
+            if self.buffer_type != 'uniform':
+                sample_types = (tf.float32, tf.int32, sample_types)
+                sample_shapes =((None), (None), sample_shapes)
+
             ds = tf.data.Dataset.from_generator(buffer, sample_types, sample_shapes)
             ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
             iterator = ds.make_one_shot_iterator()
             samples = iterator.get_next(name='samples')
-        
-        # prepare data
-        IS_ratio, saved_mem_idxs, (state, action, reward, next_state, done, steps) = samples
 
+        # prepare data
         data = {}
-        data['IS_ratio'] = IS_ratio[:, None]                 # Importance sampling ratio for PER
-        # saved indexes used to index the experience in the buffer when updating priorities
-        data['saved_mem_idxs'] = saved_mem_idxs
+        if self.buffer_type != 'uniform':
+            IS_ratio, saved_mem_idxs, (state, action, reward, next_state, done, steps) = samples
+            data['IS_ratio'] = IS_ratio[:, None]                 # Importance sampling ratio for PER
+            # saved indexes used to index the experience in the buffer when updating priorities
+            data['saved_mem_idxs'] = saved_mem_idxs
+        else:
+            state, action, reward, next_state, done, steps = samples
+            data['IS_ratio'] = 1                                # fake ratio to avoid complicate the code
+
         data['state'] = state
         data['action'] = action
         data['reward'] = reward

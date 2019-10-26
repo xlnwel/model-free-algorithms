@@ -25,8 +25,6 @@ class SoftPolicy(Module):
         self.units = args['units']
         self.polyak = args['polyak']
         self.has_target_net = args['target']
-        self.LOG_STD_MIN = -20.
-        self.LOG_STD_MAX = 2.
 
         super().__init__(name, 
                          args, 
@@ -44,15 +42,17 @@ class SoftPolicy(Module):
         return self.graph.get_collection(name=tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.variable_scope + '/target')
 
     def _build_graph(self):
-        self.action_det, self.action, self.logpi = self._build_policy(self.state, 'main', False)
+        self.action, self.logpi, self.action_det = self._build_policy(self.state, 'main', False)
         if self.has_target_net:
-            _, self.next_action, self.next_logpi = self._build_policy(self.next_state, 'target', False)
+            self.next_action, self.next_logpi, _ = self._build_policy(self.next_state, 'target', False)
         else:
-            _, self.next_action, self.next_logpi = self._build_policy(self.next_state, 'main', True)
+            self.next_action, self.next_logpi, _ = self._build_policy(self.next_state, 'main', True)
 
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
     def _build_policy(self, state, name, reuse):
+        LOG_STD_MIN = -20.
+        LOG_STD_MAX = 2.
         def stochastic_policy_net(state):
             x = state
             self.reset_counter('noisy')     # reset noisy counter for each call to enable reuse if desirable
@@ -68,21 +68,22 @@ class SoftPolicy(Module):
                 mean = self.dense(x, self.action_dim, name='action_mean')
 
                 # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
-                logstd = self.dense(x, self.action_dim)
-                logstd = tf.tanh(logstd, name='action_logstd')
-                logstd = self.LOG_STD_MIN + .5 * (self.LOG_STD_MAX-self.LOG_STD_MIN) * (logstd + 1)
-                # logstd = tf.clip_by_value(logstd, self.LOG_STD_MIN, self.LOG_STD_MAX)
+                with tf.name_scope(name='action_mean'):
+                    logstd = tf.layers.dense(x, self.action_dim, activation=tf.tanh)
+                    logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
+                # logstd = tf.clip_by_value(logstd, LOG_STD_MIN, LOG_STD_MAX)
 
             return mean, logstd, mean
 
-        def squash_correction(action, logpi):
+        def squash_correction(action, logpi, action_det):
             """ squash action in range [-1, 1] """
             with tf.name_scope('squash'):
                 action_new = tf.tanh(action)
+                action_det = tf.tanh(action_det)
                 sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1, keepdims=True)
                 logpi -= sub
 
-            return action_new, logpi
+            return action_new, logpi, action_det
 
         """ Function Body """
         with tf.variable_scope(name, reuse=reuse):
@@ -93,10 +94,9 @@ class SoftPolicy(Module):
             orig_action = action_distribution.sample()
             orig_logpi = action_distribution.logp(orig_action)
 
-            # Enforcing action bound
-            action, logpi = squash_correction(orig_action, orig_logpi)
+            action, logpi, action_det = squash_correction(orig_action, orig_logpi, action_det)
             
-        return action_det, action, logpi
+        return action, logpi, action_det
 
     def _target_net_ops(self):
         if not self.has_target_net:

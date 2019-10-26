@@ -20,8 +20,8 @@ class Distribution():
         return self._neglogp(x)
 
     @tf_scope
-    def sample(self):
-        return self._sample()
+    def sample(self, *args, **kwargs):
+        return self._sample(*args, **kwargs)
         
     @tf_scope
     def entropy(self):
@@ -48,13 +48,36 @@ class Distribution():
 class Categorical(Distribution):
     def __init__(self, logits):
         self.logits = logits
+        self.tau = tf.get_variable('softmax_tau', [])
+        tf.compat.v1.summary.scalar('softmax_tau', self.tau)
 
     def _neglogp(self, x):
-        x = tf.reshape(x, [-1])
-        return tf.reshape(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=x, logits=self.logits), [-1, 1])
+        if len(x.shape.as_list()) == len(self.logits.shape.as_list()) and x.shape.as_list()[-1] != 1:
+            return tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.stop_gradient(x), logits=self.logits)[..., None]
+        else:
+            x = tf.squeeze(x)
+            return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=x, logits=self.logits)[..., None]
 
-    def _sample(self):
-        return tf.random.categorical(self.logits, 1, dtype=tf.int32)
+    def _sample(self, reparameterize=False, hard=True, epsilon=1e-20):
+        """
+         A differentiable sampling method for categorical distribution
+         reference paper: Categorical Reparameterization with Gumbel-Softmax
+         and code: https://github.com/ericjang/gumbel-softmax/blob/master/Categorical%20VAE.ipynb
+        """
+        if reparameterize:
+            # sample Gumbel(0, 1)
+            U = tf.random_uniform(tf.shape(self.logits), minval=0, maxval=1)
+            g = -tf.log(-tf.log(U+epsilon)+epsilon)
+            # Draw a sample from the Gumbel-Softmax distribution
+            y = tf.nn.softmax((self.logits + g) / self.tau)
+            # draw one-hot encoded sample from the softmax
+            if hard:
+                y_hard = tf.cast(tf.equal(y, tf.reduce_max(y, 1, keepdims=True)), y.dtype)
+                y = tf.stop_gradient(y_hard - y) + y
+        else:
+            y = tf.random.categorical(self.logits, 1, dtype=tf.int32)
+
+        return y
 
     def _entropy(self):
         probs = self._compute_probs()
@@ -76,7 +99,6 @@ class Categorical(Distribution):
         probs = exp_logits / sum_exp_logits
 
         return probs
-
 
 class DiagGaussian(Distribution):
     def __init__(self, params):
