@@ -48,7 +48,7 @@ def get_worker(BaseClass, *args, **kwargs):
             })
 
         def sample_data(self, learner):
-            def collect_fn(state, action, reward, done, n):
+            def collect_fn(state, action, reward, done):
                 self.buffer.add_data(state, action, reward, done)
             is_evaluator = self.no == 0
             if is_evaluator:
@@ -60,7 +60,7 @@ def get_worker(BaseClass, *args, **kwargs):
             while True:
                 episode_i += 1
                 fn = None if is_evaluator else collect_fn
-                score, epslen = self.run_trajectory(fn=fn, deterministic_action=is_evaluator)
+                score, epslen = self.run_trajectory(fn=fn, evaluation=is_evaluator)
                 step += epslen
                 if is_evaluator:
                     scores.append(score)

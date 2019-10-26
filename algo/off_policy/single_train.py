@@ -31,10 +31,10 @@ def evaluate(agent, step, start_episodes, interval, scores, epslens, render):
     return step
 
 def train(agent, buffer, n_epochs, render):
-    def collection_fn(state, action, reward, done, n):
+    def collection_fn(state, action, reward, done):
         buffer.add_data(state, action, reward, done)
 
-    def train_fn(state, action, reward, done, n):
+    def train_fn(state, action, reward, done):
         agent.add_data(state, action, reward, done)
         if agent.good_to_learn:
             agent.learn()

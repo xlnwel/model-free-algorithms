@@ -26,7 +26,7 @@ agent:
     n_epochs: 400
     
     Policy:
-        n_noisy: 2
+        n_noisy: 0
         noisy_sigma: 0.4                    # standard deviation for noisy layers
         units: [512, 256, 128]
         norm: layer
@@ -68,7 +68,7 @@ buffer:
     reward_scale: 1
     to_update_priority: True
 
-    alpha: 0.4
+    alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4

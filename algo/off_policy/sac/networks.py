@@ -19,13 +19,7 @@ class SoftPolicy(Module):
         self.state = state
         self.next_state = next_state
         self.action_dim = action_dim
-        self.norm = get_norm(args['norm'])
-        self.n_noisy = args['n_noisy']
-        self.noisy_sigma = args['noisy_sigma']
-        self.units = args['units']
-        self.polyak = args['polyak']
         self.has_target_net = args['target']
-
         super().__init__(name, 
                          args, 
                          graph, 
@@ -53,25 +47,31 @@ class SoftPolicy(Module):
     def _build_policy(self, state, name, reuse):
         LOG_STD_MIN = -20.
         LOG_STD_MAX = 2.
+        noisy_sigma = self.args['noisy_sigma']
+        n_noisy = self.args['n_noisy']
+        units = self.args['units']
+        norm = get_norm(self.args['norm'])
+
         def stochastic_policy_net(state):
             x = state
             self.reset_counter('noisy')     # reset noisy counter for each call to enable reuse if desirable
 
             with tf.variable_scope('net'):
-                for i, u in enumerate(self.units):
-                    if i < len(self.units) - self.n_noisy:
+                for i, u in enumerate(units):
+                    if i < len(units) - n_noisy:
                         x = self.dense(x, u)
                     else:
-                        x = self.noisy(x, u, sigma=self.noisy_sigma)
-                    x = norm_activation(x, norm=self.norm, activation=tf.nn.relu)
+                        x = self.noisy(x, u, sigma=noisy_sigma)
+                    x = norm_activation(x, norm=norm, activation=tf.nn.relu)
 
                 mean = self.dense(x, self.action_dim, name='action_mean')
 
                 # constrain logstd to be in range [LOG_STD_MIN, LOG_STD_MAX]
                 with tf.name_scope(name='action_mean'):
-                    logstd = tf.layers.dense(x, self.action_dim, activation=tf.tanh)
+                    logstd = tf.layers.dense(x, self.action_dim)
+                    logstd = tf.tanh(logstd)
                     logstd = LOG_STD_MIN + .5 * (LOG_STD_MAX - LOG_STD_MIN) * (logstd + 1)
-                # logstd = tf.clip_by_value(logstd, LOG_STD_MIN, LOG_STD_MAX)
+                    # logstd = tf.clip_by_value(logstd, LOG_STD_MIN, LOG_STD_MAX)
 
             return mean, logstd, mean
 
@@ -102,9 +102,10 @@ class SoftPolicy(Module):
         if not self.has_target_net:
             return [], []
         with tf.name_scope('target_net_op'):
+            polyak = self.args['polyak']
             target_main_var_pairs = list(zip(self.target_variables, self.main_variables))
             init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
-            update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
+            update_target_op = list(map(lambda v: tf.assign(v[0], polyak * v[0] + (1. - polyak) * v[1], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op  
 
@@ -128,9 +129,6 @@ class SoftQ(Module):
         self._stored_action_repr = stored_action_repr
         self.action_repr = action_repr
         self.next_action_repr = next_action_repr
-        self.norm = get_norm(args['norm'])
-        self.units = args['units']
-        self.polyak = args['polyak']
 
         super().__init__(name, 
                          args, 
@@ -149,13 +147,13 @@ class SoftQ(Module):
 
     """ Implementation """
     def _build_graph(self):
+        norm = get_norm(self.args['norm'])
+        units = self.args['units']
         def Q_net(state, action, reuse, name):
-            x = state
             with tf.variable_scope(name, reuse=reuse):
-                for i, u in enumerate(self.units):
-                    if i < 2:
-                        x = tf.concat([x, action], 1)
-                    x = self.dense_norm_activation(x, u, norm=self.norm)
+                x = tf.concat([state, action], 1)
+                for u in units:
+                    x = self.dense_norm_activation(x, u, norm=norm)
 
                 x = self.dense(x, 1, name='Q')
 
@@ -180,10 +178,11 @@ class SoftQ(Module):
         self.init_target_op, self.update_target_op = self._target_net_ops()
 
     def _target_net_ops(self):
+        polyak = self.args['polyak']
         with tf.name_scope('target_net_op'):
             target_main_var_pairs = list(zip(self.target_variables, self.main_variables))
             init_target_op = list(map(lambda v: tf.assign(v[0], v[1], name='init_target_op'), target_main_var_pairs))
-            update_target_op = list(map(lambda v: tf.assign(v[0], self.polyak * v[0] + (1. - self.polyak) * v[1], name='update_target_op'), target_main_var_pairs))
+            update_target_op = list(map(lambda v: tf.assign(v[0], polyak * v[0] + (1. - polyak) * v[1], name='update_target_op'), target_main_var_pairs))
 
         return init_target_op, update_target_op   
 
@@ -205,7 +204,7 @@ class Temperature(Module):
         self.next_state = next_state
         self.action = action
         self.next_action = next_action
-        self.type = args['type']
+
         super().__init__(name, 
                          args, 
                          graph, 
@@ -243,14 +242,15 @@ class Temperature(Module):
             return log_alpha, alpha
 
         """ Function Body """
-        if self.type == 'simple':
+        alpha_type = self.args['type']
+        if alpha_type == 'simple':
             self.log_alpha, self.alpha = simple_alpha()
             self.next_alpha = self.alpha
-        elif self.type == 'state':
+        elif alpha_type == 'state':
             self.log_alpha, self.alpha = state_alpha(self.state)
             _, self.next_alpha = state_alpha(self.next_state, reuse=True)
-        elif self.type == 'state_action':
+        elif alpha_type == 'state_action':
             self.log_alpha, self.alpha = state_action_alpha(self.state, self.action)
             _, self.next_alpha = state_action_alpha(self.next_state, self.next_action, reuse=True)
         else:
-            raise NotImplementedError(f'Invalid type: {self.type}')
+            raise NotImplementedError(f'Invalid type: {alpha_type}')

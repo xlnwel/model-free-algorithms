@@ -52,7 +52,7 @@ buffer:
     reward_scale: 1
     to_update_priority: True
 
-    alpha: 0.4
+    alpha: 0.5
     beta0: 0.4
     epsilon: 1e-4
     beta_steps: 5e4     # number of sampling steps taken beta to reach 1

@@ -9,6 +9,7 @@ agent:
     algorithm: apex-sac
     temperature: auto
     gamma: 0.99
+    polyak: .995                # moving average rate
     batch_size: 512
     max_action_repetitions: 3
     n_workers: 8
@@ -20,23 +21,22 @@ agent:
     log_root_dir: logs  # root path for tensorboard logs
     model_name: baseline
 
-    loss_type: mse            # huber or mse
+    loss_type: mse              # huber or mse
     n_steps: 3
     
     Policy:
         n_noisy: 0
         noisy_sigma: 0.4        # standard deviation for noisy layers
         units: [512, 256, 256]
-        layernorm: False
+        norm: layer
         target: False
         # args for optimizer
         learning_rate: &policy_lr 1e-4
         decay_rate: &decay_rate .95
         decay_steps: &decay_steps 1e4
     Q:
-        polyak: .995            # moving average rate
         units: [512, 512, 256]
-        layernorm: False
+        norm: layer
         # args for optimizer
         learning_rate: 3e-4
         decay_rate: *decay_rate

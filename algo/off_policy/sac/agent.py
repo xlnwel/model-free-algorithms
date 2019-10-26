@@ -203,7 +203,6 @@ class Agent(OffPolicyOperation):
                     tf.compat.v1.summary.scalar('Q1_loss_', self.Q1_loss)
                     tf.compat.v1.summary.scalar('Q2_loss_', self.Q2_loss)
                     tf.compat.v1.summary.scalar('critic_loss_', self.critic_loss)
-                    tf.compat.v1.summary.scalar('critic_loss_', self.critic_loss)
                 if self.raw_temperature == 'auto':
                     with tf.name_scope('alpha'):
                         stats_summary('alpha', self.alpha, std=True)
