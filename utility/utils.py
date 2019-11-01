@@ -48,21 +48,24 @@ def to_int(s):
 def isscalar(x):
     return isinstance(x, (int, float))
     
-def normalize(x, axis=None, mean=0., std=1., epsilon=1e-8, mask=None):
+def standardize(x, axis=None, epsilon=1e-8, mask=None):
+    """
+    axis specifies the first K dimensions of x if provided
+    """
     if mask is None:
         x_mean = np.mean(x, axis)
         x_std = np.std(x, axis)
+        x = (x - x_mean) / (x_std + epsilon)
     else:
-        max_idx = np.max(axis) + 1 if axis else None
-        assert mask.shape == x.shape[:max_idx], f'mask of shape {mask.shape} does not match the first {max_idx} dimensions of x, which has shape {x.shape[:max_idx]}'
         # compute x_mean and x_std from entries in x corresponding to True in mask
-        n = np.sum(mask, axis)
-        if axis:
+        n = np.sum(mask)
+        # expand mask to have the same dimensionality as x
+        while len(mask.shape) < len(x.shape):
             mask = mask[..., None]
-        x_mean = np.sum(x * mask, axis) / n
-        x_std = np.sqrt(np.sum((x * mask - x_mean)**2, axis) / n)
-    x = (x - x_mean) / (x_std + epsilon)
-    x = x * std + mean
+        x_mask = x * mask
+        x_mean = np.sum(x_mask, axis) / n
+        x_std = np.sqrt(np.sum(mask * (x_mask - x_mean)**2, axis) / n)
+        x = mask * (x - x_mean) / (x_std + epsilon)
 
     return x
 

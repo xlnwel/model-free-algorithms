@@ -30,13 +30,10 @@ def train(agent, agent_args, test_agent):
         approx_kl = np.mean(approx_kl)
         clip_frac = np.mean(clip_frac)
         value_loss = np.mean(value_loss)
-        agent.record_stats(score_mean=score_mean, score_std=score_std,
-                           epslen_mean=epslen_mean, approx_kl=approx_kl, 
-                           clip_frac=clip_frac)
 
         log_info = {
             'ModelName': f'{agent.args["algorithm"]}-{agent.model_name}',
-            'Iteration': i,
+            'Steps': i,
             'Time': f'{time.time() - start:3.2f}s',
             'ScoreMean': score_mean,
             'ScoreStd': score_std,
@@ -48,6 +45,7 @@ def train(agent, agent_args, test_agent):
             'ApproxKL': approx_kl,
             'ClipFrac': clip_frac
         }
+        agent.record_stats(log_info)
         [agent.log_tabular(k, v) for k, v in log_info.items()]
         agent.dump_tabular(print_terminal_info=True)
 

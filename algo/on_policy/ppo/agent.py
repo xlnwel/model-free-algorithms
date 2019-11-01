@@ -8,7 +8,7 @@ from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
 from algo.on_policy.ppo.buffer import PPOBuffer
 from utility.tf_utils import stats_summary
-from utility.utils import pwcf
+from utility.utils import pwc
 from utility.schedule import PiecewiseSchedule
 
 
@@ -64,6 +64,8 @@ class Agent(Model):
             self.critic_lr_scheduler = PiecewiseSchedule([(0, 3e-4), (400000, 3e-4), (600000, 5e-5)], outside_value=5e-5)
 
         if self.use_lstm:
+            # don't distinguish lstm at training from that at running
+            # since training is done after running
             self.last_lstm_state = None
 
         with self.graph.as_default():
@@ -189,14 +191,14 @@ class Agent(Model):
                 mask = self.env_vec.get_mask()
                 data['mask'] = mask
 
-            self.buffer.add(data)
+            self.buffer.add(**data)
 
             state = next_state
         
         # add one more ad hoc value so that we can take values[1:] as next state values
         last_value = np.squeeze(self.sess.run(self.ac.V, feed_dict={self.env_phs['state']: state}))
 
-        self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount, self.mask_data)
+        self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount)
         
         return self.env_vec.get_score(), self.env_vec.get_epslen()
 
@@ -235,7 +237,7 @@ class Agent(Model):
         
 
     def _get_feeddict(self, timestep=None):
-        get_data = lambda name: self.buffer.get_flat_batch(name, self.minibatch_idx)
+        get_data = lambda name: self.buffer.get_batch(name, self.minibatch_idx)
 
         if self.minibatch_idx == 0 and self.use_lstm:
             # set initial state to zeros for every pass of buffer

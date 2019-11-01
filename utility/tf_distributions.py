@@ -115,7 +115,7 @@ class DiagGaussian(Distribution):
         return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
 
     def _entropy(self):
-        return tf.reduce_sum(.5 * np.log(2. * np.pi) + self.logstd + .5, axis=-1)
+        return tf.reduce_sum(.5 * np.log(2. * np.pi) + self.logstd + .5, axis=-1, keepdims=True)
 
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5

@@ -121,7 +121,7 @@ def stats_summary(name, data, mean=True, std=False, max=False, min=False, hist=F
     if min:
         tf.compat.v1.summary.scalar(f'{name}_min_', tf.reduce_min(data))
     if hist:
-        tf.summary.histogram(f'{name}_', data)
+        tf.compat.v1.summary.histogram(f'{name}_', data)
 
 def get_vars(scope, graph=tf.compat.v1.get_default_graph()):
     return [x for x in graph.get_collection(name=tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)]

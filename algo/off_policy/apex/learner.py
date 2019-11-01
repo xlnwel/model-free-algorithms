@@ -43,9 +43,11 @@ def get_learner(BaseClass, *args, **kwargs):
             self.learning_thread.start()
             
         def get_weights(self):
-            weights = self.variables.get_flat()
+            return self.variables.get_flat()
 
-            return weights
+        def set_weights(self, weights):
+            pwc('Learner: pull weights from the evaluator', 'blue')
+            self.variables.set_flat(weights)
 
         def merge_buffer(self, local_buffer, length):
             self.buffer.merge(local_buffer, length)
@@ -53,7 +55,7 @@ def get_learner(BaseClass, *args, **kwargs):
         def background_learning(self):
             while not self.buffer.good_to_learn:
                 time.sleep(1)
-            pwc('Start Learning...', color='cyan')
+            pwc('Start Learning...', 'blue')
             
             t = 0
             while True:
@@ -65,6 +67,6 @@ def get_learner(BaseClass, *args, **kwargs):
             super()._record_stats_impl(kwargs)
 
         def print_construction_complete(self):
-            pwc('Learner has been constructed.', color='cyan')
+            pwc('Learner has been constructed.', 'cyan')
 
     return Learner.remote(*args, **kwargs)

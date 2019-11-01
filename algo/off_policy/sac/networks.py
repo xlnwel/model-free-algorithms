@@ -89,10 +89,10 @@ class SoftPolicy(Module):
         with tf.variable_scope(name, reuse=reuse):
             mean, logstd, action_det = stochastic_policy_net(state)
 
-            action_distribution = DiagGaussian((mean, logstd))
+            self.action_distribution = DiagGaussian((mean, logstd))
 
-            orig_action = action_distribution.sample()
-            orig_logpi = action_distribution.logp(orig_action)
+            self.orig_action = self.action_distribution.sample()
+            self.orig_logpi = self.action_distribution.logp(self.orig_action)
 
             action, logpi, action_det = squash_correction(orig_action, orig_logpi, action_det)
             

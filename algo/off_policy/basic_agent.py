@@ -62,7 +62,7 @@ class OffPolicyOperation(Model, ABC):
         elif self.buffer_type == 'local':
             self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
         else:
-            raise NotImplementedError
+            raise NotImplementedError('No buffer is constructed')
         
         # arguments for prioritized replay
         self.prio_alpha = float(buffer_args['alpha'])

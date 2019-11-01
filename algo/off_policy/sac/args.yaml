@@ -3,7 +3,6 @@ env:
     name: BipedalWalker-v2
     video_path: video
     log_video: False
-    max_episode_steps: 1000
     seed: 0
     clip_reward: none
 agent:
@@ -26,7 +25,7 @@ agent:
     n_epochs: 400
     
     Policy:
-        n_noisy: 2
+        n_noisy: 0
         noisy_sigma: 0.4                    # standard deviation for noisy layers
         units: [512, 256, 128]
         norm: layer

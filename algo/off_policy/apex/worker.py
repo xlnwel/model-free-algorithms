@@ -47,49 +47,57 @@ def get_worker(BaseClass, *args, **kwargs):
                 self.data['steps']: steps
             })
 
-        def sample_data(self, learner):
+        def sample_data(self, learner, evaluator):
             def collect_fn(state, action, reward, done):
                 self.buffer.add_data(state, action, reward, done)
-            is_evaluator = self.no == 0
-            if is_evaluator:
-                scores = deque(maxlen=self.weight_update_freq)
-                epslens = deque(maxlen=self.weight_update_freq)
-                best_score_mean = 0
+
+            def pull_weights_from_learner():
+                # pull weights from learner
+                weights = ray.get(learner.get_weights.remote())
+                self.variables.set_flat(weights)
+
+            to_record = self.no == 0
+            scores = deque(maxlen=self.weight_update_freq)
+            epslens = deque(maxlen=self.weight_update_freq)
+            best_score_mean = -50
             episode_i = 0
             step = 0
             while True:
                 episode_i += 1
-                fn = None if is_evaluator else collect_fn
-                score, epslen = self.run_trajectory(fn=fn, evaluation=is_evaluator)
+                fn = None if to_record else collect_fn
+                score, epslen = self.run_trajectory(fn=fn, evaluation=to_record)
                 step += epslen
-                if is_evaluator:
-                    scores.append(score)
-                    epslens.append(epslen)
+                scores.append(score)
+                epslens.append(epslen)
+
                 if episode_i % self.weight_update_freq == 0:
-                    if is_evaluator:
-                        # for evaluator, log score
-                        score_mean = np.mean(scores)
-                        score_std = np.std(scores)
-                        epslen_mean = np.mean(epslens)
-                        epslen_std = np.std(epslens)
-                        stats = dict(score=score, score_mean=score_mean, score_std=score_std,
-                                    epslen=epslen, epslen_mean=epslen_mean, epslen_std=epslen_std,
-                                    steps=episode_i)
-                                    
-                        learner.record_stats.remote(stats)
-                        if score_mean > best_score_mean:
-                            best_score_mean = score_mean
-                            self.save()
-                        learner.rl_log.remote(dict(Timing='Eval', 
-                                                Episodes=episode_i,
-                                                Steps=step,
-                                                Score=score, 
-                                                ScoreMean=score_mean,
-                                                ScoreStd=score_std,
-                                                EpsLenMean=epslen_mean,
-                                                EpsLenStd=epslen_std))
-                    else:
-                        # for other workers, send data to learner
+                    score_mean = np.mean(scores)
+                    if to_record:
+                        # record stats
+                        stats = dict(
+                            Timing='Eval',
+                            WorkerNo=self.no,
+                            Steps=episode_i,
+                            ScoreMean=score_mean, 
+                            ScoreStd=np.std(scores),
+                            ScoreMax=np.max(score), 
+                            EpslenMean=np.mean(epslens), 
+                            EpslenStd=np.std(epslens), 
+                        )
+                        tf_stats = dict(worker_no=f'worker_{self.no}')
+                        tf_stats.update(stats)
+
+                        learner.record_stats.remote(tf_stats)
+                        
+                        learner.rl_log.remote(stats)
+
+                    if score_mean > min(250, best_score_mean):
+                        best_score_mean = score_mean
+                        pwc(f'Worker {self.no}: Best score updated to {best_score_mean:2f}', 'blue')
+                        evaluator.evaluate_model.remote(self.variables.get_flat(), score_mean)
+
+                    # send data to learner
+                    if self.buffer.idx == self.buffer.capacity:
                         last_state = np.zeros_like(self.buffer['state'][0])
                         self.buffer.add_last_state(last_state)
                         self.buffer['priority'][:self.buffer.idx] = self.compute_priorities()
