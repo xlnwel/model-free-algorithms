@@ -3,13 +3,14 @@ import threading
 import numpy as np
 
 from utility.debug_tools import assert_colorize
-from utility.utils import pwc, to_int
+from utility.display import pwc
+from utility.utils import to_int
 from utility.run_avg import RunningMeanStd
 from algo.off_policy.replay.utils import add_buffer, copy_buffer
 
 class Replay(ABC):
     """ Interface """
-    def __init__(self, args, state_space, action_dim):
+    def __init__(self, args, state_shape, action_dim):
         self.memory = {}
 
         # params for general replay buffer

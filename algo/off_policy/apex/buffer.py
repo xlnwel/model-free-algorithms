@@ -7,7 +7,7 @@ from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 class LocalBuffer(dict):
     """ Local buffer only stores one episode of transitions """
-    def __init__(self, args, state_space, action_dim):
+    def __init__(self, args, state_shape, action_dim):
         self.capacity = args['local_capacity']
         self.n_steps = args['n_steps']
         self.gamma = args['gamma']
@@ -16,7 +16,7 @@ class LocalBuffer(dict):
         self.fake_ratio = np.zeros(1)
         self.fake_ids = np.zeros(1, dtype=np.int32)
 
-        init_buffer(self, self.capacity, state_space, action_dim, True, extra_state=1)
+        init_buffer(self, self.capacity, state_shape, action_dim, True, extra_state=1)
 
         self.reward_scale = args['reward_scale'] if 'reward_scale' in args else 1
         self.normalize_reward = args['normalize_reward']

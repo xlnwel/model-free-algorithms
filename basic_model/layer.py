@@ -4,7 +4,7 @@ import tensorflow.contrib as tc
 import tensorflow.keras as tk
 
 from utility import tf_utils
-from utility.utils import pwc
+from utility.display import pwc
 from utility.debug_tools import assert_colorize
 
 
@@ -67,7 +67,7 @@ class Layer():
 
             return y
 
-        x = tf_utils.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_scope(name, layer_imp)
 
         return x
 
@@ -128,7 +128,7 @@ class Layer():
             
             return y
 
-        x = tf_utils.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_scope(name, layer_imp)
 
         return x
 
@@ -209,7 +209,7 @@ class Layer():
 
             return y
 
-        x = tf_utils.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_scope(name, layer_imp)
 
         return x
 
@@ -317,7 +317,7 @@ class Layer():
             
             return o + y
 
-        result = tf_utils.wrap_layer(name, layer_imp)
+        result = tf_utils.wrap_scope(name, layer_imp)
 
         return result
 
@@ -330,7 +330,7 @@ class Layer():
 
             return y
 
-        x = tf_utils.wrap_layer(name, layer_imp)
+        x = tf_utils.wrap_scope(name, layer_imp)
 
         return x
 

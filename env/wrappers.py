@@ -1,7 +1,7 @@
 """
 https://github.com/openai/baselines/blob/master/baselines/common/wrappers.py
 """
-
+import numpy as np
 import gym
 
 class TimeLimit(gym.Wrapper):
@@ -60,6 +60,31 @@ class EnvStats(gym.Wrapper):
 
     def get_epslen(self):
         return self.epslen
+
+    @property
+    def is_action_discrete(self):
+        return isinstance(self.env.action_space, gym.spaces.Discrete)
+
+    @property
+    def state_shape(self):
+        return self.observation_space.shape
+
+    @property
+    def state_dtype(self):
+        return self.observation_space.dtype
+
+    @property
+    def action_shape(self):
+        return self.action_space.shape
+
+    @property
+    def action_dtype(self):
+        return np.int8 if self.is_action_discrete else (self.env.action_space.dtype)
+
+    @property
+    def action_dim(self):
+        return self.action_space.n if self.is_action_discrete else self.env.action_space.shape[0]
+
 
 def get_wrapper_by_name(env, classname):
     currentenv = env

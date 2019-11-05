@@ -5,8 +5,9 @@ import gym
 from basic_model.model import Module
 from utility import tf_utils, tf_distributions
 from utility.schedule import PiecewiseSchedule
-from utility.utils import pwc
+from utility.display import pwc
 from utility.rl_losses import ppo_loss, clipped_value_loss
+from env.gym_env import action_dist_type
 
 
 class ActorCritic(Module):
@@ -56,7 +57,7 @@ class ActorCritic(Module):
                 self.initial_state = [*self.actor_init_state, *self.critic_init_state]
                 self.final_state = [*self.actor_final_state, *self.critic_final_state]
 
-        self.action_distribution = self.env_vec.action_dist_type(actor_output)
+        self.action_distribution = action_dist_type(self.env_vec)(actor_output)
         self.action = self.action_distribution.sample()
         self.logpi = self.action_distribution.logp(tf.stop_gradient(self.action))
 

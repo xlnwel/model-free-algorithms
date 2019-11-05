@@ -7,7 +7,7 @@ import tensorflow as tf
 import ray
 
 from utility import tf_utils
-from utility.utils import pwc
+from utility.display import pwc
 
 
 def get_learner(BaseClass, *args, **kwargs):

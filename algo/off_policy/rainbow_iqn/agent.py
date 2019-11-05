@@ -3,7 +3,7 @@ import tensorflow as tf
 from algo.off_policy.basic_agent import OffPolicyOperation
 from algo.off_policy.rainbow_iqn.networks import Networks
 from utility.losses import huber_loss
-from utility.utils import pwc
+from utility.display import pwc
 from utility.tf_utils import n_step_target, stats_summary
 
 

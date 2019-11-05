@@ -13,7 +13,7 @@ import os, time, atexit
 from collections import defaultdict
 import numpy as np
 
-from utility.utils import pwc
+from utility.display import pwc
 from utility.yaml_op import save_args
 from utility.debug_tools import assert_colorize
 

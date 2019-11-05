@@ -1,7 +1,7 @@
 from time import strftime, gmtime, time
 import numpy as np
 
-from utility.utils import colorize, pwc
+from utility.display import colorize, pwc
 
 
 def timeit(func, *args, name=None, to_print=False, **kwargs):

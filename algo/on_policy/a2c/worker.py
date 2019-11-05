@@ -1,7 +1,7 @@
 import numpy as np
 import ray
 
-from utility.utils import pwc
+from utility.display import pwc
 from algo.on_policy.ppo.buffer import PPOBuffer
 from algo.on_policy.ppo.agent import Agent
 

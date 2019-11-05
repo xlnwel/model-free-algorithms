@@ -1,7 +1,7 @@
 ---
 n_experiments: 1 # 1 run the following configuration, otherwise, run test code in parallel see train.py
 env:
-    name: &env_name BipedalWalker-v2 # CartPole-v0, LunarLanderContinuous-v2, BipedalWalker-v2
+    name: &env_name BipedalWalker-v2 # LunarLanderContinuous-v2, BipedalWalker-v2
     video_path: video
     log_video: True
     max_episode_steps: &seq_len 1000

@@ -6,41 +6,8 @@ import multiprocessing
 import numpy as np
 import sympy
 
+from utility.display import assert_colorize
 
-color2num = dict(
-    gray=30,
-    red=31,
-    green=32,
-    yellow=33,
-    blue=34,
-    magenta=35,
-    cyan=36,
-    white=37,
-    crimson=38
-)
-
-def colorize(string, color, bold=False, highlight=False):
-    """
-    Colorize a string.
-
-    This function was originally written by John Schulman.
-    """
-    attr = []
-    num = color2num[color]
-    if highlight: num += 10
-    attr.append(str(num))
-    if bold: attr.append('1')
-    return f'\x1b[{";".join(attr)}m{string}\x1b[0m'
-
-def pwc(string, color='red', bold=False, highlight=False):
-    """
-    Print with color
-    """
-    if isinstance(string, list) or isinstance(string, tuple):
-        for s in string:
-            print(colorize(s, color, bold, highlight))
-    else:
-        print(colorize(string, color, bold, highlight))
 
 def to_int(s):
     return int(float(s))
@@ -52,16 +19,28 @@ def standardize(x, axis=None, epsilon=1e-8, mask=None):
     """
     axis specifies the first K dimensions of x if provided
     """
+    assert_colorize(axis is None or np.all(axis == np.arange(len(axis))),  
+                    f'axis must specify the first K dimensions of x if provided'
+                    f'but gives {axis}')
     if mask is None:
         x_mean = np.mean(x, axis)
         x_std = np.std(x, axis)
         x = (x - x_mean) / (x_std + epsilon)
     else:
-        # compute x_mean and x_std from entries in x corresponding to True in mask
-        n = np.sum(mask)
-        # expand mask to have the same dimensionality as x
+        # expand mask to match the dimensionality of x
         while len(mask.shape) < len(x.shape):
             mask = mask[..., None]
+        # compute valid entries in x corresponding to True in mask
+        n = np.sum(mask)
+        for i in range(len(mask.shape)):
+            if mask.shape[i] != 1:
+                assert_colorize(mask.shape[i] == x.shape[i], 
+                        f'{i}th dimension of mask{mask.shape[i]} does not match'
+                        f'that of x{x.shape[i]}')
+            else:
+                if axis is None or i in axis:
+                    n *= x.shape[i]
+        # compute x_mean and x_std from entries in x corresponding to True in mask
         x_mask = x * mask
         x_mean = np.sum(x_mask, axis) / n
         x_std = np.sqrt(np.sum(mask * (x_mask - x_mean)**2, axis) / n)
@@ -78,9 +57,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-
-def schedule(start_value, step, decay_steps, decay_rate):
-    return start_value * decay_rate**(step // decay_steps)
 
 def is_main_process():
     return multiprocessing.current_process().name == 'MainProcess'
@@ -130,3 +106,47 @@ def check_make_dir(path):
 
     if not os.path.isdir(path):
         os.mkdir(path)
+
+def zip_pad(*args):
+    list_len = None
+    for x in args:
+        if isinstance(x, list) or isinstance(x, tuple):
+            list_len = len(x)
+            break
+    assert list_len is not None
+    new_args = []
+    for i, x in enumerate(args):
+        if not isinstance(x, list) and not isinstance(x, tuple):
+            new_args.append([x] * list_len)
+        else:
+            new_args.append(x)
+
+    return list(zip(*new_args))
+    
+def convert_indices(indices, *args):
+    """ 
+    convert 1d indices to a tuple of for ndarray index
+    args specify the size of the first len(args) dimensions
+    e.g.
+    x = np.array([[['a0', 'b0'], ['c0', 'd0']],
+                [['a1', 'b1'], ['c1', 'd1']]])
+    print(x.shape)
+    >>> (2, 2, 2)
+    indices = np.random.randint(7, size=5)
+    print(indices)
+    >>> [6 6 0 3 1]
+    indices = convert_shape(indices, *x.shape)
+    print(indices)
+    >>> (array([1, 1, 0, 0, 0]), array([1, 1, 0, 1, 0]), array([0, 0, 0, 1, 1]))
+    print(x[indices])
+    >>> array(['b0', 'c1', 'b1', 'a1', 'c0'])
+    """
+    res = []
+    v = indices
+    for i in range(1, len(args)):
+        prod = np.prod(args[i:])
+        res.append(v // prod)
+        v = v % prod
+    res.append(v)
+
+    return tuple(res)

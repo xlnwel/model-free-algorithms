@@ -94,7 +94,7 @@ class SoftPolicy(Module):
             self.orig_action = self.action_distribution.sample()
             self.orig_logpi = self.action_distribution.logp(self.orig_action)
 
-            action, logpi, action_det = squash_correction(orig_action, orig_logpi, action_det)
+            action, logpi, action_det = squash_correction(self.orig_action, self.orig_logpi, action_det)
             
         return action, logpi, action_det
 

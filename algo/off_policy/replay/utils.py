@@ -3,14 +3,14 @@ import numpy as np
 from utility.debug_tools import assert_colorize
 
 
-def init_buffer(buffer, capacity, state_space, action_dim, has_priority, extra_state=0):
+def init_buffer(buffer, capacity, state_shape, action_dim, has_priority, extra_state=0):
     state_dtype = np.float16
     action_shape = (capacity, ) if action_dim == 1 else (capacity, action_dim)
     action_dtype = np.int8 if action_dim == 1 else np.float16
 
     target_buffer = {'priority': np.zeros((capacity, 1))} if has_priority else {}
     target_buffer.update({
-        'state': np.zeros((capacity + extra_state, *state_space), dtype=state_dtype),
+        'state': np.zeros((capacity + extra_state, *state_shape), dtype=state_dtype),
         'action': np.zeros(action_shape, dtype=action_dtype),
         'reward': np.zeros((capacity, 1), dtype=np.float16),
         'done': np.zeros((capacity, 1), dtype=np.bool),

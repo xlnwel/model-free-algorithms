@@ -1,7 +1,7 @@
 import random
 import numpy as np
 
-from env.gym_env import create_env
+from env.gym_env import create_gym_env
 
 
 args = dict(
@@ -16,7 +16,7 @@ args = dict(
 class TestClass:
     def test_GymEnv(self):
         args['n_envs'] = 1
-        env = create_env(args)
+        env = create_gym_env(args)
         d = False
         cr = 0
         n = 0
@@ -34,7 +34,7 @@ class TestClass:
     def test_GymEnvVec(self):
         args['n_envs'] = random.randint(5, 10)
         print(args['n_envs'])
-        env = create_env(args)
+        env = create_gym_env(args)
         d = False
         cr = np.zeros(env.n_envs)
         n = np.zeros(env.n_envs)

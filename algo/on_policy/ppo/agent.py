@@ -3,12 +3,12 @@ import numpy as np
 import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
-from env.gym_env import create_env
+from env.gym_env import create_gym_env
 from basic_model.model import Model
 from algo.on_policy.ppo.networks import ActorCritic
 from algo.on_policy.ppo.buffer import PPOBuffer
 from utility.tf_utils import stats_summary
-from utility.utils import pwc
+from utility.display import pwc
 from utility.schedule import PiecewiseSchedule
 
 
@@ -41,11 +41,17 @@ class Agent(Model):
         self.minibatch_idx = 0
 
         # environment info
-        self.env_vec = create_env(env_args)
+        self.env_vec = create_gym_env(env_args)
 
-        self.buffer = PPOBuffer(env_args['n_envs'], self.seq_len, self.n_minibatches,
-                                self.env_vec.state_space, self.env_vec.action_dim, 
-                                self.mask_data or self.mask_loss)
+        self.buffer = PPOBuffer(env_args['n_envs'], 
+                                self.seq_len, 
+                                self.n_minibatches,
+                                self.env_vec.state_shape,
+                                np.float32, 
+                                self.env_vec.action_shape, 
+                                np.float32,
+                                self.mask_data or self.mask_loss,
+                                self.use_lstm)
 
         super().__init__(name, args, 
                          sess_config=sess_config,
@@ -77,7 +83,7 @@ class Agent(Model):
         return env_stats
 
     def act(self, state):
-        state = np.reshape(state, (-1, *self.env_vec.state_space))
+        state = np.reshape(state, (-1, *self.env_vec.state_shape))
         fetches = [self.ac.action, self.ac.V, self.ac.logpi]
         feed_dict = {self.env_phs['state']: state}
         if self.use_lstm:
@@ -89,11 +95,11 @@ class Agent(Model):
         else:
             action, value, logpi = results
 
-        return action, np.squeeze(value), np.squeeze(logpi)
+        return action, value, logpi
 
     def demonstrate(self):
         state = self.env_vec.reset()
-        state = np.reshape(state, (-1, *self.env_vec.state_space))
+        state = np.reshape(state, (-1, *self.env_vec.state_shape))
         if self.use_lstm:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
@@ -107,14 +113,9 @@ class Agent(Model):
         pwc(f'Demonstration score:\t{self.env_vec.get_score()}', 'green')
         pwc(f'Demonstration length:\t{self.env_vec.get_epslen()}', 'green')
 
-    def shuffle_buffer(self):
-        if not self.use_lstm:
-            self.buffer.shuffle()
-
     def optimize(self, epoch_i):
         loss_info_list = []
         for i in range(self.args['n_updates']):
-            self.shuffle_buffer()
             for j in range(self.args['n_minibatches']):
                 loss_info, summary = self._optimize(epoch_i)
 
@@ -144,7 +145,7 @@ class Agent(Model):
 
     """ Implementation """
     def _build_graph(self):
-        self.env_phs = self._setup_env_placeholders(self.env_vec.state_space, self.env_vec.action_dim)
+        self.env_phs = self._setup_env_placeholders(self.env_vec.state_shape, self.env_vec.action_dim)
 
         self.args['ac']['batch_seq_len'] = self.seq_len // self.n_minibatches
         self.ac = ActorCritic('ac', 
@@ -158,11 +159,11 @@ class Agent(Model):
         
         self._log_loss()
 
-    def _setup_env_placeholders(self, state_space, action_dim):
+    def _setup_env_placeholders(self, state_shape, action_dim):
         env_phs = {}
 
         with tf.name_scope('placeholder'):
-            env_phs['state'] = tf.placeholder(tf.float32, shape=[None, *state_space], name='state')
+            env_phs['state'] = tf.placeholder(tf.float32, shape=[None, *state_shape], name='state')
             env_phs['return'] = tf.placeholder(tf.float32, shape=[None, 1], name='return')
             env_phs['value'] = tf.placeholder(tf.float32, shape=[None, 1], name='value')
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
@@ -182,7 +183,7 @@ class Agent(Model):
         if self.use_lstm:
             self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: state})
         
-        for _ in range(self.seq_len):
+        for step in range(self.seq_len):
             action, value, logpi = self.act(state)
             next_state, reward, done, _ = self.env_vec.step(action)
             
@@ -196,7 +197,7 @@ class Agent(Model):
             state = next_state
         
         # add one more ad hoc value so that we can take values[1:] as next state values
-        last_value = np.squeeze(self.sess.run(self.ac.V, feed_dict={self.env_phs['state']: state}))
+        last_value = self.sess.run(self.ac.V, feed_dict={self.env_phs['state']: state})
 
         self.buffer.compute_ret_adv(last_value, self.args['advantage_type'], self.gamma, self.gae_discount)
         
@@ -237,27 +238,27 @@ class Agent(Model):
         
 
     def _get_feeddict(self, timestep=None):
-        get_data = lambda name: self.buffer.get_batch(name, self.minibatch_idx)
+        data = self.buffer.get_batch()
 
         if self.minibatch_idx == 0 and self.use_lstm:
             # set initial state to zeros for every pass of buffer
-            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: get_data('state')})
+            self.last_lstm_state = self.sess.run(self.ac.initial_state, feed_dict={self.env_phs['state']: data['state']})
             
         # construct feed_dict
         feed_dict = {
-            self.env_phs['state']: get_data('state'),
-            self.ac.action: get_data('action'),
-            self.env_phs['return']: get_data('return'),
-            self.env_phs['value']: get_data('value'),
-            self.env_phs['advantage']: get_data('advantage'),
-            self.env_phs['old_logpi']: get_data('old_logpi'),
+            self.env_phs['state']: data['state'],
+            self.ac.action: data['action'],
+            self.env_phs['return']: data['traj_ret'],
+            self.env_phs['value']: data['value'],
+            self.env_phs['advantage']: data['advantage'],
+            self.env_phs['old_logpi']: data['old_logpi'],
             self.env_phs['entropy_coef']: self.entropy_coef
         }
         
         if self.use_lstm:
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
         if self.mask_loss:
-            feed_dict[self.env_phs['mask_loss']] = get_data('mask')
+            feed_dict[self.env_phs['mask_loss']] = data['mask']
 
         return feed_dict
 

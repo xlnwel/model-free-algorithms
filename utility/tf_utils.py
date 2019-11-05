@@ -65,7 +65,7 @@ def norm_activation(x, norm=None, activation=None, training=False, name=None):
             y = activation(y)
         return y
 
-    x = wrap_layer(name, fn)
+    x = wrap_scope(name, fn)
 
     return x
 
@@ -148,7 +148,7 @@ def padding(x, kernel_size, strides, mode='constant', name=None):
     p_w2 = int(((W / strides - 1) * strides - W + k_w) -p_w1)
     return tf.pad(x, [[0, 0], [p_h1, p_h2], [p_w1, p_w2], [0, 0]], mode, name=name)
 
-def wrap_layer(name, layer_imp):
+def wrap_scope(name, layer_imp):
     if name:
         with tf.variable_scope(str(name)):
             x = layer_imp()

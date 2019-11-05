@@ -7,10 +7,10 @@ import tensorflow as tf
 from ray.experimental.tf_utils import TensorFlowVariables
 
 from utility.logger import Logger
-from utility.utils import pwc
+from utility.display import pwc
 from utility.debug_tools import assert_colorize
 from basic_model.model import Model
-from env.gym_env import create_env
+from env.gym_env import create_gym_env
 from algo.off_policy.apex.buffer import LocalBuffer
 from algo.off_policy.replay.uniform_replay import UniformReplay
 from algo.off_policy.replay.proportional_replay import ProportionalPrioritizedReplay
@@ -43,11 +43,11 @@ class OffPolicyOperation(Model, ABC):
         # environment info
         env_args['gamma'] = self.gamma
         env_args['seed'] += 100
-        self.eval_env = create_env(env_args)
+        self.eval_env = create_gym_env(env_args)
         env_args['seed'] -= 100
         env_args['log_video'] = False
-        self.train_env = create_env(env_args)
-        self.state_space = self.train_env.state_space
+        self.train_env = create_gym_env(env_args)
+        self.state_shape = self.train_env.state_shape
         self.action_dim = self.train_env.action_dim
 
         # replay buffer hyperparameters
@@ -56,11 +56,11 @@ class OffPolicyOperation(Model, ABC):
         buffer_args['batch_size'] = args['batch_size']
         self.buffer_type = buffer_args['type']
         if self.buffer_type == 'proportional':
-            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_space, self.action_dim)
+            self.buffer = ProportionalPrioritizedReplay(buffer_args, self.state_shape, self.action_dim)
         elif self.buffer_type == 'uniform':
-            self.buffer = UniformReplay(buffer_args, self.state_space, self.action_dim)
+            self.buffer = UniformReplay(buffer_args, self.state_shape, self.action_dim)
         elif self.buffer_type == 'local':
-            self.buffer = LocalBuffer(buffer_args, self.state_space, self.action_dim)
+            self.buffer = LocalBuffer(buffer_args, self.state_shape, self.action_dim)
         else:
             raise NotImplementedError('No buffer is constructed')
         
@@ -97,7 +97,7 @@ class OffPolicyOperation(Model, ABC):
         self.buffer.merge(buffer, length)
 
     def act(self, state, deterministic=False):
-        state = state.reshape((-1, *self.state_space))
+        state = state.reshape((-1, *self.state_shape))
         action_tf = self.action_det if deterministic else self.action
         action = self.sess.run(action_tf, feed_dict={self.data['state']: state})
         
@@ -167,10 +167,10 @@ class OffPolicyOperation(Model, ABC):
         with tf.name_scope('data'):
             sample_types = (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32)
             sample_shapes = (
-                (None, *self.state_space),
+                (None, *self.state_shape),
                 (None, self.action_dim),
                 (None, 1),
-                (None, *self.state_space),
+                (None, *self.state_shape),
                 (None, 1),
                 (None, 1)
             )

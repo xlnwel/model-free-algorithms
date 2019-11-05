@@ -9,8 +9,8 @@ from algo.off_policy.replay.utils import init_buffer, add_buffer, copy_buffer
 
 class PrioritizedReplay(Replay):
     """ Interface """
-    def __init__(self, args, state_space, action_dim):
-        super().__init__(args, state_space, action_dim)
+    def __init__(self, args, state_shape, action_dim):
+        super().__init__(args, state_shape, action_dim)
         self.data_structure = None            
 
         # params for prioritized replay
@@ -25,7 +25,7 @@ class PrioritizedReplay(Replay):
 
         self.sample_i = 0   # count how many times self.sample is called
 
-        init_buffer(self.memory, self.capacity, state_space, action_dim, self.n_steps == 1)
+        init_buffer(self.memory, self.capacity, state_shape, action_dim, self.n_steps == 1)
 
         # Code for single agent
         if self.n_steps > 1:
@@ -33,7 +33,7 @@ class PrioritizedReplay(Replay):
             self.tb_idx = 0
             self.tb_full = False
             self.tb = {}
-            init_buffer(self.tb, self.tb_capacity, state_space, action_dim, True)
+            init_buffer(self.tb, self.tb_capacity, state_shape, action_dim, True)
 
     @override(Replay)
     def sample(self):

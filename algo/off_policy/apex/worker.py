@@ -4,7 +4,7 @@ from collections import deque
 import numpy as np
 import ray
 
-from utility.utils import pwc
+from utility.display import pwc
 from utility.schedule import PiecewiseSchedule
 
 

@@ -1,10 +1,12 @@
 import os, atexit, time
+from collections import defaultdict
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
 
-from utility.utils import pwc
-from utility.debug_tools import assert_colorize, display_var_info
+from utility.utils import isscalar
+from utility.tf_utils import wrap_scope
+from utility.display import assert_colorize, pwc, display_var_info
 from utility.logger import Logger
 from basic_model.layer import Layer
 
@@ -85,10 +87,11 @@ class Module(Layer):
         raise NotImplementedError
         
     def _optimization_op(self, loss, tvars=None, opt_step=None, schedule_lr=False, name=None):
-        with tf.variable_scope((name or self.name) + '_optimizer'):
-            optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr, name=name)
-            grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
-            opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
+        with tf.device('/CPU:0'):
+            with tf.variable_scope((name or self.name) + '_optimizer'):
+                optimizer, learning_rate, opt_step = self._adam_optimizer(opt_step=opt_step, schedule_lr=schedule_lr, name=name)
+                grads_and_vars = self._compute_gradients(loss, optimizer, tvars=tvars)
+                opt_op = self._apply_gradients(optimizer, grads_and_vars, opt_step)
 
         return optimizer, learning_rate, opt_step, grads_and_vars, opt_op
 
@@ -218,13 +221,9 @@ class Model(Module):
         if self.log_tensorboard:
             self.graph_summary= self._setup_tensorboard_summary()
         
-        # The following stats are not in self._build_graph to avoid being included in self.graph_summary
-        if log_stats:
-            self.stats = self._setup_stats_logs(args['env_stats'])
-
         if log_tensorboard or log_stats:
             self.writer = self._setup_writer(log_dir)
-            
+
         self.sess.run(tf.variables_initializer(self.global_variables))
 
         if save:
@@ -250,31 +249,35 @@ class Model(Module):
         if not hasattr(self, 'saver'):
             self.saver = self._setup_saver()
         try:
-            if os.path.isdir(self.model_file):
-                ckpt = tf.train.get_checkpoint_state(self.model_file)
-                self.saver.restore(self.sess, ckpt.model_checkpoint_path)
-            else:
-                self.saver.restore(self.sess, self.model_file)
+            ckpt = tf.train.latest_checkpoint(self.model_file)
+            self.saver.restore(self.sess, ckpt)
         except:
-            pwc(f'Model {self.model_name}: No saved model for "{self.name}" is found. \nStart Training from Scratch!',
+            pwc(f'Model {self.model_name}: no saved model for "{self.name}" is found at "{self.model_file}"!',
                 'magenta')
+            import sys
+            sys.exit()
         else:
-            pwc(f"Model {self.model_name}: Params for {self.name} are restored.", 'magenta')
+            pwc(f'Model {self.model_name}: Params for {self.name} are restored from "{self.model_file}".', 'magenta')
 
-    def save(self, print_terminal_info=True):
+    def save(self, step=None, message=''):
         if hasattr(self, 'saver'):
-            if print_terminal_info:
-                pwc('Model saved', 'magenta')
-            return self.saver.save(self.sess, self.model_file)
+            path = self.saver.save(self.sess, self.model_file, global_step=step)
+            if message:
+                message = f'\n{message}'
+            pwc(f'Model saved at {path}{message}', 'magenta')
         else:
-            # no intention to treat no saver as an error, just print a warning message
-            pwc('No saver is available', 'magenta')
+            # name intention to treat name saver as an error, just print a warning message
+            pwc('name saver is available', 'magenta')
 
-    def record_stats(self, **kwargs):
-        self._record_stats_impl(kwargs)
+    def record_stats(self, kwargs):
+        assert isinstance(kwargs, dict)
+        self._record_stats_impl(kwargs.copy())
 
     def store(self, **kwargs):
         self.logger.store(**kwargs)
+
+    def get_stored_stats(self):
+        return self.logger.get_stats()
 
     def log_tabular(self, key, value=None, mean=True, std=False, min=False, max=False):
         self.logger.log_tabular(key, value, mean, std, min, max)
@@ -287,7 +290,7 @@ class Model(Module):
         
     """ Implementation """
     def _setup_saver(self):
-        return tf.train.Saver(self.global_variables)
+        return tf.compat.v1.train.Saver(self.global_variables)
 
     def _setup_logger(self, log_dir, model_name):
         return Logger(log_dir, exp_name=model_name)
@@ -313,55 +316,61 @@ class Model(Module):
 
         return graph_summary
 
-    def _setup_stats_logs(self, env_stats):
-        times = env_stats['times'] if 'times' in env_stats else 1
-        stats_info = env_stats['stats']
-        stats = [{} for _ in range(times)]
+    def _setup_stats_logs(self, stats_info, name=None):
+        """
+        stats_info are not in self._build_graph to avoid being included in self.graph_summary
+        """
+        def setup():
+            stats = {}
+            stats['counter'] = counter = tf.Variable(0, trainable=False, name='counter')
+            step_op = tf.assign(counter, counter + 1, name='counter_update')
+            merge_inputs = []
+            for info in stats_info:
+                stats[info] = info_ph = tf.placeholder(tf.float32, name=info)
+                stats[f'{info}_log'] = log = tf.compat.v1.summary.scalar(f'{info}_', info_ph)
+                merge_inputs.append(log)
+            
+            with tf.control_dependencies([step_op]):
+                stats['log_op'] = tf.summary.merge(merge_inputs, name='log_op')
 
+            self.sess.run(tf.variables_initializer([counter]))
+
+            return stats
+
+        """ Function Body """
         with self.graph.as_default():
             with tf.variable_scope('stats'):
-                for i in range(times):
-                    # stats logs for each worker
-                    with tf.variable_scope(f'worker_{i}'):
-                        stats[i]['counter'] = counter = tf.Variable(0, trainable=False, name='counter')
-                        stats[i]['step_op'] = step_op = tf.assign(counter, counter + 1, name='counter_update')
-
-                        merge_inputs = []
-                        for info in stats_info:
-                            stats[i][info] = info_ph = tf.placeholder(tf.float32, name=info)
-                            stats[i][f'{info}_log'] = log = tf.compat.v1.summary.scalar(f'{info}_', info_ph)
-                            merge_inputs.append(log)
-                        
-                        with tf.control_dependencies([step_op]):
-                            stats[i]['log_op'] = tf.summary.merge(merge_inputs, name='log_op')
-
-        return stats
+                # stats logs for each worker
+                return wrap_scope(name, lambda: setup())
 
     def _record_stats_impl(self, kwargs):
-        if 'worker_no' not in kwargs:
-            assert_colorize(len(self.stats) == 1, 'Specify worker_no for multi-worker logs')
-            no = 0
-        else:
-            no = kwargs['worker_no']
-            del kwargs['worker_no']
-
-        # if step appeas in kwargs, use it when adding summary to tensorboard
+        # if step appears in kwargs, use it when adding summary to tensorboard
         if 'steps' in kwargs:
             step = kwargs['steps']
             del kwargs['steps']
+        elif 'Steps' in kwargs:
+            step = kwargs['Steps']
+            del kwargs['Steps']
         else:
             step = None
 
+        name = kwargs['name'] if 'name' in kwargs else None
+        kwargs = dict([(k, v) for k, v in kwargs.items() if isscalar(v)])
+
+        if not hasattr(self, 'stats'):
+            if name is None:
+                self.stats = stats = self._setup_stats_logs(kwargs.keys())
+            else:
+                self.stats = defaultdict(dict)
+                self.stats[name] = stats = self._setup_stats_logs(kwargs.keys(), name)
+        else:
+            stats = self.stats[name] if name else self.stats
+
         feed_dict = {}
 
-        for k, v in kwargs.items():
-            assert_colorize(k in self.stats[no], f'{k} is not a valid stats type')
-            feed_dict.update({self.stats[no][k]: v})
+        [feed_dict.update({stats[k]: v}) for k, v in kwargs.items() if isscalar(v)]
 
-        score_count, summary = self.sess.run([self.stats[no]['counter'], self.stats[no]['log_op']], 
+        score_count, summary = self.sess.run([stats['counter'], stats['log_op']], 
                                             feed_dict=feed_dict)
 
         self.writer.add_summary(summary, step or score_count)
-
-    def _time_to_save(self, train_steps, interval=100):
-        return train_steps % interval == 0

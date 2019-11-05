@@ -7,7 +7,8 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 
-from utility import utils
+from utility.utils import set_global_seed
+from utility.display import pwc
 from utility.tf_utils import get_sess_config
 from utility.debug_tools import timeit
 from algo.off_policy.apex.buffer import LocalBuffer
@@ -59,11 +60,11 @@ def train(agent, buffer, n_epochs, render):
     eval_scores = deque(maxlen=eval_interval)
     eval_epslens = deque(maxlen=eval_interval)
 
-    utils.pwc(f'Initialize replay buffer')
+    pwc(f'Initialize replay buffer')
     while not agent.good_to_learn:
         collect_data(agent, buffer, random_action=True)
     
-    utils.pwc(f'Training starts')
+    pwc(f'Training starts')
     for episode_i in range(1, n_epochs + 1):
         score, epslen = collect_data(agent, buffer)
         train_step += epslen
@@ -102,7 +103,7 @@ def train(agent, buffer, n_epochs, render):
 
 def main(env_args, agent_args, buffer_args, render=False):
     # print terminal information if main is running in the main thread
-    utils.set_global_seed()
+    set_global_seed()
 
     algorithm = agent_args['algorithm']
     if algorithm == 'td3':
@@ -125,11 +126,11 @@ def main(env_args, agent_args, buffer_args, render=False):
     if agent_args['episodic_learning']:
         # local buffer, only used to store a single episode of transitions
         buffer_args['local_capacity'] = env_args['max_episode_steps']
-        buffer = LocalBuffer(buffer_args, agent.state_space, agent.action_dim)
+        buffer = LocalBuffer(buffer_args, agent.state_shape, agent.action_dim)
     else:
         buffer = None
 
     model = agent_args['model_name']
-    utils.pwc(f'Model {model} starts training')
+    pwc(f'Model {model} starts training')
     
     train(agent, buffer, agent_args['n_epochs'], render)
