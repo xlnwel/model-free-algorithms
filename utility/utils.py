@@ -15,17 +15,10 @@ def to_int(s):
 def isscalar(x):
     return isinstance(x, (int, float))
     
-def standardize(x, axis=None, epsilon=1e-8, mask=None):
-    """
-    axis specifies the first K dimensions of x if provided
-    """
-    assert_colorize(axis is None or np.all(axis == np.arange(len(axis))),  
-                    f'axis must specify the first K dimensions of x if provided'
-                    f'but gives {axis}')
+def moments(x, mask=None):
     if mask is None:
-        x_mean = np.mean(x, axis)
-        x_std = np.std(x, axis)
-        x = (x - x_mean) / (x_std + epsilon)
+        x_mean = np.mean(x)
+        x_std = np.std(x)
     else:
         # expand mask to match the dimensionality of x
         while len(mask.shape) < len(x.shape):
@@ -38,14 +31,22 @@ def standardize(x, axis=None, epsilon=1e-8, mask=None):
                         f'{i}th dimension of mask{mask.shape[i]} does not match'
                         f'that of x{x.shape[i]}')
             else:
-                if axis is None or i in axis:
-                    n *= x.shape[i]
+                n *= x.shape[i]
         # compute x_mean and x_std from entries in x corresponding to True in mask
         x_mask = x * mask
-        x_mean = np.sum(x_mask, axis) / n
-        x_std = np.sqrt(np.sum(mask * (x_mask - x_mean)**2, axis) / n)
-        x = mask * (x - x_mean) / (x_std + epsilon)
-
+        x_mean = np.sum(x_mask) / n
+        x_std = np.sqrt(np.sum(mask * (x_mask - x_mean)**2) / n)
+    
+    return x_mean, x_std
+    
+def standardize(x, epsilon=1e-8, mask=None):
+    if mask is not None:
+        while len(mask.shape) < len(x.shape):
+            mask = mask[..., None]
+    x_mean, x_std = moments(x, mask)
+    x = (x - x_mean) / (x_std + epsilon)
+    if mask is not None:
+        x *= mask
     return x
 
 def str2bool(v):

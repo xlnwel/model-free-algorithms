@@ -62,7 +62,7 @@ class ActorCritic(Module):
         self.logpi = self.action_distribution.logp(tf.stop_gradient(self.action))
 
         # losses
-        self.ppo_loss, self.entropy, self.approx_kl, self.clipfrac, self.policy_loss, self.V_loss = self._loss()
+        self.ppo_loss, self.policy_loss, self.V_loss, self.entropy, self.approx_kl, self.p_clip_frac, self.v_clip_frac = self._loss()
 
         # optimizer
         schedule_policy_lr = 'schedule_policy_lr' in self.args and self.args['schedule_policy_lr']
@@ -162,11 +162,11 @@ class ActorCritic(Module):
                                 self.env_phs['advantage'], self.clip_range, 
                                 self.action_distribution.entropy(), 
                                 self.env_phs['mask_loss'], n)
-            ppo_loss_, entropy, approx_kl, clipfrac = loss_info
-            V_loss = self.args['value_coef'] * clipped_value_loss(self.V, self.env_phs['return'], 
-                                                                self.env_phs['value'], self.clip_range, 
-                                                                self.env_phs['mask_loss'], n)
-            
-            policy_loss = ppo_loss_ - self.env_phs['entropy_coef'] * entropy + self.args['kl_coef'] * approx_kl
+            pg_loss, entropy, approx_kl, p_clip_frac = loss_info
+            V_loss, v_clip_frac = clipped_value_loss(self.V, self.env_phs['return'], 
+                                                    self.env_phs['value'], self.clip_range, 
+                                                    self.env_phs['mask_loss'], n)
+            V_loss = self.args['value_coef'] * V_loss
+            policy_loss = pg_loss - self.env_phs['entropy_coef'] * entropy + self.args['kl_coef'] * approx_kl
 
-        return ppo_loss_, entropy, approx_kl, clipfrac, policy_loss, V_loss
+        return pg_loss, policy_loss, V_loss, entropy, approx_kl, p_clip_frac, v_clip_frac

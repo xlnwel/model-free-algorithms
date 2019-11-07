@@ -4,7 +4,7 @@ import numpy as np
 
 from utility import utils
 from algo.on_policy.ppo.agent import Agent
-
+import ray
 
 def train(agent, agent_args, test_agent):
     for i in range(1, agent_args['n_epochs'] + 1):
@@ -23,12 +23,13 @@ def train(agent, agent_args, test_agent):
         
         # data logging
         loss_info = list(zip(*loss_info_list))
-        ppo_loss, entropy, approx_kl, clip_frac, value_loss = loss_info
+        ppo_loss, entropy, approx_kl, p_clip_frac, v_clip_frac, value_loss = loss_info
 
         ppo_loss = np.mean(ppo_loss)
         entropy = np.mean(entropy)
         approx_kl = np.mean(approx_kl)
-        clip_frac = np.mean(clip_frac)
+        p_clip_frac = np.mean(p_clip_frac)
+        v_clip_frac = np.mean(v_clip_frac)
         value_loss = np.mean(value_loss)
 
         log_info = {
@@ -43,7 +44,8 @@ def train(agent, agent_args, test_agent):
             'ValueLoss': value_loss,
             'Entropy': entropy,
             'ApproxKL': approx_kl,
-            'ClipFrac': clip_frac
+            'PClipFrac': p_clip_frac,
+            'VClipFrac': v_clip_frac
         }
         agent.record_stats(log_info)
         [agent.log_tabular(k, v) for k, v in log_info.items()]
@@ -55,9 +57,11 @@ def train(agent, agent_args, test_agent):
 def main(env_args, agent_args, buffer_args, render=False):
     utils.set_global_seed()
 
+    if env_args.get('n_workers', 0) > 1:
+        ray.init()
     agent_name = 'Agent'
     agent = Agent(agent_name, agent_args, env_args, 
-                  save=False, log=True, log_tensorboard=False, 
+                  save=False, log=True, log_tensorboard=True, 
                   log_params=False, log_stats=True, device='/gpu:0')
 
     test_agent = None
