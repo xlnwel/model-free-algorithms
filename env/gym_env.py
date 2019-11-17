@@ -18,7 +18,7 @@ def action_dist_type(env):
         raise NotImplementedError
 
 
-class AbstractBase:
+class EnvBase:
     @property
     def is_action_discrete(self):
         return self.env.is_action_discrete
@@ -48,7 +48,7 @@ class AbstractBase:
         return self.env.action_dim
 
 
-class GymEnv(AbstractBase):
+class GymEnv(EnvBase):
     def __init__(self, args):
         env = gym.make(args['name'])
         env.seed(args.get('seed', 42))
@@ -56,7 +56,7 @@ class GymEnv(AbstractBase):
         if self.max_episode_steps != env.spec.max_episode_steps:
             env = TimeLimit(env, self.max_episode_steps)
         if 'log_video' in args and args['log_video']:
-            pwc(f'video will be logged at {args["video_path"]}', 'cyan')
+            pwc(f'video will be logged at {args["video_path"]}', color='cyan')
             env = gym.wrappers.Monitor(env, args['video_path'], force=True)
     
         self.env = env = EnvStats(env)
@@ -92,9 +92,10 @@ class GymEnv(AbstractBase):
         return self.env.get_epslen()
 
 
-class GymEnvVecBase(AbstractBase):
+class GymEnvVecBase(EnvBase):
     def __init__(self, args):
         self.n_envs = n_envs = args['n_envs']
+
         envs = [gym.make(args['name']) for i in range(n_envs)]
         [env.seed(args['seed'] + i) for i, env in enumerate(envs)]
         # print(args['seed'])
@@ -133,7 +134,7 @@ class GymEnvVecBase(AbstractBase):
         return np.asarray([env.get_epslen() for env in self.envs])
 
 
-class GymEnvVec(AbstractBase):
+class GymEnvVec(EnvBase):
     def __init__(self, EnvType, args):
         self.n_workers= args['n_workers']
         self.envsperworker = args['n_envs']
@@ -145,6 +146,7 @@ class GymEnvVec(AbstractBase):
                     for i in range(self.n_workers)]
 
         self.env = GymEnv(args)
+        self.max_episode_steps = self.env.max_episode_steps
 
     def reset(self):
         return np.reshape(ray.get([env.reset.remote() for env in self.envs]), 
@@ -189,10 +191,9 @@ def create_gym_env(args):
 if __name__ == '__main__':
     # test efficiency
     default_args = dict(
-        name='Pendulum-v0', # Pendulum-v0, CartPole-v0
+        name='BipedalWalker-v2', # Pendulum-v0, CartPole-v0
         video_path='video',
         log_video=False,
-        max_episode_steps=1000,
         n_workers=8,
         n_envs=8,
         seed=0
@@ -206,7 +207,7 @@ if __name__ == '__main__':
     actions = envvec.random_action()
     with Timer(f'envvec {n} workers'):
         states = envvec.reset()
-        for _ in range(1000):
+        for _ in range(envvec.max_episode_steps):
             states, rewards, dones, _ = envvec.step(actions)
             states = np.asarray(states)
             rewards = np.asarray(rewards)
@@ -222,9 +223,10 @@ if __name__ == '__main__':
     actions = envs.random_action()
     with Timer('envvecbase'):
         states = envs.reset()
-        for _ in range(1000):
+        for _ in range(envs.max_episode_steps):
             states, rewards, dones, _ = envs.step(actions)
             states = np.asarray(states)
             rewards = np.asarray(rewards)
             dones = np.asarray(dones)
+    print(envs.get_epslen())
     

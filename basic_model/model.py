@@ -273,6 +273,16 @@ class Model(Module):
         assert isinstance(kwargs, dict)
         self._record_stats_impl(kwargs.copy())
 
+    def log_stats(self, step, timing):
+        stats = dict(
+            model_name=f'{self.name}',
+            timing=timing,
+            steps=f'{step}'
+        )
+        stats.update(self.get_stored_stats())
+        [self.log_tabular(k, v) for k, v in stats.items()]
+        self.dump_tabular()
+
     def store(self, **kwargs):
         self.logger.store(**kwargs)
 
@@ -293,7 +303,7 @@ class Model(Module):
         return tf.compat.v1.train.Saver(self.global_variables)
 
     def _setup_logger(self, log_dir, model_name):
-        return Logger(log_dir, exp_name=model_name)
+        return Logger(log_dir, model_name)
 
     def _setup_writer(self, writer_dir):
         writer = tf.summary.FileWriter(writer_dir, self.graph)

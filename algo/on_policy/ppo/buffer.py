@@ -2,22 +2,17 @@ import numpy as np
 from copy import deepcopy
 
 from utility.display import assert_colorize, pwc
-from utility.utils import moments, standardize, convert_indices
+from utility.utils import moments, standardize
 
 
 class PPOBuffer(dict):
-    def __init__(self, n_envs, epslen, n_minibatches, state_shape, state_dtype, action_shape, action_dtype, mask, use_lstm):
+    def __init__(self, n_envs, epslen, n_minibatches, state_shape, state_dtype, action_shape, action_dtype):
         self.n_envs = n_envs
         self.epslen = epslen
         self.n_minibatches = n_minibatches
-        self.use_lstm = use_lstm
-        if use_lstm:
-            self.indices = np.arange(self.n_envs)
-            self.minibatch_size = (self.n_envs) // self.n_minibatches
-        else:
-            raise NotImplementedError("code has been modified and no longer supports random read for non-lstm networks")
-        assert_colorize(epslen // n_minibatches * n_minibatches == epslen, 
-            f'Epslen{epslen} is not divisible by #minibatches{n_minibatches}')
+
+        self.indices = np.arange(self.n_envs)
+        self.minibatch_size = (self.n_envs) // self.n_minibatches
         
         assert_colorize(n_envs // n_minibatches * n_minibatches == n_envs, 
             f'#envs({n_envs}) is not divisible by #minibatches{n_minibatches}')
@@ -57,12 +52,9 @@ class PPOBuffer(dict):
         self.batch_idx = (self.batch_idx + 1) % self.n_minibatches
 
         keys = ['state', 'action', 'traj_ret', 'value', 'advantage', 'old_logpi', 'mask']
-        if self.use_lstm:
-            return {k: self[k][self.indices[start:end], :self.idx].reshape((self.minibatch_size * self.idx, *self[k].shape[2:])) for k in keys}
-        else:
-            indices = convert_indices(self.indices[start:end], *self.basic_shape)
-            return {k: self[k][indices].reshape((self.minibatch_size, *self[k].shape[2:])) for k in keys}
-        
+
+        return {k: self[k][self.indices[start:end], :self.idx].reshape((self.minibatch_size * self.idx, *self[k].shape[2:])) for k in keys}
+
     def finish(self, last_value, adv_type, gamma, gae_discount):
         self['value'][:, self.idx] = last_value
         self['mask'][:, self.idx:] = 0
@@ -102,4 +94,3 @@ class PPOBuffer(dict):
         self.idx = 0
         self.batch_idx = 0
         self.ready = False      # whether the buffer is ready to be read
-

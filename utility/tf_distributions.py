@@ -48,8 +48,7 @@ class Distribution():
 class Categorical(Distribution):
     def __init__(self, logits):
         self.logits = logits
-        self.tau = tf.get_variable('softmax_tau', [])
-        tf.compat.v1.summary.scalar('softmax_tau', self.tau)
+        self.tau = tf.Variable(0, name='softmax_tau')
 
     def _neglogp(self, x):
         if len(x.shape.as_list()) == len(self.logits.shape.as_list()) and x.shape.as_list()[-1] != 1:
@@ -111,11 +110,12 @@ class DiagGaussian(Distribution):
                                   + ((x - self.mean) / (self.std + EPSILON))**2, 
                                   axis=-1, keepdims=True)
 
-    def _sample(self):
-        return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
+    def _sample(self, reparameterize=True):
+        # TODO: implement sampling without reparameterization
+        return self.mean + self.std * tf.random.normal(tf.shape(self.mean))
 
     def _entropy(self):
-        return tf.reduce_sum(.5 * np.log(2. * np.pi) + self.logstd + .5, axis=-1, keepdims=True)
+        return tf.reduce_sum(.5 * np.log(2. * np.pi) + self.logstd + .5, axis=-1)
 
     def _kl(self, other):
         return tf.reduce_sum(other.logstd - self.logstd - .5

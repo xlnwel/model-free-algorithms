@@ -30,10 +30,7 @@ class Agent(Model):
         # hyperparameters
         self.gamma = args['gamma']
         self.gae_discount = self.gamma * args['lam']
-        self.seq_len = args['seq_len']
         self.n_minibatches = args['n_minibatches']
-        self.mask_data = args['mask_data']
-        self.mask_loss = args['mask_loss']
 
         self.use_lstm = args['ac']['use_lstm']
         self.entropy_coef = args['ac']['entropy_coef']
@@ -42,6 +39,7 @@ class Agent(Model):
 
         # environment info
         self.env_vec = create_gym_env(env_args)
+        self.seq_len = self.env_vec.max_episode_steps
 
         self.buffer = PPOBuffer(env_args['n_workers'] * env_args['n_envs'], 
                                 self.seq_len, 
@@ -49,9 +47,7 @@ class Agent(Model):
                                 self.env_vec.state_shape,
                                 np.float32, 
                                 self.env_vec.action_shape, 
-                                np.float32,
-                                self.mask_data or self.mask_loss,
-                                self.use_lstm)
+                                np.float32)
 
         super().__init__(name, args, 
                          sess_config=sess_config,
@@ -169,11 +165,8 @@ class Agent(Model):
             env_phs['advantage'] = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
             env_phs['old_logpi'] = tf.placeholder(tf.float32, shape=[None, 1], name='old_logpi')
             env_phs['entropy_coef'] = tf.placeholder(tf.float32, shape=None, name='entropy_coef')
-            if self.mask_loss:
-                env_phs['mask_loss'] = tf.placeholder(tf.float32, shape=[None, 1], name='mask_loss')
-            else:
-                env_phs['mask_loss'] = None
-        
+            env_phs['mask'] = tf.placeholder(tf.float32, shape=[None, 1], name='mask')
+            
         return env_phs
 
     def _sample_data(self):
@@ -186,13 +179,14 @@ class Agent(Model):
         for step in range(self.seq_len):
             action, value, logpi = self.act(state)
             next_state, reward, done, _ = self.env_vec.step(action)
-            
-            data = dict(state=state, action=action, reward=reward, value=value, old_logpi=logpi, nonterminal=1-np.asarray(done))
-            if self.mask_data or self.mask_loss:
-                mask = self.env_vec.get_mask()
-                data['mask'] = mask
 
-            self.buffer.add(**data)
+            self.buffer.add(state=state, 
+                            action=action, 
+                            reward=reward, 
+                            value=value,
+                            old_logpi=logpi, 
+                            nonterminal=1-done,
+                            mask=self.env_vec.get_mask())
 
             state = next_state
 
@@ -210,8 +204,7 @@ class Agent(Model):
         # construct policy fetches
         policy_fetches = [self.ac.policy_optop, 
                           [self.ac.ppo_loss, self.ac.entropy, 
-                           self.ac.approx_kl, self.ac.p_clip_frac, 
-                           self.ac.v_clip_frac]]
+                           self.ac.approx_kl, self.ac.p_clip_frac]]
         if self.use_lstm:
             policy_fetches.append(self.ac.final_state)
         if self.log_tensorboard:
@@ -231,11 +224,11 @@ class Agent(Model):
         else:
             _, loss_info = results
 
-        v_fetches = [self.ac.v_optop, self.ac.V_loss]
+        v_fetches = [self.ac.v_optop, [self.ac.V_loss, self.ac.v_clip_frac]]
         for _ in range(self.n_value_updates):
-            _, v_loss = self.sess.run(v_fetches, feed_dict=feed_dict)
+            _, v_loss_info = self.sess.run(v_fetches, feed_dict=feed_dict)
         
-        loss_info.append(v_loss)
+        loss_info += v_loss_info
         self.minibatch_idx = (self.minibatch_idx + 1) % self.n_minibatches
 
         return loss_info, summary
@@ -261,34 +254,26 @@ class Agent(Model):
         
         if self.use_lstm:
             feed_dict.update({k: v for k, v in zip(self.ac.initial_state, self.last_lstm_state)})
-        if self.mask_loss:
-            feed_dict[self.env_phs['mask_loss']] = data['mask']
+
+        feed_dict[self.env_phs['mask']] = data['mask']
 
         return feed_dict
 
     def _log_info(self):
         if self.log_tensorboard:
             with tf.name_scope('info'):
-                with tf.name_scope('loss'):
-                    tf.compat.v1.summary.scalar('ppo_loss_', self.ac.ppo_loss)
-                    tf.compat.v1.summary.scalar('entropy_', self.ac.entropy)
-                    tf.compat.v1.summary.scalar('V_loss_', self.ac.V_loss)
-
                 with tf.name_scope('value'):
                     stats_summary('V', self.ac.V)
                     stats_summary('advantage', self.env_phs['advantage'])
                     stats_summary('return', self.env_phs['return'])
                     
-                    stats_summary('V_mask', self.ac.V * self.env_phs['mask_loss'], hist=True)
-                    stats_summary('advantage_mask', self.env_phs['advantage']* self.env_phs['mask_loss'])
-                    stats_summary('return_mask', self.env_phs['return']* self.env_phs['mask_loss'])
+                    stats_summary('V_mask', self.ac.V * self.env_phs['mask'], hist=True)
+                    stats_summary('advantage_mask', self.env_phs['advantage']* self.env_phs['mask'])
+                    stats_summary('return_mask', self.env_phs['return']* self.env_phs['mask'])
 
-                    stats_summary('mask', self.env_phs['mask_loss'])
+                    stats_summary('mask', self.env_phs['mask'])
 
                 with tf.name_scope('policy'):
                     stats_summary('mean_', self.ac.action_distribution.mean)
                     stats_summary('std_', self.ac.action_distribution.std)
                 
-                with tf.name_scope('clip_frac'):
-                    tf.compat.v1.summary.scalar('p_clip_frac', self.ac.p_clip_frac)
-                    tf.compat.v1.summary.scalar('v_clip_frac', self.ac.v_clip_frac)

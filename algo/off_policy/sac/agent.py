@@ -195,7 +195,6 @@ class Agent(OffPolicyOperation):
                 with tf.name_scope('actor'):
                     stats_summary('orig_action', self.actor.orig_action)
                     stats_summary('entropy', self.actor.action_distribution.entropy())
-                    tf.compat.v1.summary.scalar('entropy_0', self.actor.action_distribution.entropy()[0][0])
                     stats_summary('action_std', self.actor.action_distribution.std)
                     stats_summary('orig_logpi', self.actor.orig_logpi)
                     tf.compat.v1.summary.scalar('orig_logpi_0', self.actor.orig_logpi[0][0])

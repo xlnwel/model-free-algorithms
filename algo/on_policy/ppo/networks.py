@@ -58,9 +58,11 @@ class ActorCritic(Module):
                 self.final_state = [*self.actor_final_state, *self.critic_final_state]
 
         self.action_distribution = action_dist_type(self.env_vec)(actor_output)
-        self.action = self.action_distribution.sample()
+        action = self.action_distribution.sample()
         self.logpi = self.action_distribution.logp(tf.stop_gradient(self.action))
-
+        self.action = tf.tanh(self.action)
+        sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1, keepdims=True)
+        self.logpi -= sub
         # losses
         self.ppo_loss, self.policy_loss, self.V_loss, self.entropy, self.approx_kl, self.p_clip_frac, self.v_clip_frac = self._loss()
 
@@ -153,19 +155,16 @@ class ActorCritic(Module):
     """ Losses """
     def _loss(self):
         with tf.name_scope('loss'):
-            if self.env_phs['mask_loss'] is None:
-                n = None
-            else:
-                n = tf.reduce_sum(self.env_phs['mask_loss'], name='num_true_entries')   # the number of True entries in mask
+            n = tf.reduce_sum(self.env_phs['mask'], name='num_true_entries')   # the number of True entries in mask
 
             loss_info = ppo_loss(self.logpi, self.env_phs['old_logpi'], 
                                 self.env_phs['advantage'], self.clip_range, 
                                 self.action_distribution.entropy(), 
-                                self.env_phs['mask_loss'], n)
+                                self.env_phs['mask'], n)
             pg_loss, entropy, approx_kl, p_clip_frac = loss_info
             V_loss, v_clip_frac = clipped_value_loss(self.V, self.env_phs['return'], 
                                                     self.env_phs['value'], self.clip_range, 
-                                                    self.env_phs['mask_loss'], n)
+                                                    self.env_phs['mask'], n)
             V_loss = self.args['value_coef'] * V_loss
             policy_loss = pg_loss - self.env_phs['entropy_coef'] * entropy + self.args['kl_coef'] * approx_kl
 

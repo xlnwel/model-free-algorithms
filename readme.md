@@ -2,7 +2,7 @@ If you have any improvements and suggestions, or bump into some mistakes, welcom
 
 ## Algorithms Implemented
 
-Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo)
+Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo).
 
 - [x] TD3       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/td3)]
 - [x] SAC       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/sac)]

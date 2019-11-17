@@ -6,7 +6,7 @@ def reduce_mean(x, name, n):
         return tf.reduce_mean(x) if n is None else tf.reduce_sum(x) / n
 
 def ppo_loss(logpi, old_logpi, advantages, clip_range, entropy, mask=None, n=None):
-    assert (mask is None) == (n is None), f'Both/Neither mask and n should be None, but get \nmask:{mask}\nn:{n}'
+    assert (mask is None) == (n is None), f'Both/Neither mask and/nor n should be None, but get \nmask:{mask}\nn:{n}'
 
     with tf.name_scope('ppo_loss'):
         ratio = tf.exp(logpi - old_logpi, name='ratio')
@@ -25,7 +25,7 @@ def ppo_loss(logpi, old_logpi, advantages, clip_range, entropy, mask=None, n=Non
     return pg_loss, entropy, approx_kl, clip_frac
 
 def clipped_value_loss(value, traj_ret, old_value, clip_range, mask=None, n=None):
-    assert (mask is None) == (n is None), f'Both/Neither mask and n should be None, but get \nmask:{mask}\nn:{n}'
+    assert (mask is None) == (n is None), f'Both/Neither mask and/nor n should be None, but get \nmask:{mask}\nn:{n}'
 
     with tf.name_scope('clipped_value_loss'):
         value_clipped = old_value + tf.clip_by_value(value - old_value, -clip_range, clip_range)

@@ -5,7 +5,6 @@ Reference code:
 homework of Berkeley cs294-112 
 http://rail.eecs.berkeley.edu/deeprlcourse/
 
-Adapted by S.C.
 
 """
 import os.path as osp
@@ -13,13 +12,13 @@ import os, time, atexit
 from collections import defaultdict
 import numpy as np
 
-from utility.display import pwc
+from utility.utils import isscalar
+from utility.display import pwc, assert_colorize
 from utility.yaml_op import save_args
-from utility.debug_tools import assert_colorize
 
 
 class Logger:
-    def __init__(self, log_dir, log_file='log.txt', exp_name=None):
+    def __init__(self, log_dir, log_file='log.txt'):
         """
         Initialize a Logger.
 
@@ -38,7 +37,7 @@ class Logger:
                 hyperparameter configuration with multiple random seeds, you
                 should give them all the same ``exp_name``.)
         """
-        log_file = log_file if log_file.endswith('.txt') else log_file + '.txt'
+        log_file = log_file if log_file.endswith('log.txt') else log_file + '-log.txt'
         self.log_dir = log_dir or f"/tmp/experiments/{time.time()}"
         if osp.exists(self.log_dir):
             print(f"Warning: Log dir {self.log_dir} already exists! Storing info there anyway.")
@@ -46,27 +45,56 @@ class Logger:
             os.makedirs(self.log_dir)
         self.output_file = open(osp.join(self.log_dir, log_file), 'w')
         atexit.register(self.output_file.close)
-        pwc("Logging data to %s"%self.output_file.name, 'green', bold=True)
+        pwc("Logging data to %s"%self.output_file.name, color='green', bold=True)
 
         self.first_row=True
         self.log_headers = []
         self.log_current_row = {}
         self.store_dict = defaultdict(list)
-        self.exp_name = exp_name
 
     def save_args(self, args, log_file='args.yaml'):
         save_args(args, filename=f'{self.log_dir}/{log_file}')
-
-    def log(self, msg, color='green'):
-        """Print a colorized message to stdout."""
-        pwc(msg, color, bold=True)
 
     def store(self, **kwargs):
         for k, v in kwargs.items():
             self.store_dict[k].append(v)
 
-    def get_stats(self):
-        return self.store_dict
+    def get(self, key, mean=True, std=False, min=False, max=False):
+        stats = {}
+        v = self.store_dict[key]
+        if isscalar(v):
+            stats[key] = v
+            return
+        if mean:
+            stats[f'{key}'] = np.mean(v)
+        if std:
+            stats[f'{key}_std'] = np.std(v)
+        if min:
+            stats[f'{key}_min'] = np.min(v)
+        if max:
+            stats[f'{key}_max'] = np.max(v)
+        del self.store_dict[key]
+        return stats
+        
+    def get_stats(self, mean=True, std=False, min=False, max=False):
+        stats = {} 
+        for k, v in self.store_dict.items():
+            if isscalar(v):
+                stats[k] = v
+                continue
+            if mean:
+                stats[f'{k}'] = np.mean(v)
+            if std:
+                stats[f'{k}_std'] = np.std(v)
+            if min:
+                stats[f'{k}_min'] = np.min(v)
+            if max:
+                stats[f'{k}_max'] = np.max(v)
+        return stats
+
+    def get_count(self, name):
+        assert_colorize(name in self.store_dict)
+        return len(self.store_dict[name])
 
     def _log_tabular(self, key, val):
         """
@@ -91,15 +119,15 @@ class Logger:
         if val is not None:
             self._log_tabular(key, val)
         else:
-            v = np.asarray(self.epoch_dict[key])
+            v = np.asarray(self.store_dict[key])
             if mean:
-                self._log_tabular(f'{key}Mean', np.mean(v))
+                self._log_tabular(f'{key}_mean', np.mean(v))
             if std:
-                self._log_tabular(f'{key}Std', np.std(v))
+                self._log_tabular(f'{key}_std', np.std(v))
             if min:
-                self._log_tabular(f'{key}Min', np.min(v))
+                self._log_tabular(f'{key}_min', np.min(v))
             if max:
-                self._log_tabular(f'{key}Max', np.max(v))
+                self._log_tabular(f'{key}_max', np.max(v))
         self.store_dict[key] = []
 
     def dump_tabular(self, print_terminal_info=False):
@@ -126,4 +154,5 @@ class Logger:
             self.output_file.write("\t".join(map(str,vals))+"\n")
             self.output_file.flush()
         self.log_current_row.clear()
+        self.store_dict.clear()
         self.first_row=False
