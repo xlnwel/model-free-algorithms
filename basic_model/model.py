@@ -101,8 +101,6 @@ class Module(Layer):
             learning_rate = float(self.args['learning_rate']) if name is None else float(self.args[f'{name}_lr'])
             decay_rate = float(self.args['decay_rate']) if 'decay_rate' in self.args else 1.
             decay_steps = float(self.args['decay_steps']) if 'decay_steps' in self.args else 1e6
-        beta1 = float(self.args['beta1']) if 'beta1' in self.args else 0.9
-        beta2 = float(self.args['beta2']) if 'beta2' in self.args else 0.999
         epsilon = float(self.args['epsilon']) if 'epsilon' in self.args else 1e-8
 
         # setup optimizer
@@ -117,7 +115,12 @@ class Module(Layer):
             learning_rate = tf.train.exponential_decay(learning_rate, opt_step, decay_steps, decay_rate, staircase=True)
         if self.log_tensorboard and not isinstance(learning_rate, float):
             tf.compat.v1.summary.scalar('learning_rate_', learning_rate)
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon)
+        OptimizerType = self.args.get('optimizer', 'adam')
+        if OptimizerType == 'adam':
+            OptimizerType = tf.train.AdamOptimizer
+        elif OptimizerType == 'rmsprop':
+            OptimizerType = tf.train.RMSPropOptimizer
+        optimizer = OptimizerType(learning_rate=learning_rate, epsilon=epsilon)
 
         return optimizer, learning_rate, opt_step
 
