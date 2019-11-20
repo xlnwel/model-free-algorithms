@@ -58,10 +58,10 @@ class ActorCritic(Module):
                 self.final_state = [*self.actor_final_state, *self.critic_final_state]
 
         self.action_distribution = action_dist_type(self.env_vec)(actor_output)
-        action = self.action_distribution.sample()
-        self.logpi = self.action_distribution.logp(tf.stop_gradient(self.action))
-        self.action = tf.tanh(self.action)
-        sub = 2 * tf.reduce_sum(tf.log(2.) + action - tf.nn.softplus(2 * action), axis=1, keepdims=True)
+        raw_action = self.action_distribution.sample()
+        self.logpi = self.action_distribution.logp(tf.stop_gradient(raw_action))
+        self.action = tf.tanh(raw_action)
+        sub = 2 * tf.reduce_sum(tf.log(2.) + raw_action - tf.nn.softplus(2 * raw_action), axis=1, keepdims=True)
         self.logpi -= sub
         # losses
         self.ppo_loss, self.policy_loss, self.V_loss, self.entropy, self.approx_kl, self.p_clip_frac, self.v_clip_frac = self._loss()
