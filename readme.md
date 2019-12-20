@@ -1,7 +1,3 @@
-**Due to some historical reasons, this repository is a little messy and will probably stay it that way. But you can find each part following the links below. **
-
-A well-structured codebase written in TF2 is released [here](https://github.com/xlnwel/drl).
-
 ## Algorithms Implemented
 
 Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo). An optimized PPO written in TF2 can be found [here](https://github.com/xlnwel/drl)
