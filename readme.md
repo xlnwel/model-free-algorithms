@@ -17,8 +17,16 @@ Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algori
 
 ## Overall Architecture
 
+This repository is designed to represent a nice TF graph, which is useful for debugging.
+
 <p align="center">
-<img src="/results/Architecture.png" alt="Architectureg" height="650">
+<img src="/results/Architecture.png" alt="Architecture" height="650">
+</p>
+
+A typical graph looks like this:
+
+<p align="center">
+<img src="/results/TFGraph.png" alt="TFGraph" height="650">
 </p>
 
 ## Notes
