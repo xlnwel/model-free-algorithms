@@ -1,3 +1,7 @@
+**Status.** Archive (code is provided as-is, no updates expected)
+
+**Note.** Please refer to my [new repo](https://github.com/xlnwel/d2rl) for reinforcement learning algorithms in TF2.x
+
 ## Algorithms Implemented
 
 Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algorithms/tree/master/algo).
