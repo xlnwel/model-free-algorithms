@@ -1,3 +1,5 @@
+
+
 **Status.** Archive (code is provided as-is, no updates expected)
 
 **Note.** Please refer to my [new repo](https://github.com/xlnwel/d2rl) for reinforcement learning algorithms in TF2.x
@@ -13,7 +15,7 @@ Algorithms are implemented in [algo](https://github.com/xlnwel/model-free-algori
 - [x] Apex      [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/apex)]
 - [x] Noisy Nets[[code](https://github.com/xlnwel/model-free-algorithms/blob/b471f32c1ecc15632da097cf150bc8999a314aa9/basic_model/layer.py#L193)]
 - [x] PER       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/replay)]
-- [x] MultiStep [[code]](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/replay)]
+- [x] MultiStep [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/off_policy/replay)]
 - [x] PPO       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
 - [x] A2C       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/a2c)]
 - [x] GAE       [[code](https://github.com/xlnwel/model-free-algorithms/tree/master/algo/on_policy/ppo)]
